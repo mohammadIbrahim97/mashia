@@ -6,6 +6,8 @@ import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import redisConfig from './config/redis.config';
 import s3Config from './config/s3.config';
+import { RedisModule } from './shared/redis/redis.module';
+import { SmsModule } from './shared/sms/sms.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { ListingsModule } from './modules/listings/listings.module';
@@ -35,6 +37,8 @@ import { AdminModule } from './modules/admin/admin.module';
       }),
     }),
     EventEmitterModule.forRoot(),
+    RedisModule,
+    SmsModule,
     AuthModule,
     UsersModule,
     ListingsModule,

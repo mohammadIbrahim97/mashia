@@ -1,0 +1,114 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { UsersService } from './users.service';
+import { User } from './user.entity';
+import { UserRole, KycStatus, PreferredLanguage } from '@shared/enums';
+
+describe('UsersService', () => {
+  let service: UsersService;
+  let repository: jest.Mocked<Repository<User>>;
+
+  const mockUser: Partial<User> = {
+    id: '550e8400-e29b-41d4-a716-446655440000',
+    role: UserRole.BUYER,
+    fullName: 'Ahmad Ali',
+    phone: '+966501234567',
+    email: null,
+    country: 'SA',
+    city: 'Riyadh',
+    kycStatus: KycStatus.PENDING,
+    kycDocuments: null,
+    preferredLanguage: PreferredLanguage.AR,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  beforeEach(async () => {
+    const mockRepository = {
+      create: jest.fn(),
+      save: jest.fn(),
+      findOne: jest.fn(),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UsersService,
+        {
+          provide: getRepositoryToken(User),
+          useValue: mockRepository,
+        },
+      ],
+    }).compile();
+
+    service = module.get<UsersService>(UsersService);
+    repository = module.get(getRepositoryToken(User));
+  });
+
+  describe('create', () => {
+    it('should create and save a user', async () => {
+      repository.create.mockReturnValue(mockUser as User);
+      repository.save.mockResolvedValue(mockUser as User);
+
+      const result = await service.create({
+        role: UserRole.BUYER,
+        fullName: 'Ahmad Ali',
+        phone: '+966501234567',
+        country: 'SA',
+        city: 'Riyadh',
+      });
+
+      expect(repository.create).toHaveBeenCalledWith({
+        role: UserRole.BUYER,
+        fullName: 'Ahmad Ali',
+        phone: '+966501234567',
+        country: 'SA',
+        city: 'Riyadh',
+      });
+      expect(repository.save).toHaveBeenCalledWith(mockUser);
+      expect(result).toEqual(mockUser);
+    });
+  });
+
+  describe('findByPhone', () => {
+    it('should return a user when found', async () => {
+      repository.findOne.mockResolvedValue(mockUser as User);
+
+      const result = await service.findByPhone('+966501234567');
+
+      expect(repository.findOne).toHaveBeenCalledWith({
+        where: { phone: '+966501234567' },
+      });
+      expect(result).toEqual(mockUser);
+    });
+
+    it('should return null when not found', async () => {
+      repository.findOne.mockResolvedValue(null);
+
+      const result = await service.findByPhone('+000000000000');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('findById', () => {
+    it('should return a user when found', async () => {
+      repository.findOne.mockResolvedValue(mockUser as User);
+
+      const result = await service.findById('550e8400-e29b-41d4-a716-446655440000');
+
+      expect(repository.findOne).toHaveBeenCalledWith({
+        where: { id: '550e8400-e29b-41d4-a716-446655440000' },
+      });
+      expect(result).toEqual(mockUser);
+    });
+
+    it('should return null when not found', async () => {
+      repository.findOne.mockResolvedValue(null);
+
+      const result = await service.findById('nonexistent-id');
+
+      expect(result).toBeNull();
+    });
+  });
+});
