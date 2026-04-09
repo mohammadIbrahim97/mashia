@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
@@ -7,6 +7,7 @@ import { OtpService } from './otp.service';
 import { UsersService } from '../users/users.service';
 import { UserRole, KycStatus, PreferredLanguage } from '@shared/enums';
 import { User } from '../users/user.entity';
+import { REDIS_CLIENT } from '@shared/redis/redis.constants';
 
 describe('AuthService', () => {
   let authService: AuthService;
@@ -14,6 +15,7 @@ describe('AuthService', () => {
   let usersService: jest.Mocked<UsersService>;
   let jwtService: jest.Mocked<JwtService>;
   let configService: jest.Mocked<ConfigService>;
+  let mockRedis: Record<string, jest.Mock>;
 
   const mockUser: User = {
     id: '550e8400-e29b-41d4-a716-446655440000',
@@ -31,6 +33,11 @@ describe('AuthService', () => {
   };
 
   beforeEach(async () => {
+    mockRedis = {
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue('OK'),
+    };
+
     otpService = {
       generateAndSend: jest.fn().mockResolvedValue(undefined),
       verify: jest.fn().mockResolvedValue(true),
@@ -65,6 +72,7 @@ describe('AuthService', () => {
         { provide: UsersService, useValue: usersService },
         { provide: JwtService, useValue: jwtService },
         { provide: ConfigService, useValue: configService },
+        { provide: REDIS_CLIENT, useValue: mockRedis },
       ],
     }).compile();
 
@@ -159,7 +167,7 @@ describe('AuthService', () => {
       await authService.register(registerDto);
 
       expect(jwtService.sign).toHaveBeenCalledWith(
-        { sub: mockUser.id, phone: mockUser.phone, role: mockUser.role },
+        { sub: mockUser.id, phone: mockUser.phone, role: mockUser.role, jti: expect.any(String) },
         { secret: 'test-refresh-secret', expiresIn: '7d' },
       );
     });
@@ -202,6 +210,134 @@ describe('AuthService', () => {
         email: 'ahmad@example.com',
         preferredLanguage: PreferredLanguage.EN,
       });
+    });
+  });
+
+  describe('login', () => {
+    it('should verify OTP, find existing user, and return tokens', async () => {
+      usersService.findByPhone.mockResolvedValue(mockUser);
+      jwtService.sign
+        .mockReturnValueOnce('access-token')
+        .mockReturnValueOnce('refresh-token');
+
+      const result = await authService.login('+966501234567', '123456');
+
+      expect(otpService.verify).toHaveBeenCalledWith('+966501234567', '123456');
+      expect(usersService.findByPhone).toHaveBeenCalledWith('+966501234567');
+      expect(result.accessToken).toBe('access-token');
+      expect(result.refreshToken).toBe('refresh-token');
+      expect(result.user).toEqual(mockUser);
+    });
+
+    it('should throw NotFoundException when phone not registered', async () => {
+      usersService.findByPhone.mockResolvedValue(null);
+
+      await expect(authService.login('+966501234567', '123456')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(jwtService.sign).not.toHaveBeenCalled();
+    });
+
+    it('should propagate OTP errors before user lookup', async () => {
+      otpService.verify.mockRejectedValue(new Error('OTP expired'));
+
+      await expect(authService.login('+966501234567', '123456')).rejects.toThrow(
+        'OTP expired',
+      );
+      expect(usersService.findByPhone).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('refresh', () => {
+    const validPayload = {
+      sub: '550e8400-e29b-41d4-a716-446655440000',
+      phone: '+966501234567',
+      role: 'buyer',
+      jti: 'test-jti-uuid',
+      exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
+    };
+
+    it('should verify token, blacklist old jti, and return new tokens', async () => {
+      jwtService.verify = jest.fn().mockReturnValue(validPayload);
+      mockRedis.get.mockResolvedValue(null); // not blacklisted
+      usersService.findById.mockResolvedValue(mockUser);
+      jwtService.sign
+        .mockReturnValueOnce('new-access-token')
+        .mockReturnValueOnce('new-refresh-token');
+
+      const result = await authService.refresh('old-refresh-token');
+
+      expect(jwtService.verify).toHaveBeenCalledWith('old-refresh-token', {
+        secret: 'test-refresh-secret',
+      });
+      expect(mockRedis.get).toHaveBeenCalledWith('rt_blacklist:test-jti-uuid');
+      expect(usersService.findById).toHaveBeenCalledWith(validPayload.sub);
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        'rt_blacklist:test-jti-uuid',
+        '1',
+        'EX',
+        expect.any(Number),
+      );
+      expect(result.accessToken).toBe('new-access-token');
+      expect(result.refreshToken).toBe('new-refresh-token');
+    });
+
+    it('should throw UnauthorizedException for expired token', async () => {
+      const error = new Error('jwt expired');
+      error.name = 'TokenExpiredError';
+      jwtService.verify = jest.fn().mockImplementation(() => { throw error; });
+
+      await expect(authService.refresh('expired-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('should throw UnauthorizedException for malformed token', async () => {
+      const error = new Error('jwt malformed');
+      error.name = 'JsonWebTokenError';
+      jwtService.verify = jest.fn().mockImplementation(() => { throw error; });
+
+      await expect(authService.refresh('bad-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('should throw UnauthorizedException for blacklisted token', async () => {
+      jwtService.verify = jest.fn().mockReturnValue(validPayload);
+      mockRedis.get.mockResolvedValue('1'); // blacklisted
+
+      await expect(authService.refresh('used-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(usersService.findById).not.toHaveBeenCalled();
+    });
+
+    it('should throw UnauthorizedException when user no longer exists', async () => {
+      jwtService.verify = jest.fn().mockReturnValue(validPayload);
+      mockRedis.get.mockResolvedValue(null);
+      usersService.findById.mockResolvedValue(null);
+
+      await expect(authService.refresh('orphan-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(mockRedis.set).not.toHaveBeenCalled();
+    });
+
+    it('should set blacklist TTL to remaining seconds until token expiry', async () => {
+      const nowSec = Math.floor(Date.now() / 1000);
+      const payloadWithKnownExp = { ...validPayload, exp: nowSec + 5000 };
+      jwtService.verify = jest.fn().mockReturnValue(payloadWithKnownExp);
+      mockRedis.get.mockResolvedValue(null);
+      usersService.findById.mockResolvedValue(mockUser);
+      jwtService.sign.mockReturnValue('token');
+
+      await authService.refresh('some-token');
+
+      const setCall = mockRedis.set.mock.calls[0];
+      const ttl = setCall[3]; // 4th arg is the TTL
+      // TTL should be approximately 5000 (±2 sec for test execution)
+      expect(ttl).toBeGreaterThanOrEqual(4998);
+      expect(ttl).toBeLessThanOrEqual(5000);
     });
   });
 });
