@@ -7,9 +7,11 @@ import databaseConfig from './config/database.config';
 import redisConfig from './config/redis.config';
 import s3Config from './config/s3.config';
 import { RedisModule } from './shared/redis/redis.module';
+import { S3Module } from './shared/s3/s3.module';
 import { SmsModule } from './shared/sms/sms.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { KycModule } from './modules/kyc/kyc.module';
 import { ListingsModule } from './modules/listings/listings.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { PaymentsModule } from './modules/payments/payments.module';
@@ -38,9 +40,11 @@ import { AdminModule } from './modules/admin/admin.module';
     }),
     EventEmitterModule.forRoot(),
     RedisModule,
+    S3Module,
     SmsModule,
     AuthModule,
     UsersModule,
+    KycModule,
     ListingsModule,
     OrdersModule,
     PaymentsModule,

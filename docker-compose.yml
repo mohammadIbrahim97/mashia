@@ -27,5 +27,23 @@ services:
       timeout: 5s
       retries: 5
 
+  localstack:
+    image: localstack/localstack:3.0
+    container_name: mashia-localstack
+    ports:
+      - '4566:4566'
+    environment:
+      - SERVICES=s3
+      - DEFAULT_REGION=me-south-1
+      - PERSISTENCE=1
+    volumes:
+      - localstack-data:/var/lib/localstack
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://localhost:4566/_localstack/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
   pgdata:
+  localstack-data:
