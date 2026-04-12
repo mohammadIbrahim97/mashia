@@ -29,6 +29,7 @@ describe('UsersService', () => {
       create: jest.fn(),
       save: jest.fn(),
       findOne: jest.fn(),
+      update: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -109,6 +110,45 @@ describe('UsersService', () => {
       const result = await service.findById('nonexistent-id');
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe('updateProfile', () => {
+    it('should update fields and return updated user', async () => {
+      const updatedUser = {
+        ...mockUser,
+        fullName: 'Ahmad Updated',
+        city: 'Jeddah',
+      };
+      repository.update.mockResolvedValue({ affected: 1 } as any);
+      repository.findOne.mockResolvedValue(updatedUser as User);
+
+      const result = await service.updateProfile(
+        '550e8400-e29b-41d4-a716-446655440000',
+        { fullName: 'Ahmad Updated', city: 'Jeddah' },
+      );
+
+      expect(repository.update).toHaveBeenCalledWith(
+        '550e8400-e29b-41d4-a716-446655440000',
+        { fullName: 'Ahmad Updated', city: 'Jeddah' },
+      );
+      expect(result).toEqual(updatedUser);
+    });
+
+    it('should handle empty dto as no-op and return current user', async () => {
+      repository.update.mockResolvedValue({ affected: 0 } as any);
+      repository.findOne.mockResolvedValue(mockUser as User);
+
+      const result = await service.updateProfile(
+        '550e8400-e29b-41d4-a716-446655440000',
+        {},
+      );
+
+      expect(repository.update).toHaveBeenCalledWith(
+        '550e8400-e29b-41d4-a716-446655440000',
+        {},
+      );
+      expect(result).toEqual(mockUser);
     });
   });
 });

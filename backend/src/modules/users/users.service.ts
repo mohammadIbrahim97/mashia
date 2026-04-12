@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
 import { KycStatus } from '@shared/enums';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class UsersService {
@@ -33,5 +34,10 @@ export class UsersService {
       kycDocuments: documents,
       kycStatus: status,
     });
+  }
+
+  async updateProfile(userId: string, dto: UpdateProfileDto): Promise<User> {
+    await this.usersRepository.update(userId, dto);
+    return this.findById(userId) as Promise<User>;
   }
 }
