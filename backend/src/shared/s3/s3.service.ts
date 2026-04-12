@@ -60,6 +60,20 @@ export class S3Service implements OnModuleInit {
     return getSignedUrl(this.client, command, { expiresIn: expiresInSeconds });
   }
 
+  async getSignedUploadUrl(
+    key: string,
+    contentType: string,
+    expiresInSeconds: number,
+  ): Promise<string> {
+    const command = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      ContentType: contentType,
+      ServerSideEncryption: 'AES256',
+    });
+    return getSignedUrl(this.client, command, { expiresIn: expiresInSeconds });
+  }
+
   async ensureBucketExists(): Promise<void> {
     try {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));

@@ -109,4 +109,18 @@ describe('S3Service', () => {
       expect(createCalls).toHaveLength(0);
     });
   });
+
+  describe('getSignedUploadUrl', () => {
+    it('should return a presigned PUT URL with content type and SSE', async () => {
+      const url = await service.getSignedUploadUrl(
+        'listings/user1/img-abc.jpg',
+        'image/jpeg',
+        300,
+      );
+
+      expect(typeof url).toBe('string');
+      expect(url).toMatch(/listings.*img-abc\.jpg/);
+      expect(url).toContain('X-Amz-Signature');
+    });
+  });
 });
