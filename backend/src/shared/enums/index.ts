@@ -44,3 +44,14 @@ export enum HealthStatus {
   PENDING = 'pending',
   UNCHECKED = 'unchecked',
 }
+
+export enum OrderStatus {
+  PENDING = 'pending',
+  ACCEPTED = 'accepted',
+  PAID = 'paid',
+  IN_TRANSIT = 'in_transit',
+  DELIVERED = 'delivered',
+  COMPLETED = 'completed',
+  DISPUTED = 'disputed',
+  CANCELLED = 'cancelled',
+}
