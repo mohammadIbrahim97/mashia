@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
 import { User } from '../users/user.entity';
@@ -12,6 +12,7 @@ import {
   UserRole,
 } from '@shared/enums';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
 describe('OrdersController', () => {
   let controller: OrdersController;
@@ -58,6 +59,7 @@ describe('OrdersController', () => {
   beforeEach(async () => {
     const mockService = {
       create: jest.fn(),
+      updateStatus: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -85,6 +87,39 @@ describe('OrdersController', () => {
       await expect(controller.create(buyer, createDto)).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('updateStatus', () => {
+    const orderId = '44444444-4444-4444-4444-444444444444';
+    const dto: UpdateOrderStatusDto = { status: OrderStatus.ACCEPTED };
+
+    const updatedOrder: Partial<Order> = {
+      id: orderId,
+      status: OrderStatus.ACCEPTED,
+    };
+
+    it('calls service.updateStatus with orderId, user.id, dto.status', async () => {
+      service.updateStatus.mockResolvedValue(updatedOrder as Order);
+
+      const result = await controller.updateStatus(orderId, buyer, dto);
+
+      expect(service.updateStatus).toHaveBeenCalledWith(
+        orderId,
+        buyer.id,
+        OrderStatus.ACCEPTED,
+      );
+      expect(result).toEqual(updatedOrder);
+    });
+
+    it('propagates BadRequestException from service', async () => {
+      service.updateStatus.mockRejectedValue(
+        new BadRequestException('Invalid transition'),
+      );
+
+      await expect(
+        controller.updateStatus(orderId, buyer, dto),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

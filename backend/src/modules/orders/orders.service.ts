@@ -58,4 +58,62 @@ export class OrdersService {
     });
     return this.ordersRepository.save(order);
   }
+
+  async updateStatus(
+    orderId: string,
+    userId: string,
+    newStatus: OrderStatus,
+  ): Promise<Order> {
+    const order = await this.ordersRepository.findOne({ where: { id: orderId } });
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const isBuyer = order.buyerId === userId;
+    const isSeller = order.sellerId === userId;
+    if (!isBuyer && !isSeller) {
+      throw new ForbiddenException('Not a party to this order');
+    }
+
+    switch (order.status) {
+      case OrderStatus.PENDING:
+        if (newStatus === OrderStatus.ACCEPTED && isSeller) break;
+        if (newStatus === OrderStatus.CANCELLED) break;
+        throw new BadRequestException(
+          `Invalid transition from PENDING to ${newStatus}`,
+        );
+
+      case OrderStatus.PAID:
+        if (newStatus === OrderStatus.IN_TRANSIT && isSeller) break;
+        if (newStatus === OrderStatus.DISPUTED) break;
+        throw new BadRequestException(
+          `Invalid transition from PAID to ${newStatus}`,
+        );
+
+      case OrderStatus.IN_TRANSIT:
+        if (newStatus === OrderStatus.DELIVERED && isBuyer) break;
+        if (newStatus === OrderStatus.DISPUTED) break;
+        throw new BadRequestException(
+          `Invalid transition from IN_TRANSIT to ${newStatus}`,
+        );
+
+      case OrderStatus.DELIVERED:
+        if (newStatus === OrderStatus.DISPUTED) break;
+        throw new BadRequestException(
+          `Invalid transition from DELIVERED to ${newStatus}`,
+        );
+
+      case OrderStatus.ACCEPTED:
+      case OrderStatus.COMPLETED:
+      case OrderStatus.CANCELLED:
+      case OrderStatus.DISPUTED:
+      default:
+        throw new BadRequestException(
+          `Cannot transition from ${order.status} via this endpoint`,
+        );
+    }
+
+    order.status = newStatus;
+    return this.ordersRepository.save(order);
+  }
 }

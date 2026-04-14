@@ -1,4 +1,12 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { RolesGuard } from '@shared/guards/roles.guard';
 import { KycVerifiedGuard } from '@shared/guards/kyc-verified.guard';
@@ -9,6 +17,7 @@ import { User } from '../users/user.entity';
 import { Order } from './order.entity';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
 @Controller('orders')
 export class OrdersController {
@@ -22,5 +31,15 @@ export class OrdersController {
     @Body() dto: CreateOrderDto,
   ): Promise<Order> {
     return this.ordersService.create(user.id, dto);
+  }
+
+  @Patch(':id/status')
+  @UseGuards(JwtAuthGuard)
+  async updateStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: User,
+    @Body() dto: UpdateOrderStatusDto,
+  ): Promise<Order> {
+    return this.ordersService.updateStatus(id, user.id, dto.status);
   }
 }

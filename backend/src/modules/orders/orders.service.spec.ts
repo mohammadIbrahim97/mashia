@@ -46,6 +46,7 @@ describe('OrdersService', () => {
     const mockOrderRepo = {
       create: jest.fn(),
       save: jest.fn(),
+      findOne: jest.fn(),
     };
     const mockListingRepo = {
       findOne: jest.fn(),
@@ -173,6 +174,215 @@ describe('OrdersService', () => {
         ForbiddenException,
       );
       expect(orderRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateStatus', () => {
+    const orderId = '44444444-4444-4444-4444-444444444444';
+    const otherUserId = '99999999-9999-9999-9999-999999999999';
+
+    const baseOrder: Partial<Order> = {
+      id: orderId,
+      buyerId,
+      sellerId,
+      status: OrderStatus.PENDING,
+    };
+
+    function mockOrderWithStatus(status: OrderStatus): Partial<Order> {
+      return { ...baseOrder, status };
+    }
+
+    beforeEach(() => {
+      orderRepo.save.mockImplementation(async (o) => o as Order);
+    });
+
+    it('allows seller to transition PENDING → ACCEPTED', async () => {
+      orderRepo.findOne.mockResolvedValue(
+        mockOrderWithStatus(OrderStatus.PENDING) as Order,
+      );
+
+      const result = await service.updateStatus(
+        orderId,
+        sellerId,
+        OrderStatus.ACCEPTED,
+      );
+
+      expect(result.status).toBe(OrderStatus.ACCEPTED);
+      expect(orderRepo.save).toHaveBeenCalled();
+    });
+
+    it('allows buyer to transition PENDING → CANCELLED', async () => {
+      orderRepo.findOne.mockResolvedValue(
+        mockOrderWithStatus(OrderStatus.PENDING) as Order,
+      );
+
+      const result = await service.updateStatus(
+        orderId,
+        buyerId,
+        OrderStatus.CANCELLED,
+      );
+
+      expect(result.status).toBe(OrderStatus.CANCELLED);
+    });
+
+    it('allows seller to transition PENDING → CANCELLED', async () => {
+      orderRepo.findOne.mockResolvedValue(
+        mockOrderWithStatus(OrderStatus.PENDING) as Order,
+      );
+
+      const result = await service.updateStatus(
+        orderId,
+        sellerId,
+        OrderStatus.CANCELLED,
+      );
+
+      expect(result.status).toBe(OrderStatus.CANCELLED);
+    });
+
+    it('rejects buyer trying PENDING → ACCEPTED (seller-only)', async () => {
+      orderRepo.findOne.mockResolvedValue(
+        mockOrderWithStatus(OrderStatus.PENDING) as Order,
+      );
+
+      await expect(
+        service.updateStatus(orderId, buyerId, OrderStatus.ACCEPTED),
+      ).rejects.toThrow(BadRequestException);
+      expect(orderRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('allows seller to transition PAID → IN_TRANSIT', async () => {
+      orderRepo.findOne.mockResolvedValue(
+        mockOrderWithStatus(OrderStatus.PAID) as Order,
+      );
+
+      const result = await service.updateStatus(
+        orderId,
+        sellerId,
+        OrderStatus.IN_TRANSIT,
+      );
+
+      expect(result.status).toBe(OrderStatus.IN_TRANSIT);
+    });
+
+    it('rejects buyer trying PAID → IN_TRANSIT (seller-only)', async () => {
+      orderRepo.findOne.mockResolvedValue(
+        mockOrderWithStatus(OrderStatus.PAID) as Order,
+      );
+
+      await expect(
+        service.updateStatus(orderId, buyerId, OrderStatus.IN_TRANSIT),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('allows buyer to transition IN_TRANSIT → DELIVERED', async () => {
+      orderRepo.findOne.mockResolvedValue(
+        mockOrderWithStatus(OrderStatus.IN_TRANSIT) as Order,
+      );
+
+      const result = await service.updateStatus(
+        orderId,
+        buyerId,
+        OrderStatus.DELIVERED,
+      );
+
+      expect(result.status).toBe(OrderStatus.DELIVERED);
+    });
+
+    it('rejects seller trying IN_TRANSIT → DELIVERED (buyer-only)', async () => {
+      orderRepo.findOne.mockResolvedValue(
+        mockOrderWithStatus(OrderStatus.IN_TRANSIT) as Order,
+      );
+
+      await expect(
+        service.updateStatus(orderId, sellerId, OrderStatus.DELIVERED),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('allows buyer to transition PAID → DISPUTED', async () => {
+      orderRepo.findOne.mockResolvedValue(
+        mockOrderWithStatus(OrderStatus.PAID) as Order,
+      );
+
+      const result = await service.updateStatus(
+        orderId,
+        buyerId,
+        OrderStatus.DISPUTED,
+      );
+
+      expect(result.status).toBe(OrderStatus.DISPUTED);
+    });
+
+    it('allows seller to transition DELIVERED → DISPUTED', async () => {
+      orderRepo.findOne.mockResolvedValue(
+        mockOrderWithStatus(OrderStatus.DELIVERED) as Order,
+      );
+
+      const result = await service.updateStatus(
+        orderId,
+        sellerId,
+        OrderStatus.DISPUTED,
+      );
+
+      expect(result.status).toBe(OrderStatus.DISPUTED);
+    });
+
+    it('rejects DISPUTED from PENDING (pre-payment, not disputable)', async () => {
+      orderRepo.findOne.mockResolvedValue(
+        mockOrderWithStatus(OrderStatus.PENDING) as Order,
+      );
+
+      await expect(
+        service.updateStatus(orderId, buyerId, OrderStatus.DISPUTED),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects PENDING → PAID (not a defined transition)', async () => {
+      orderRepo.findOne.mockResolvedValue(
+        mockOrderWithStatus(OrderStatus.PENDING) as Order,
+      );
+
+      await expect(
+        service.updateStatus(orderId, buyerId, OrderStatus.PAID),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws NotFoundException when order does not exist', async () => {
+      orderRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.updateStatus(orderId, buyerId, OrderStatus.CANCELLED),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws ForbiddenException when caller is not buyer or seller', async () => {
+      orderRepo.findOne.mockResolvedValue(
+        mockOrderWithStatus(OrderStatus.PENDING) as Order,
+      );
+
+      await expect(
+        service.updateStatus(orderId, otherUserId, OrderStatus.CANCELLED),
+      ).rejects.toThrow(ForbiddenException);
+      expect(orderRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects any transition from terminal state COMPLETED', async () => {
+      orderRepo.findOne.mockResolvedValue(
+        mockOrderWithStatus(OrderStatus.COMPLETED) as Order,
+      );
+
+      await expect(
+        service.updateStatus(orderId, buyerId, OrderStatus.DISPUTED),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects any transition from terminal state CANCELLED', async () => {
+      orderRepo.findOne.mockResolvedValue(
+        mockOrderWithStatus(OrderStatus.CANCELLED) as Order,
+      );
+
+      await expect(
+        service.updateStatus(orderId, buyerId, OrderStatus.ACCEPTED),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });
