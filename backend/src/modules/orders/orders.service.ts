@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Repository } from 'typeorm';
 import { Order } from './order.entity';
 import { Listing } from '../listings/listing.entity';
@@ -12,6 +13,8 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { ListOrdersQueryDto } from './dto/list-orders-query.dto';
 import { OrderListItemResponse } from './dto/order-list-item.response';
 import { OrderDetailResponse } from './dto/order-detail.response';
+import { OrderCreatedEvent } from './events/order-created.event';
+import { OrderDeliveredEvent } from './events/order-delivered.event';
 import { ListingStatus, OrderStatus } from '@shared/enums';
 
 const DEFAULT_COMMISSION_RATE = 5.0;
@@ -23,6 +26,7 @@ export class OrdersService {
     private readonly ordersRepository: Repository<Order>,
     @InjectRepository(Listing)
     private readonly listingsRepository: Repository<Listing>,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async create(buyerId: string, dto: CreateOrderDto): Promise<Order> {
@@ -59,7 +63,18 @@ export class OrdersService {
       deliveryCity: dto.deliveryCity,
       deliveryAddress: dto.deliveryAddress,
     });
-    return this.ordersRepository.save(order);
+    const saved = await this.ordersRepository.save(order);
+    this.eventEmitter.emit(
+      OrderCreatedEvent.EVENT_NAME,
+      new OrderCreatedEvent(
+        saved.id,
+        saved.buyerId,
+        saved.sellerId,
+        Number(saved.totalPrice),
+        saved.currency,
+      ),
+    );
+    return saved;
   }
 
   async updateStatus(
@@ -117,7 +132,14 @@ export class OrdersService {
     }
 
     order.status = newStatus;
-    return this.ordersRepository.save(order);
+    const saved = await this.ordersRepository.save(order);
+    if (newStatus === OrderStatus.DELIVERED) {
+      this.eventEmitter.emit(
+        OrderDeliveredEvent.EVENT_NAME,
+        new OrderDeliveredEvent(saved.id, saved.buyerId, saved.sellerId),
+      );
+    }
+    return saved;
   }
 
   async findMyOrders(

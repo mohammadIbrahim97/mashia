@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Repository } from 'typeorm';
 import {
   BadRequestException,
@@ -16,6 +17,8 @@ import {
   OrderStatus,
 } from '@shared/enums';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { OrderCreatedEvent } from './events/order-created.event';
+import { OrderDeliveredEvent } from './events/order-delivered.event';
 
 describe('OrdersService', () => {
   let service: OrdersService;
@@ -30,6 +33,7 @@ describe('OrdersService', () => {
     take: jest.Mock;
     getManyAndCount: jest.Mock;
   };
+  let eventEmitter: jest.Mocked<EventEmitter2>;
 
   const buyerId = '11111111-1111-1111-1111-111111111111';
   const sellerId = '22222222-2222-2222-2222-222222222222';
@@ -72,18 +76,23 @@ describe('OrdersService', () => {
     const mockListingRepo = {
       findOne: jest.fn(),
     };
+    const mockEventEmitter = {
+      emit: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OrdersService,
         { provide: getRepositoryToken(Order), useValue: mockOrderRepo },
         { provide: getRepositoryToken(Listing), useValue: mockListingRepo },
+        { provide: EventEmitter2, useValue: mockEventEmitter },
       ],
     }).compile();
 
     service = module.get<OrdersService>(OrdersService);
     orderRepo = module.get(getRepositoryToken(Order));
     listingRepo = module.get(getRepositoryToken(Listing));
+    eventEmitter = module.get(EventEmitter2);
   });
 
   describe('create', () => {
@@ -663,6 +672,76 @@ describe('OrdersService', () => {
       await expect(service.findOne(orderId, otherUserId)).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('event emission', () => {
+    it('emits OrderCreatedEvent after successful order creation', async () => {
+      listingRepo.findOne.mockResolvedValue(activeListing as Listing);
+      orderRepo.create.mockImplementation((data) => data as Order);
+      orderRepo.save.mockImplementation(async (data) => ({
+        ...(data as Order),
+        id: '44444444-4444-4444-4444-444444444444',
+      }));
+
+      await service.create(buyerId, createDto);
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        OrderCreatedEvent.EVENT_NAME,
+        expect.objectContaining({
+          orderId: '44444444-4444-4444-4444-444444444444',
+          buyerId,
+          sellerId,
+          totalPrice: 11500,
+          currency: Currency.SAR,
+        }),
+      );
+    });
+
+    it('does NOT emit OrderCreatedEvent when create fails (self-order forbidden)', async () => {
+      listingRepo.findOne.mockResolvedValue({
+        ...activeListing,
+        sellerId: buyerId,
+      } as Listing);
+
+      await expect(service.create(buyerId, createDto)).rejects.toThrow();
+      expect(eventEmitter.emit).not.toHaveBeenCalled();
+    });
+
+    it('emits OrderDeliveredEvent when updateStatus transitions to DELIVERED (IN_TRANSIT → DELIVERED by buyer)', async () => {
+      const orderId = '44444444-4444-4444-4444-444444444444';
+      orderRepo.findOne.mockResolvedValue({
+        id: orderId,
+        buyerId,
+        sellerId,
+        status: OrderStatus.IN_TRANSIT,
+      } as Order);
+      orderRepo.save.mockImplementation(async (o) => o as Order);
+
+      await service.updateStatus(orderId, buyerId, OrderStatus.DELIVERED);
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        OrderDeliveredEvent.EVENT_NAME,
+        expect.objectContaining({ orderId, buyerId, sellerId }),
+      );
+    });
+
+    it('does NOT emit OrderDeliveredEvent for other successful transitions (PENDING → ACCEPTED)', async () => {
+      const orderId = '44444444-4444-4444-4444-444444444444';
+      orderRepo.findOne.mockResolvedValue({
+        id: orderId,
+        buyerId,
+        sellerId,
+        status: OrderStatus.PENDING,
+      } as Order);
+      orderRepo.save.mockImplementation(async (o) => o as Order);
+
+      await service.updateStatus(orderId, sellerId, OrderStatus.ACCEPTED);
+
+      const deliveredEmits = eventEmitter.emit.mock.calls.filter(
+        ([name]) => name === OrderDeliveredEvent.EVENT_NAME,
+      );
+      expect(deliveredEmits).toHaveLength(0);
     });
   });
 });
