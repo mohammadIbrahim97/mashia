@@ -1,10 +1,12 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
@@ -18,6 +20,8 @@ import { Order } from './order.entity';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
+import { ListOrdersQueryDto } from './dto/list-orders-query.dto';
+import { OrderDetailResponse } from './dto/order-detail.response';
 
 @Controller('orders')
 export class OrdersController {
@@ -41,5 +45,23 @@ export class OrdersController {
     @Body() dto: UpdateOrderStatusDto,
   ): Promise<Order> {
     return this.ordersService.updateStatus(id, user.id, dto.status);
+  }
+
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  async findMyOrders(
+    @CurrentUser() user: User,
+    @Query() query: ListOrdersQueryDto,
+  ) {
+    return this.ordersService.findMyOrders(user.id, query);
+  }
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: User,
+  ): Promise<OrderDetailResponse> {
+    return this.ordersService.findOne(id, user.id);
   }
 }

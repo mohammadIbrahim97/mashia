@@ -9,6 +9,9 @@ import { Repository } from 'typeorm';
 import { Order } from './order.entity';
 import { Listing } from '../listings/listing.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { ListOrdersQueryDto } from './dto/list-orders-query.dto';
+import { OrderListItemResponse } from './dto/order-list-item.response';
+import { OrderDetailResponse } from './dto/order-detail.response';
 import { ListingStatus, OrderStatus } from '@shared/enums';
 
 const DEFAULT_COMMISSION_RATE = 5.0;
@@ -72,7 +75,7 @@ export class OrdersService {
     const isBuyer = order.buyerId === userId;
     const isSeller = order.sellerId === userId;
     if (!isBuyer && !isSeller) {
-      throw new ForbiddenException('Not a party to this order');
+      throw new NotFoundException('Order not found');
     }
 
     switch (order.status) {
@@ -115,5 +118,73 @@ export class OrdersService {
 
     order.status = newStatus;
     return this.ordersRepository.save(order);
+  }
+
+  async findMyOrders(
+    userId: string,
+    query: ListOrdersQueryDto,
+  ): Promise<{
+    items: OrderListItemResponse[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }> {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+
+    const qb = this.ordersRepository
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.listing', 'listing')
+      .leftJoinAndSelect('order.buyer', 'buyer')
+      .leftJoinAndSelect('order.seller', 'seller')
+      .leftJoinAndSelect('order.broker', 'broker')
+      .where(
+        '(order.buyerId = :userId OR order.sellerId = :userId OR order.brokerId = :userId)',
+        { userId },
+      )
+      .orderBy('order.createdAt', 'DESC')
+      .skip((page - 1) * pageSize)
+      .take(pageSize);
+
+    if (query.status && query.status.length > 0) {
+      qb.andWhere('order.status IN (:...statuses)', {
+        statuses: query.status,
+      });
+    }
+
+    const [orders, total] = await qb.getManyAndCount();
+
+    return {
+      items: orders.map((o) => OrderListItemResponse.fromOrder(o, userId)),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  async findOne(
+    orderId: string,
+    userId: string,
+  ): Promise<OrderDetailResponse> {
+    const order = await this.ordersRepository.findOne({
+      where: { id: orderId },
+      relations: ['listing', 'buyer', 'seller', 'broker'],
+    });
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const isParty =
+      order.buyerId === userId ||
+      order.sellerId === userId ||
+      order.brokerId === userId;
+
+    if (!isParty) {
+      throw new NotFoundException('Order not found');
+    }
+
+    return OrderDetailResponse.fromOrder(order, userId);
   }
 }

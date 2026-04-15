@@ -13,6 +13,7 @@ import {
 } from '@shared/enums';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
+import { ListOrdersQueryDto } from './dto/list-orders-query.dto';
 
 describe('OrdersController', () => {
   let controller: OrdersController;
@@ -60,6 +61,8 @@ describe('OrdersController', () => {
     const mockService = {
       create: jest.fn(),
       updateStatus: jest.fn(),
+      findMyOrders: jest.fn(),
+      findOne: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -120,6 +123,48 @@ describe('OrdersController', () => {
       await expect(
         controller.updateStatus(orderId, buyer, dto),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('findMyOrders', () => {
+    const query: ListOrdersQueryDto = {
+      page: 1,
+      pageSize: 20,
+      status: [OrderStatus.PENDING],
+    };
+
+    const serviceResult = {
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 20,
+      totalPages: 0,
+    };
+
+    it('calls service.findMyOrders with (user.id, query) and returns result', async () => {
+      service.findMyOrders.mockResolvedValue(serviceResult);
+
+      const result = await controller.findMyOrders(buyer, query);
+
+      expect(service.findMyOrders).toHaveBeenCalledWith(buyer.id, query);
+      expect(result).toEqual(serviceResult);
+    });
+  });
+
+  describe('findOne', () => {
+    const orderId = '44444444-4444-4444-4444-444444444444';
+    const detailResponse = {
+      id: orderId,
+      myRole: 'buyer' as const,
+    };
+
+    it('calls service.findOne with (id, user.id) and returns result', async () => {
+      service.findOne.mockResolvedValue(detailResponse as never);
+
+      const result = await controller.findOne(orderId, buyer);
+
+      expect(service.findOne).toHaveBeenCalledWith(orderId, buyer.id);
+      expect(result).toEqual(detailResponse);
     });
   });
 });
