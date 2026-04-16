@@ -111,3 +111,18 @@ export async function createOrder(
     }),
   );
 }
+
+export async function createAcceptedOrder(
+  app: INestApplication,
+  buyer: User,
+  seller: User,
+  listingOverrides: Partial<Listing> = {},
+  orderOverrides: Partial<Order> = {},
+): Promise<{ listing: Listing; order: Order }> {
+  const listing = await createListing(app, seller, listingOverrides);
+  const order = await createOrder(app, buyer, seller, listing, {
+    status: OrderStatus.ACCEPTED,
+    ...orderOverrides,
+  });
+  return { listing, order };
+}

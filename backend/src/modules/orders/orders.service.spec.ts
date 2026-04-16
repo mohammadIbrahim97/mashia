@@ -744,4 +744,74 @@ describe('OrdersService', () => {
       expect(deliveredEmits).toHaveLength(0);
     });
   });
+
+  describe('transitionFromPayment', () => {
+    it('moves ACCEPTED → PAID when called from payments module', async () => {
+      const order = {
+        id: 'order-1',
+        buyerId: 'b',
+        sellerId: 's',
+        status: OrderStatus.ACCEPTED,
+      } as Order;
+      orderRepo.findOne.mockResolvedValue(order);
+      orderRepo.save.mockImplementation(async (o) => o as Order);
+
+      const result = await service.transitionFromPayment(
+        'order-1',
+        OrderStatus.PAID,
+      );
+
+      expect(result.status).toBe(OrderStatus.PAID);
+    });
+
+    it('moves DELIVERED → COMPLETED', async () => {
+      const order = {
+        id: 'order-1',
+        status: OrderStatus.DELIVERED,
+      } as Order;
+      orderRepo.findOne.mockResolvedValue(order);
+      orderRepo.save.mockImplementation(async (o) => o as Order);
+
+      const result = await service.transitionFromPayment(
+        'order-1',
+        OrderStatus.COMPLETED,
+      );
+
+      expect(result.status).toBe(OrderStatus.COMPLETED);
+    });
+
+    it('moves DISPUTED → CANCELLED', async () => {
+      const order = {
+        id: 'order-1',
+        status: OrderStatus.DISPUTED,
+      } as Order;
+      orderRepo.findOne.mockResolvedValue(order);
+      orderRepo.save.mockImplementation(async (o) => o as Order);
+
+      const result = await service.transitionFromPayment(
+        'order-1',
+        OrderStatus.CANCELLED,
+      );
+
+      expect(result.status).toBe(OrderStatus.CANCELLED);
+    });
+
+    it('throws NotFoundException when order missing', async () => {
+      orderRepo.findOne.mockResolvedValue(null);
+      await expect(
+        service.transitionFromPayment('missing', OrderStatus.PAID),
+      ).rejects.toThrow('Order not found');
+    });
+
+    it('throws BadRequestException for invalid transition', async () => {
+      const order = {
+        id: 'order-1',
+        status: OrderStatus.PENDING,
+      } as Order;
+      orderRepo.findOne.mockResolvedValue(order);
+      await expect(
+        service.transitionFromPayment('order-1', OrderStatus.PAID),
+      ).rejects.toThrow(/Invalid payment-driven transition/);
+    });
+  });
 });
