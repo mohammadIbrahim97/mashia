@@ -140,4 +140,146 @@ describe('PaymentsService', () => {
       );
     });
   });
+
+  describe('release', () => {
+    const payerId = 'buyer-1';
+    const paymentId = 'pay-1';
+
+    const heldPayment = {
+      id: paymentId,
+      orderId: 'order-1',
+      payerId,
+      sellerAmount: 950,
+      commissionAmount: 50,
+      currency: Currency.SAR,
+      escrowStatus: EscrowStatus.HELD,
+      transactionRef: 'STUB-xyz',
+      releasedAt: null,
+    } as Payment;
+
+    const deliveredOrder = {
+      id: 'order-1',
+      buyerId: payerId,
+      sellerId: 'seller-1',
+      status: OrderStatus.DELIVERED,
+    } as Order;
+
+    it('releases funds, updates payment RELEASED, emits PaymentReleasedEvent', async () => {
+      paymentsRepo.findOne.mockResolvedValue({ ...heldPayment });
+      ordersRepo.findOne.mockResolvedValue(deliveredOrder);
+      escrow.releaseFunds.mockResolvedValue({
+        transactionRef: 'STUB-xyz',
+        status: EscrowStatus.RELEASED,
+      });
+      paymentsRepo.save.mockImplementation(async (p) => p as Payment);
+
+      const result = await service.release(payerId, paymentId);
+
+      expect(result.escrowStatus).toBe(EscrowStatus.RELEASED);
+      expect(result.releasedAt).toBeInstanceOf(Date);
+      expect(emitter.emit).toHaveBeenCalledWith(
+        'payment.released',
+        expect.objectContaining({ paymentId, orderId: 'order-1' }),
+      );
+    });
+
+    it('throws NotFoundException when caller is not the payer', async () => {
+      paymentsRepo.findOne.mockResolvedValue({ ...heldPayment });
+      ordersRepo.findOne.mockResolvedValue(deliveredOrder);
+      await expect(
+        service.release('other-user', paymentId),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws BadRequestException when payment is not HELD', async () => {
+      paymentsRepo.findOne.mockResolvedValue({
+        ...heldPayment,
+        escrowStatus: EscrowStatus.RELEASED,
+      });
+      ordersRepo.findOne.mockResolvedValue(deliveredOrder);
+      await expect(service.release(payerId, paymentId)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('throws BadRequestException when order is not DELIVERED', async () => {
+      paymentsRepo.findOne.mockResolvedValue({ ...heldPayment });
+      ordersRepo.findOne.mockResolvedValue({
+        ...deliveredOrder,
+        status: OrderStatus.PAID,
+      });
+      await expect(service.release(payerId, paymentId)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+  });
+
+  describe('refund', () => {
+    const paymentId = 'pay-1';
+
+    const heldPayment = {
+      id: paymentId,
+      orderId: 'order-1',
+      payerId: 'buyer-1',
+      amount: 1000,
+      currency: Currency.SAR,
+      escrowStatus: EscrowStatus.HELD,
+      transactionRef: 'STUB-xyz',
+      refundedAt: null,
+    } as Payment;
+
+    const disputedOrder = {
+      id: 'order-1',
+      buyerId: 'buyer-1',
+      status: OrderStatus.DISPUTED,
+    } as Order;
+
+    it('refunds, updates payment REFUNDED, emits PaymentRefundedEvent', async () => {
+      paymentsRepo.findOne.mockResolvedValue({ ...heldPayment });
+      ordersRepo.findOne.mockResolvedValue(disputedOrder);
+      escrow.refundFunds.mockResolvedValue({
+        transactionRef: 'STUB-xyz',
+        status: EscrowStatus.REFUNDED,
+      });
+      paymentsRepo.save.mockImplementation(async (p) => p as Payment);
+
+      const result = await service.refund('admin-1', paymentId);
+
+      expect(result.escrowStatus).toBe(EscrowStatus.REFUNDED);
+      expect(result.refundedAt).toBeInstanceOf(Date);
+      expect(emitter.emit).toHaveBeenCalledWith(
+        'payment.refunded',
+        expect.objectContaining({ paymentId, orderId: 'order-1' }),
+      );
+    });
+
+    it('throws NotFoundException when payment missing', async () => {
+      paymentsRepo.findOne.mockResolvedValue(null);
+      await expect(service.refund('admin-1', paymentId)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('throws BadRequestException when payment not HELD', async () => {
+      paymentsRepo.findOne.mockResolvedValue({
+        ...heldPayment,
+        escrowStatus: EscrowStatus.RELEASED,
+      });
+      ordersRepo.findOne.mockResolvedValue(disputedOrder);
+      await expect(service.refund('admin-1', paymentId)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('throws BadRequestException when order not DISPUTED', async () => {
+      paymentsRepo.findOne.mockResolvedValue({ ...heldPayment });
+      ordersRepo.findOne.mockResolvedValue({
+        ...disputedOrder,
+        status: OrderStatus.PAID,
+      });
+      await expect(service.refund('admin-1', paymentId)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+  });
 });

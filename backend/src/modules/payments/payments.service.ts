@@ -13,6 +13,8 @@ import { Order } from '../orders/order.entity';
 import { EscrowService } from './escrow.service';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { PaymentHeldEvent } from './events/payment-held.event';
+import { PaymentReleasedEvent } from './events/payment-released.event';
+import { PaymentRefundedEvent } from './events/payment-refunded.event';
 import { EscrowStatus, OrderStatus } from '@shared/enums';
 
 @Injectable()
@@ -88,6 +90,96 @@ export class PaymentsService {
         order.sellerId,
         Number(saved.sellerAmount),
         Number(saved.commissionAmount),
+        saved.currency,
+      ),
+    );
+
+    return saved;
+  }
+
+  async release(userId: string, paymentId: string): Promise<Payment> {
+    const payment = await this.paymentsRepository.findOne({
+      where: { id: paymentId },
+    });
+    if (!payment || payment.payerId !== userId) {
+      throw new NotFoundException('Payment not found');
+    }
+    if (payment.escrowStatus !== EscrowStatus.HELD) {
+      throw new BadRequestException(
+        `Payment must be HELD to release (current: ${payment.escrowStatus})`,
+      );
+    }
+    const order = await this.ordersRepository.findOne({
+      where: { id: payment.orderId },
+    });
+    if (!order || order.status !== OrderStatus.DELIVERED) {
+      throw new BadRequestException(
+        `Order must be DELIVERED to release payment (current: ${order?.status ?? 'missing'})`,
+      );
+    }
+    return this._doRelease(payment, order.sellerId);
+  }
+
+  async refund(adminId: string, paymentId: string): Promise<Payment> {
+    const payment = await this.paymentsRepository.findOne({
+      where: { id: paymentId },
+    });
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+    if (payment.escrowStatus !== EscrowStatus.HELD) {
+      throw new BadRequestException(
+        `Payment must be HELD to refund (current: ${payment.escrowStatus})`,
+      );
+    }
+    const order = await this.ordersRepository.findOne({
+      where: { id: payment.orderId },
+    });
+    if (!order || order.status !== OrderStatus.DISPUTED) {
+      throw new BadRequestException(
+        `Order must be DISPUTED to refund payment (current: ${order?.status ?? 'missing'})`,
+      );
+    }
+
+    await this.escrow.refundFunds(payment.transactionRef);
+    payment.escrowStatus = EscrowStatus.REFUNDED;
+    payment.refundedAt = new Date();
+    const saved = await this.paymentsRepository.save(payment);
+
+    this.eventEmitter.emit(
+      PaymentRefundedEvent.EVENT_NAME,
+      new PaymentRefundedEvent(
+        saved.id,
+        saved.orderId,
+        saved.payerId,
+        Number(saved.amount),
+        saved.currency,
+      ),
+    );
+
+    this.logger.log(
+      `Refunded payment ${saved.id} for order ${saved.orderId} by admin ${adminId}`,
+    );
+
+    return saved;
+  }
+
+  private async _doRelease(
+    payment: Payment,
+    sellerId: string,
+  ): Promise<Payment> {
+    await this.escrow.releaseFunds(payment.transactionRef);
+    payment.escrowStatus = EscrowStatus.RELEASED;
+    payment.releasedAt = new Date();
+    const saved = await this.paymentsRepository.save(payment);
+
+    this.eventEmitter.emit(
+      PaymentReleasedEvent.EVENT_NAME,
+      new PaymentReleasedEvent(
+        saved.id,
+        saved.orderId,
+        sellerId,
+        Number(saved.sellerAmount),
         saved.currency,
       ),
     );
