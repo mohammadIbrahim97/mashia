@@ -13,6 +13,7 @@ import {
 import { Payment } from '../src/modules/payments/payment.entity';
 import { Order } from '../src/modules/orders/order.entity';
 import { PaymentHeldEvent } from '../src/modules/payments/events/payment-held.event';
+import { PaymentsService } from '../src/modules/payments/payments.service';
 import {
   EscrowStatus,
   OrderStatus,
@@ -246,6 +247,207 @@ describe('Payments (e2e)', () => {
         .set('Authorization', `Bearer ${buyerToken}`)
         .send({});
       expect(res.status).toBe(403);
+    });
+  });
+
+  describe('auto-release cron', () => {
+    it('releases HELD payment past autoReleaseAt on DELIVERED order', async () => {
+      const paymentsService = app.get(PaymentsService);
+      const { user: seller } = await makeAuthenticatedUser(app, {
+        role: UserRole.SELLER,
+      });
+      const { user: buyer, token: buyerToken } = await makeAuthenticatedUser(
+        app,
+        { role: UserRole.BUYER },
+      );
+      const { order } = await createAcceptedOrder(app, buyer, seller);
+      const initRes = await request(app.getHttpServer())
+        .post('/api/v1/payments/initiate')
+        .set('Authorization', `Bearer ${buyerToken}`)
+        .send({ orderId: order.id, method: PaymentMethod.MADA });
+
+      // Wait for payment.held listener to finish
+      let current = await ordersRepo.findOne({ where: { id: order.id } });
+      for (let i = 0; i < 20 && current?.status !== OrderStatus.PAID; i++) {
+        await new Promise((r) => setImmediate(r));
+        current = await ordersRepo.findOne({ where: { id: order.id } });
+      }
+
+      // Force order to DELIVERED and backdate autoReleaseAt to 1 minute ago
+      await ordersRepo.update(order.id, { status: OrderStatus.DELIVERED });
+      await paymentsRepo.update(initRes.body.id, {
+        autoReleaseAt: new Date(Date.now() - 60 * 1000),
+      });
+
+      const count = await paymentsService.processAutoReleases();
+
+      expect(count).toBe(1);
+      const updatedPayment = await paymentsRepo.findOne({
+        where: { id: initRes.body.id },
+      });
+      expect(updatedPayment?.escrowStatus).toBe(EscrowStatus.RELEASED);
+
+      // Wait for payment.released listener to finish DELIVERED → COMPLETED
+      let updatedOrder = await ordersRepo.findOne({ where: { id: order.id } });
+      for (
+        let i = 0;
+        i < 20 && updatedOrder?.status !== OrderStatus.COMPLETED;
+        i++
+      ) {
+        await new Promise((r) => setImmediate(r));
+        updatedOrder = await ordersRepo.findOne({ where: { id: order.id } });
+      }
+      expect(updatedOrder?.status).toBe(OrderStatus.COMPLETED);
+    });
+
+    it('skips payments whose order is DISPUTED (not DELIVERED)', async () => {
+      const paymentsService = app.get(PaymentsService);
+      const { user: seller } = await makeAuthenticatedUser(app, {
+        role: UserRole.SELLER,
+      });
+      const { user: buyer, token: buyerToken } = await makeAuthenticatedUser(
+        app,
+        { role: UserRole.BUYER },
+      );
+      const { order } = await createAcceptedOrder(app, buyer, seller);
+      const initRes = await request(app.getHttpServer())
+        .post('/api/v1/payments/initiate')
+        .set('Authorization', `Bearer ${buyerToken}`)
+        .send({ orderId: order.id, method: PaymentMethod.MADA });
+
+      let current = await ordersRepo.findOne({ where: { id: order.id } });
+      for (let i = 0; i < 20 && current?.status !== OrderStatus.PAID; i++) {
+        await new Promise((r) => setImmediate(r));
+        current = await ordersRepo.findOne({ where: { id: order.id } });
+      }
+
+      await ordersRepo.update(order.id, { status: OrderStatus.DISPUTED });
+      await paymentsRepo.update(initRes.body.id, {
+        autoReleaseAt: new Date(Date.now() - 60 * 1000),
+      });
+
+      const count = await paymentsService.processAutoReleases();
+      expect(count).toBe(0);
+      const payment = await paymentsRepo.findOne({
+        where: { id: initRes.body.id },
+      });
+      expect(payment?.escrowStatus).toBe(EscrowStatus.HELD);
+    });
+  });
+
+  describe('GET /api/v1/payments/:id and GET /api/v1/payments?orderId=', () => {
+    it('payer and admin see, stranger gets 404; missing payment 404', async () => {
+      const { user: seller } = await makeAuthenticatedUser(app, {
+        role: UserRole.SELLER,
+      });
+      const { user: buyer, token: buyerToken } = await makeAuthenticatedUser(
+        app,
+        { role: UserRole.BUYER },
+      );
+      const { token: adminToken } = await makeAuthenticatedUser(app, {
+        role: UserRole.ADMIN,
+      });
+      const { token: strangerToken } = await makeAuthenticatedUser(app, {
+        role: UserRole.BUYER,
+      });
+
+      const { order } = await createAcceptedOrder(app, buyer, seller);
+      const initRes = await request(app.getHttpServer())
+        .post('/api/v1/payments/initiate')
+        .set('Authorization', `Bearer ${buyerToken}`)
+        .send({ orderId: order.id, method: PaymentMethod.MADA });
+
+      const paymentId = initRes.body.id;
+
+      // Payer can see by id
+      await request(app.getHttpServer())
+        .get(`/api/v1/payments/${paymentId}`)
+        .set('Authorization', `Bearer ${buyerToken}`)
+        .expect(200);
+
+      // Admin can see by id
+      await request(app.getHttpServer())
+        .get(`/api/v1/payments/${paymentId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      // Unrelated stranger gets 404 (not 403)
+      await request(app.getHttpServer())
+        .get(`/api/v1/payments/${paymentId}`)
+        .set('Authorization', `Bearer ${strangerToken}`)
+        .expect(404);
+
+      // Payer can look up by orderId
+      await request(app.getHttpServer())
+        .get(`/api/v1/payments?orderId=${order.id}`)
+        .set('Authorization', `Bearer ${buyerToken}`)
+        .expect(200);
+
+      // Stranger lookup by orderId also 404
+      await request(app.getHttpServer())
+        .get(`/api/v1/payments?orderId=${order.id}`)
+        .set('Authorization', `Bearer ${strangerToken}`)
+        .expect(404);
+
+      // Missing payment: create a second ACCEPTED order without paying
+      const { order: unpaid } = await createAcceptedOrder(app, buyer, seller);
+      await request(app.getHttpServer())
+        .get(`/api/v1/payments?orderId=${unpaid.id}`)
+        .set('Authorization', `Bearer ${buyerToken}`)
+        .expect(404);
+    });
+  });
+
+  describe('order.delivered → autoReleaseAt', () => {
+    it('sets autoReleaseAt ~7 days out when order transitions to DELIVERED', async () => {
+      const { user: seller, token: sellerToken } = await makeAuthenticatedUser(
+        app,
+        { role: UserRole.SELLER },
+      );
+      const { user: buyer, token: buyerToken } = await makeAuthenticatedUser(
+        app,
+        { role: UserRole.BUYER },
+      );
+      const { order } = await createAcceptedOrder(app, buyer, seller);
+      const initRes = await request(app.getHttpServer())
+        .post('/api/v1/payments/initiate')
+        .set('Authorization', `Bearer ${buyerToken}`)
+        .send({ orderId: order.id, method: PaymentMethod.MADA });
+
+      // Wait for held listener: ACCEPTED → PAID
+      let current = await ordersRepo.findOne({ where: { id: order.id } });
+      for (let i = 0; i < 20 && current?.status !== OrderStatus.PAID; i++) {
+        await new Promise((r) => setImmediate(r));
+        current = await ordersRepo.findOne({ where: { id: order.id } });
+      }
+
+      // Seller ships (PAID → IN_TRANSIT)
+      await request(app.getHttpServer())
+        .patch(`/api/v1/orders/${order.id}/status`)
+        .set('Authorization', `Bearer ${sellerToken}`)
+        .send({ status: OrderStatus.IN_TRANSIT })
+        .expect(200);
+
+      // Buyer confirms delivery (IN_TRANSIT → DELIVERED)
+      // This fires order.delivered → OrderDeliveredListener sets autoReleaseAt
+      await request(app.getHttpServer())
+        .patch(`/api/v1/orders/${order.id}/status`)
+        .set('Authorization', `Bearer ${buyerToken}`)
+        .send({ status: OrderStatus.DELIVERED })
+        .expect(200);
+
+      // Poll for autoReleaseAt to be set
+      let payment = await paymentsRepo.findOne({ where: { id: initRes.body.id } });
+      for (let i = 0; i < 20 && payment?.autoReleaseAt === null; i++) {
+        await new Promise((r) => setImmediate(r));
+        payment = await paymentsRepo.findOne({ where: { id: initRes.body.id } });
+      }
+
+      expect(payment?.autoReleaseAt).not.toBeNull();
+      const expected = Date.now() + 7 * 86400 * 1000;
+      expect(
+        Math.abs((payment!.autoReleaseAt as Date).getTime() - expected),
+      ).toBeLessThan(60 * 1000);
     });
   });
 });

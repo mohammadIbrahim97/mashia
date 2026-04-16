@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import redisConfig from './config/redis.config';
@@ -40,6 +41,7 @@ import { AdminModule } from './modules/admin/admin.module';
       }),
     }),
     EventEmitterModule.forRoot(),
+    ScheduleModule.forRoot(),
     RedisModule,
     S3Module,
     SmsModule,

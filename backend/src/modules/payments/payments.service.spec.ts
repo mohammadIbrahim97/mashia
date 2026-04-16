@@ -282,4 +282,47 @@ describe('PaymentsService', () => {
       );
     });
   });
+
+  describe('processAutoReleases', () => {
+    it('releases eligible HELD payments joined to DELIVERED orders', async () => {
+      const pastDate = new Date(Date.now() - 86400 * 1000);
+      const eligible = {
+        id: 'pay-1',
+        orderId: 'order-1',
+        payerId: 'buyer-1',
+        sellerAmount: 950,
+        currency: Currency.SAR,
+        escrowStatus: EscrowStatus.HELD,
+        transactionRef: 'STUB-1',
+        autoReleaseAt: pastDate,
+      } as Payment;
+
+      const qb: any = {
+        innerJoin: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        getRawMany: jest
+          .fn()
+          .mockResolvedValue([{ payment_id: 'pay-1', order_seller_id: 'seller-1' }]),
+      };
+      paymentsRepo.createQueryBuilder.mockReturnValue(qb);
+      paymentsRepo.findOne.mockResolvedValue({ ...eligible });
+      escrow.releaseFunds.mockResolvedValue({
+        transactionRef: 'STUB-1',
+        status: EscrowStatus.RELEASED,
+      });
+      paymentsRepo.save.mockImplementation(async (p) => p as Payment);
+
+      const count = await service.processAutoReleases();
+
+      expect(count).toBe(1);
+      expect(escrow.releaseFunds).toHaveBeenCalledWith('STUB-1');
+      expect(emitter.emit).toHaveBeenCalledWith(
+        'payment.released',
+        expect.objectContaining({ paymentId: 'pay-1' }),
+      );
+    });
+  });
 });

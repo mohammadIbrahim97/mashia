@@ -8,6 +8,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Repository } from 'typeorm';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { Payment } from './payment.entity';
 import { Order } from '../orders/order.entity';
 import { EscrowService } from './escrow.service';
@@ -15,7 +16,7 @@ import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { PaymentHeldEvent } from './events/payment-held.event';
 import { PaymentReleasedEvent } from './events/payment-released.event';
 import { PaymentRefundedEvent } from './events/payment-refunded.event';
-import { EscrowStatus, OrderStatus } from '@shared/enums';
+import { EscrowStatus, OrderStatus, UserRole } from '@shared/enums';
 
 @Injectable()
 export class PaymentsService {
@@ -185,5 +186,91 @@ export class PaymentsService {
     );
 
     return saved;
+  }
+
+  @Cron('0 */15 * * * *')
+  async processAutoReleases(): Promise<number> {
+    const rows = await this.paymentsRepository
+      .createQueryBuilder('payment')
+      .innerJoin(
+        'orders',
+        'order',
+        'order.id = payment.order_id',
+      )
+      .where('payment.escrow_status = :held', { held: EscrowStatus.HELD })
+      .andWhere('payment.auto_release_at IS NOT NULL')
+      .andWhere('payment.auto_release_at <= NOW()')
+      .andWhere('order.status = :delivered', { delivered: OrderStatus.DELIVERED })
+      .select('payment.id', 'payment_id')
+      .addSelect('order.seller_id', 'order_seller_id')
+      .getRawMany<{ payment_id: string; order_seller_id: string }>();
+
+    let released = 0;
+    for (const row of rows) {
+      try {
+        const payment = await this.paymentsRepository.findOne({
+          where: { id: row.payment_id },
+        });
+        if (!payment || payment.escrowStatus !== EscrowStatus.HELD) continue;
+        await this._doRelease(payment, row.order_seller_id);
+        released += 1;
+      } catch (err) {
+        this.logger.error(
+          `Auto-release failed for payment ${row.payment_id}`,
+          err instanceof Error ? err.stack : undefined,
+        );
+      }
+    }
+
+    if (released > 0) {
+      this.logger.log(`Auto-released ${released} payment(s)`);
+    }
+    return released;
+  }
+
+  async findOne(
+    userId: string,
+    userRole: string,
+    paymentId: string,
+  ): Promise<Payment> {
+    const payment = await this.paymentsRepository.findOne({
+      where: { id: paymentId },
+    });
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+    const order = await this.ordersRepository.findOne({
+      where: { id: payment.orderId },
+    });
+    const isPayer = payment.payerId === userId;
+    const isSeller = order?.sellerId === userId;
+    const isAdmin = userRole === UserRole.ADMIN;
+    if (!isPayer && !isSeller && !isAdmin) {
+      throw new NotFoundException('Payment not found');
+    }
+    return payment;
+  }
+
+  async findByOrder(userId: string, orderId: string): Promise<Payment> {
+    const order = await this.ordersRepository.findOne({
+      where: { id: orderId },
+    });
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    const isParty =
+      order.buyerId === userId ||
+      order.sellerId === userId ||
+      order.brokerId === userId;
+    if (!isParty) {
+      throw new NotFoundException('Order not found');
+    }
+    const payment = await this.paymentsRepository.findOne({
+      where: { orderId },
+    });
+    if (!payment) {
+      throw new NotFoundException('Payment not found for this order');
+    }
+    return payment;
   }
 }

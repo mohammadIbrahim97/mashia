@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   Req,
   UseGuards,
   HttpCode,
@@ -58,6 +60,31 @@ export class PaymentsController {
     @Body() _dto: RefundPaymentDto,
   ): Promise<PaymentResponse> {
     const payment = await this.paymentsService.refund(req.user.id, id);
+    return PaymentResponse.fromPayment(payment);
+  }
+
+  @Get(':id')
+  async findOne(
+    @Req() req: AuthedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<PaymentResponse> {
+    const payment = await this.paymentsService.findOne(
+      req.user.id,
+      req.user.role,
+      id,
+    );
+    return PaymentResponse.fromPayment(payment);
+  }
+
+  @Get()
+  async findByOrder(
+    @Req() req: AuthedRequest,
+    @Query('orderId', ParseUUIDPipe) orderId: string,
+  ): Promise<PaymentResponse> {
+    const payment = await this.paymentsService.findByOrder(
+      req.user.id,
+      orderId,
+    );
     return PaymentResponse.fromPayment(payment);
   }
 }
