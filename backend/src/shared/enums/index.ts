@@ -55,3 +55,15 @@ export enum OrderStatus {
   DISPUTED = 'disputed',
   CANCELLED = 'cancelled',
 }
+
+export enum PaymentMethod {
+  STC_PAY = 'stc_pay',
+  MADA = 'mada',
+  BANK_TRANSFER = 'bank_transfer',
+}
+
+export enum EscrowStatus {
+  HELD = 'held',
+  RELEASED = 'released',
+  REFUNDED = 'refunded',
+}

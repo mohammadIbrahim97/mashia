@@ -142,6 +142,42 @@ export class OrdersService {
     return saved;
   }
 
+  /**
+   * Internal-only transition invoked by cross-module listeners (payments).
+   * Bypasses the user-authorization check in updateStatus() because it runs
+   * on behalf of the system, not an authenticated user.
+   *
+   * Allowed transitions:
+   *   ACCEPTED  → PAID       (on payment.held)
+   *   DELIVERED → COMPLETED  (on payment.released)
+   *   DISPUTED  → CANCELLED  (on payment.refunded)
+   *
+   * @internal
+   */
+  async transitionFromPayment(
+    orderId: string,
+    target: OrderStatus,
+  ): Promise<Order> {
+    const order = await this.ordersRepository.findOne({ where: { id: orderId } });
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const allowed =
+      (order.status === OrderStatus.ACCEPTED && target === OrderStatus.PAID) ||
+      (order.status === OrderStatus.DELIVERED && target === OrderStatus.COMPLETED) ||
+      (order.status === OrderStatus.DISPUTED && target === OrderStatus.CANCELLED);
+
+    if (!allowed) {
+      throw new BadRequestException(
+        `Invalid payment-driven transition from ${order.status} to ${target}`,
+      );
+    }
+
+    order.status = target;
+    return this.ordersRepository.save(order);
+  }
+
   async findMyOrders(
     userId: string,
     query: ListOrdersQueryDto,
