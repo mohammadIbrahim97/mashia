@@ -451,3 +451,415 @@ Nach diesen 5 Tagen wirst du 3 konkrete Outputs haben:
 3. **Das Entscheidungsdokument** (mit Go/Pivot/No-Go)
 
 **Wenn du mit diesen Ergebnissen zu mir zurückkommst**, kann ich dir helfen, Phase 2 (Concierge-MVP) _exakt auf dein Ergebnis zugeschnitten_ zu designen. Ohne diese Daten würden wir für eine imaginäre Zielgruppe planen – genau der Fehler, den wir vermeiden wollen.
+
+
+```
+@startuml Mashia_System_Class_Diagram
+
+' ============================================================
+' MASHIA - Digital Livestock Marketplace (GCC)
+' Class Diagram with Core MVP Functions Highlighted
+' ============================================================
+
+title Mashia — Digital Livestock Marketplace\nClass Diagram (MVP Scope Highlighted)
+
+' ---------- STYLING ----------
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam DefaultFontName "Helvetica"
+skinparam packageStyle rectangle
+
+skinparam class {
+    BorderColor<<core>> #B8860B
+    BackgroundColor<<core>> #FFE066
+    BorderColor<<ai>> #1E6091
+    BackgroundColor<<ai>> #A8DADC
+    BorderColor<<later>> #888888
+    BackgroundColor<<later>> #E8E8E8
+    BorderColor #555555
+    BackgroundColor White
+    FontStyle bold
+}
+
+legend top right
+|= Color |= Meaning |
+|<#FFE066>| **CORE MVP** — must-have for functional launch |
+|<#A8DADC>| **AI Differentiator** — Mohammad's CS/AI edge |
+|<#E8E8E8>| **Phase 2** — post-MVP scope |
+endlegend
+
+
+' ============================================================
+' 1. USER MANAGEMENT & IDENTITY
+' ============================================================
+package "User Management" {
+
+    abstract class User <<core>> {
+        +id : UUID
+        +phoneNumber : String
+        +email : String
+        +fullName : String
+        +preferredLanguage : {AR, EN}
+        +kycStatus : {Pending, Verified, Rejected}
+        +createdAt : DateTime
+        --
+        +register() : User
+        +requestOTP() : void
+        +verifyOTP(code) : Token
+        +login() : Token
+        +updateProfile() : void
+    }
+
+    class Farmer <<core>> {
+        +farmName : String
+        +farmLocation : GeoPoint
+        +licenseNumber : String
+        +herdSize : Integer
+        --
+        +createListing() : Listing
+        +manageInventory() : List<Animal>
+    }
+
+    class Broker <<core>> {
+        +commissionRate : Float
+        +networkedFarmers : List<UUID>
+        +regionsServed : List<String>
+        --
+        +listOnBehalfOf(farmer) : Listing
+        +inviteFarmer() : void
+    }
+
+    class Buyer <<core>> {
+        +type : {Restaurant, Slaughterhouse, Consumer, Wholesaler}
+        +deliveryAddresses : List<Address>
+        --
+        +browseListings(filters) : List<Listing>
+        +placeOrder(listing) : Order
+    }
+
+    class Veterinarian <<later>> {
+        +licenseNumber : String
+        +clinicName : String
+        +specialization : String
+        --
+        +issueCertificate(animal) : VeterinaryCertificate
+    }
+
+    class Admin {
+        +role : String
+        --
+        +verifyKYC(user) : void
+        +moderateListing(listing) : void
+        +resolveDispute(dispute) : void
+    }
+
+    class KYCVerification <<core>> {
+        +id : UUID
+        +userId : UUID
+        +idDocumentType : String
+        +idDocumentNumber : String
+        +documentImageUrl : URL
+        +status : {Pending, Approved, Rejected}
+        +verifiedAt : DateTime
+        --
+        +submit() : void
+        +review() : Boolean
+    }
+}
+
+
+' ============================================================
+' 2. LISTINGS & ANIMAL DATA
+' ============================================================
+package "Listings & Animals" {
+
+    class Listing <<core>> {
+        +id : UUID
+        +sellerId : UUID
+        +titleAr : String
+        +titleEn : String
+        +description : Text
+        +price : Decimal
+        +pricingType : {PerHead, PerKg}
+        +currency : {SAR, AED, KWD}
+        +status : {Draft, Active, Reserved, Sold, Expired}
+        +locationPickup : GeoPoint
+        +viewCount : Integer
+        +createdAt : DateTime
+        --
+        +create() : void
+        +publish() : void
+        +edit() : void
+        +markSold() : void
+        +search(filters) : List<Listing>
+    }
+
+    class Animal <<core>> {
+        +id : UUID
+        +listingId : UUID
+        +species : {Sheep, Cattle, Goat, Camel}
+        +breed : String
+        +ageMonths : Integer
+        +weightKg : Float
+        +gender : {Male, Female}
+        +photos : List<URL>
+        +videoUrl : URL
+        --
+        +addMedia() : void
+    }
+
+    class VeterinaryCertificate <<core>> {
+        +id : UUID
+        +animalId : UUID
+        +issuedBy : UUID
+        +issueDate : Date
+        +expiryDate : Date
+        +vaccinations : List<String>
+        +healthStatus : String
+        +documentUrl : URL
+        +verified : Boolean
+        --
+        +upload() : void
+        +validate() : Boolean
+    }
+}
+
+
+' ============================================================
+' 3. AI SERVICES  (core differentiator — Mohammad's CS/AI edge)
+' ============================================================
+package "AI Services (Differentiator)" {
+
+    class PhotoRecognitionService <<ai>> {
+        --
+        +detectBreed(photo) : String
+        +estimateWeight(photo) : Float
+        +suggestPrice(animal) : Decimal
+        +assessPhotoQuality(photo) : Score
+    }
+
+    class HealthScreeningService <<ai>> {
+        --
+        +analyzeFromPhotos(photos) : HealthReport
+        +flagVisualAnomalies(photo) : List<Flag>
+        +confidenceScore() : Float
+    }
+
+    class VoiceToListingService <<ai>> {
+        --
+        +transcribeArabic(audioFile) : Text
+        +extractListingFields(text) : Listing
+        +handleDialect(region) : void
+    }
+
+    class PriceForecastService <<ai>> {
+        --
+        +predictPrice(species, breed, date) : Decimal
+        +seasonalCurve(species) : Chart
+        +mashiaPriceIndex() : Index
+    }
+}
+
+
+' ============================================================
+' 4. TRANSACTIONS & PAYMENTS
+' ============================================================
+package "Transactions & Payments" {
+
+    class Order <<core>> {
+        +id : UUID
+        +buyerId : UUID
+        +sellerId : UUID
+        +listingId : UUID
+        +quantity : Integer
+        +unitPrice : Decimal
+        +totalPrice : Decimal
+        +platformCommission : Decimal  // 5%
+        +status : {Placed, PaidHeld, InDelivery, Delivered, Completed, Cancelled, Disputed}
+        +createdAt : DateTime
+        --
+        +place() : void
+        +confirmBySeller() : void
+        +cancel(reason) : void
+        +complete() : void
+    }
+
+    class Escrow <<core>> {
+        +id : UUID
+        +orderId : UUID
+        +amountHeld : Decimal
+        +status : {Held, Released, Refunded}
+        +heldAt : DateTime
+        +releasedAt : DateTime
+        --
+        +hold(amount) : void
+        +releaseToSeller() : void
+        +refundBuyer() : void
+    }
+
+    class Payment <<core>> {
+        +id : UUID
+        +orderId : UUID
+        +method : {Mada, ApplePay, BankTransfer, STCPay}
+        +amount : Decimal
+        +currency : {SAR, AED}
+        +gatewayRef : String
+        +status : {Pending, Success, Failed}
+        --
+        +charge() : void
+        +refund() : void
+    }
+
+    class Commission <<core>> {
+        +id : UUID
+        +orderId : UUID
+        +transactionFee : Decimal
+        +logisticsMarkup : Decimal
+        --
+        +calculate() : Decimal
+    }
+}
+
+
+' ============================================================
+' 5. LOGISTICS
+' ============================================================
+package "Logistics" {
+
+    class Delivery <<core>> {
+        +id : UUID
+        +orderId : UUID
+        +transporterId : UUID
+        +pickupAddress : Address
+        +dropoffAddress : Address
+        +scheduledAt : DateTime
+        +status : {Requested, Assigned, PickedUp, InTransit, Delivered, Failed}
+        +proofOfDeliveryUrl : URL
+        --
+        +schedule() : void
+        +track() : GeoPoint
+        +confirmDelivery() : void
+    }
+
+    class Transporter <<core>> {
+        +id : UUID
+        +companyName : String
+        +fleetSize : Integer
+        +serviceAreas : List<String>
+        +rating : Float
+        --
+        +acceptJob(delivery) : void
+    }
+}
+
+
+' ============================================================
+' 6. TRUST LAYER
+' ============================================================
+package "Trust & Reputation" {
+
+    class Review <<core>> {
+        +id : UUID
+        +orderId : UUID
+        +reviewerId : UUID
+        +revieweeId : UUID
+        +rating : Integer (1-5)
+        +comment : Text
+        +createdAt : DateTime
+        --
+        +submit() : void
+    }
+
+    class Dispute <<later>> {
+        +id : UUID
+        +orderId : UUID
+        +openedBy : UUID
+        +reason : String
+        +evidence : List<URL>
+        +status : {Open, UnderReview, Resolved, Closed}
+        --
+        +open() : void
+        +resolve(decision) : void
+    }
+}
+
+
+' ============================================================
+' 7. COMMUNICATION (Phase 2)
+' ============================================================
+package "Communication" {
+
+    class Message <<later>> {
+        +id : UUID
+        +chatId : UUID
+        +fromUserId : UUID
+        +toUserId : UUID
+        +content : Text
+        +sentAt : DateTime
+    }
+
+    class Notification <<core>> {
+        +id : UUID
+        +userId : UUID
+        +type : {OrderUpdate, NewListing, Payment, System}
+        +content : String
+        +channel : {Push, SMS, Email, WhatsApp}
+        +read : Boolean
+        --
+        +send() : void
+    }
+}
+
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+' Inheritance
+User <|-- Farmer
+User <|-- Broker
+User <|-- Buyer
+User <|-- Veterinarian
+User <|-- Admin
+
+' KYC
+User "1" -- "1" KYCVerification : requires
+
+' Listings
+Farmer "1" --> "0..*" Listing : creates
+Broker "1" --> "0..*" Listing : lists on behalf
+Listing "1" *-- "1..*" Animal : contains
+Animal "1" --> "0..1" VeterinaryCertificate : certified by
+Veterinarian "1" --> "0..*" VeterinaryCertificate : issues
+
+' AI usage
+Listing ..> PhotoRecognitionService : auto-fill
+Listing ..> VoiceToListingService : voice input
+Listing ..> PriceForecastService : price hint
+Animal ..> HealthScreeningService : pre-screen
+
+' Orders
+Buyer "1" --> "0..*" Order : places
+Order "1" --> "1" Listing : for
+Order "1" --> "1" Escrow : secured by
+Order "1" --> "1..*" Payment : paid via
+Order "1" --> "1" Commission : generates
+Order "1" --> "0..1" Delivery : fulfilled by
+Delivery "*" --> "1" Transporter : assigned to
+
+' Trust
+Order "1" --> "0..2" Review : rated in
+Order "1" --> "0..1" Dispute : may raise
+
+' Communication
+User "1" --> "0..*" Message : sends / receives
+User "1" --> "0..*" Notification : receives
+
+' Admin oversight
+Admin ..> KYCVerification : verifies
+Admin ..> Listing : moderates
+Admin ..> Dispute : resolves
+
+@enduml
+```
