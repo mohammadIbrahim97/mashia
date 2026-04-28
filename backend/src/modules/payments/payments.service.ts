@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Payment } from './payment.entity';
 import { Order } from '../orders/order.entity';
@@ -29,6 +29,7 @@ export class PaymentsService {
     private readonly ordersRepository: Repository<Order>,
     private readonly escrow: EscrowService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly dataSource: DataSource,
   ) {}
 
   async initiate(buyerId: string, dto: InitiatePaymentDto): Promise<Payment> {
@@ -185,42 +186,55 @@ export class PaymentsService {
 
   @Cron('0 */15 * * * *')
   async processAutoReleases(): Promise<number> {
-    const rows = await this.paymentsRepository
-      .createQueryBuilder('payment')
-      .innerJoin(
-        'orders',
-        'order',
-        'order.id = payment.order_id',
-      )
-      .where('payment.escrow_status = :held', { held: EscrowStatus.HELD })
-      .andWhere('payment.auto_release_at IS NOT NULL')
-      .andWhere('payment.auto_release_at <= NOW()')
-      .andWhere('order.status = :delivered', { delivered: OrderStatus.DELIVERED })
-      .select('payment.id', 'payment_id')
-      .addSelect('order.seller_id', 'order_seller_id')
-      .getRawMany<{ payment_id: string; order_seller_id: string }>();
+    const releasedEvents: PaymentReleasedEvent[] = [];
 
-    let released = 0;
-    for (const row of rows) {
-      try {
-        const payment = await this.paymentsRepository.findOne({
-          where: { id: row.payment_id },
-        });
-        if (!payment || payment.escrowStatus !== EscrowStatus.HELD) continue;
-        await this._doRelease(payment, row.order_seller_id);
-        released += 1;
-      } catch (err) {
-        this.logger.error(
-          `Auto-release failed for payment ${row.payment_id}`,
-          err instanceof Error ? err.stack : undefined,
-        );
+    await this.dataSource.transaction(async (manager) => {
+      const { entities, raw } = await manager
+        .createQueryBuilder(Payment, 'payment')
+        .innerJoin('orders', 'order', 'order.id = payment.order_id')
+        .where('payment.escrow_status = :held', { held: EscrowStatus.HELD })
+        .andWhere('payment.auto_release_at IS NOT NULL')
+        .andWhere('payment.auto_release_at <= NOW()')
+        .andWhere('order.status = :delivered', { delivered: OrderStatus.DELIVERED })
+        .addSelect('order.seller_id', 'order_seller_id')
+        .setLock('pessimistic_write', undefined, ['payment'])
+        .setOnLocked('skip_locked')
+        .getRawAndEntities();
+
+      for (let i = 0; i < entities.length; i++) {
+        const payment = entities[i];
+        const sellerId = raw[i].order_seller_id as string;
+        try {
+          await this.escrow.releaseFunds(payment.transactionRef);
+          payment.escrowStatus = EscrowStatus.RELEASED;
+          payment.releasedAt = new Date();
+          await manager.save(payment);
+          releasedEvents.push(
+            new PaymentReleasedEvent(
+              payment.id,
+              payment.orderId,
+              sellerId,
+              Number(payment.sellerAmount),
+              payment.currency,
+            ),
+          );
+        } catch (err) {
+          this.logger.error(
+            `Auto-release failed for payment ${payment.id}`,
+            err instanceof Error ? err.stack : undefined,
+          );
+        }
       }
+    });
+
+    for (const event of releasedEvents) {
+      this.eventEmitter.emit(PaymentReleasedEvent.EVENT_NAME, event);
     }
 
-    if (released > 0) {
-      this.logger.log(`Auto-released ${released} payment(s)`);
+    if (releasedEvents.length > 0) {
+      this.logger.log(`Auto-released ${releasedEvents.length} payment(s)`);
     }
-    return released;
+    return releasedEvents.length;
   }
 
   async findOne(

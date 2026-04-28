@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import {
   BadRequestException,
   ConflictException,
@@ -25,6 +25,8 @@ describe('PaymentsService', () => {
   let ordersRepo: jest.Mocked<Repository<Order>>;
   let escrow: jest.Mocked<EscrowService>;
   let emitter: { emit: jest.Mock };
+  let txManager: { createQueryBuilder: jest.Mock; save: jest.Mock };
+  let dataSource: { transaction: jest.Mock };
 
   beforeEach(async () => {
     paymentsRepo = {
@@ -40,6 +42,15 @@ describe('PaymentsService', () => {
       refundFunds: jest.fn(),
     } as any;
     emitter = { emit: jest.fn() };
+    txManager = {
+      createQueryBuilder: jest.fn(),
+      save: jest.fn(async (p) => p),
+    };
+    dataSource = {
+      transaction: jest.fn(async (cb: (m: typeof txManager) => unknown) =>
+        cb(txManager),
+      ),
+    };
 
     const module = await Test.createTestingModule({
       providers: [
@@ -48,6 +59,7 @@ describe('PaymentsService', () => {
         { provide: getRepositoryToken(Order), useValue: ordersRepo },
         { provide: EscrowService, useValue: escrow },
         { provide: EventEmitter2, useValue: emitter },
+        { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
     service = module.get(PaymentsService);
@@ -302,24 +314,31 @@ describe('PaymentsService', () => {
         innerJoin: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
         addSelect: jest.fn().mockReturnThis(),
-        getRawMany: jest
-          .fn()
-          .mockResolvedValue([{ payment_id: 'pay-1', order_seller_id: 'seller-1' }]),
+        setLock: jest.fn().mockReturnThis(),
+        setOnLocked: jest.fn().mockReturnThis(),
+        getRawAndEntities: jest.fn().mockResolvedValue({
+          entities: [{ ...eligible }],
+          raw: [{ order_seller_id: 'seller-1' }],
+        }),
       };
-      paymentsRepo.createQueryBuilder.mockReturnValue(qb);
-      paymentsRepo.findOne.mockResolvedValue({ ...eligible });
+      txManager.createQueryBuilder.mockReturnValue(qb);
       escrow.releaseFunds.mockResolvedValue({
         transactionRef: 'STUB-1',
         status: EscrowStatus.RELEASED,
       });
-      paymentsRepo.save.mockImplementation(async (p) => p as Payment);
 
       const count = await service.processAutoReleases();
 
       expect(count).toBe(1);
+      expect(qb.setLock).toHaveBeenCalledWith(
+        'pessimistic_write',
+        undefined,
+        ['payment'],
+      );
+      expect(qb.setOnLocked).toHaveBeenCalledWith('skip_locked');
       expect(escrow.releaseFunds).toHaveBeenCalledWith('STUB-1');
+      expect(txManager.save).toHaveBeenCalled();
       expect(emitter.emit).toHaveBeenCalledWith(
         'payment.released',
         expect.objectContaining({ paymentId: 'pay-1' }),
