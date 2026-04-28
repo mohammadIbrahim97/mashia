@@ -62,6 +62,7 @@ describe('PaymentsService', () => {
       sellerId: 'seller-1',
       totalPrice: 1000,
       commissionRate: 5,
+      commissionAmount: 50,
       currency: Currency.SAR,
       status: OrderStatus.ACCEPTED,
     } as Order;

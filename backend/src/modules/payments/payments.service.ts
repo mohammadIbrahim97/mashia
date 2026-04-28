@@ -45,8 +45,7 @@ export class PaymentsService {
     }
 
     const amount = Number(order.totalPrice);
-    const commissionRate = Number(order.commissionRate);
-    const commissionAmount = Math.round(amount * commissionRate) / 100;
+    const commissionAmount = Number(order.commissionAmount);
     const sellerAmount = Math.round((amount - commissionAmount) * 100) / 100;
 
     const { transactionRef } = await this.escrow.holdFunds(
