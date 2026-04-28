@@ -244,7 +244,7 @@ describe('PaymentsService', () => {
       });
       paymentsRepo.save.mockImplementation(async (p) => p as Payment);
 
-      const result = await service.refund('admin-1', paymentId);
+      const result = await service.refund(paymentId);
 
       expect(result.escrowStatus).toBe(EscrowStatus.REFUNDED);
       expect(result.refundedAt).toBeInstanceOf(Date);
@@ -256,7 +256,7 @@ describe('PaymentsService', () => {
 
     it('throws NotFoundException when payment missing', async () => {
       paymentsRepo.findOne.mockResolvedValue(null);
-      await expect(service.refund('admin-1', paymentId)).rejects.toThrow(
+      await expect(service.refund(paymentId)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -267,7 +267,7 @@ describe('PaymentsService', () => {
         escrowStatus: EscrowStatus.RELEASED,
       });
       ordersRepo.findOne.mockResolvedValue(disputedOrder);
-      await expect(service.refund('admin-1', paymentId)).rejects.toThrow(
+      await expect(service.refund(paymentId)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -278,7 +278,7 @@ describe('PaymentsService', () => {
         ...disputedOrder,
         status: OrderStatus.PAID,
       });
-      await expect(service.refund('admin-1', paymentId)).rejects.toThrow(
+      await expect(service.refund(paymentId)).rejects.toThrow(
         BadRequestException,
       );
     });

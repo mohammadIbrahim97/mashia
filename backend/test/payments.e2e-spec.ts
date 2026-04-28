@@ -220,7 +220,7 @@ describe('Payments (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post(`/api/v1/payments/${paymentId}/refund`)
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({ reason: 'fraud reported' });
+        .send();
 
       expect(res.status).toBe(200);
       expect(res.body.escrowStatus).toBe(EscrowStatus.REFUNDED);
@@ -245,7 +245,7 @@ describe('Payments (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post(`/api/v1/payments/${paymentId}/refund`)
         .set('Authorization', `Bearer ${buyerToken}`)
-        .send({});
+        .send();
       expect(res.status).toBe(403);
     });
   });

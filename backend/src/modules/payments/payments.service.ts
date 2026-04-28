@@ -120,7 +120,7 @@ export class PaymentsService {
     return this._doRelease(payment, order.sellerId);
   }
 
-  async refund(adminId: string, paymentId: string): Promise<Payment> {
+  async refund(paymentId: string): Promise<Payment> {
     const payment = await this.paymentsRepository.findOne({
       where: { id: paymentId },
     });
@@ -155,10 +155,6 @@ export class PaymentsService {
         Number(saved.amount),
         saved.currency,
       ),
-    );
-
-    this.logger.log(
-      `Refunded payment ${saved.id} for order ${saved.orderId} by admin ${adminId}`,
     );
 
     return saved;

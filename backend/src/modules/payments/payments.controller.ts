@@ -50,10 +50,9 @@ export class PaymentsController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   async refund(
-    @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<PaymentResponse> {
-    const payment = await this.paymentsService.refund(user.id, id);
+    const payment = await this.paymentsService.refund(id);
     return PaymentResponse.fromPayment(payment);
   }
 
