@@ -13,6 +13,9 @@ import { User } from '../users/user.entity';
 import { Currency, EscrowStatus, PaymentMethod } from '@shared/enums';
 
 @Entity('payments')
+@Index('idx_payments_auto_release_held', ['autoReleaseAt'], {
+  where: "escrow_status = 'held'",
+})
 export class Payment {
   @PrimaryGeneratedColumn('uuid')
   id: string;

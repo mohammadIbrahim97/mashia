@@ -13,8 +13,8 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { ListOrdersQueryDto } from './dto/list-orders-query.dto';
 import { OrderListItemResponse } from './dto/order-list-item.response';
 import { OrderDetailResponse } from './dto/order-detail.response';
-import { OrderCreatedEvent } from './events/order-created.event';
-import { OrderDeliveredEvent } from './events/order-delivered.event';
+import { OrderCreatedEvent } from '@shared/events/order-created.event';
+import { OrderDeliveredEvent } from '@shared/events/order-delivered.event';
 import { ListingStatus, OrderStatus } from '@shared/enums';
 
 const DEFAULT_COMMISSION_RATE = 5.0;

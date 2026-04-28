@@ -13,9 +13,9 @@ import { Payment } from './payment.entity';
 import { Order } from '../orders/order.entity';
 import { EscrowService } from './escrow.service';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
-import { PaymentHeldEvent } from './events/payment-held.event';
-import { PaymentReleasedEvent } from './events/payment-released.event';
-import { PaymentRefundedEvent } from './events/payment-refunded.event';
+import { PaymentHeldEvent } from '@shared/events/payment-held.event';
+import { PaymentReleasedEvent } from '@shared/events/payment-released.event';
+import { PaymentRefundedEvent } from '@shared/events/payment-refunded.event';
 import { EscrowStatus, OrderStatus, UserRole } from '@shared/enums';
 
 @Injectable()

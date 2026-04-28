@@ -11,7 +11,7 @@ import { PaymentsService } from './payments.service';
 import { EscrowService } from './escrow.service';
 import { Payment } from './payment.entity';
 import { Order } from '../orders/order.entity';
-import { PaymentHeldEvent } from './events/payment-held.event';
+import { PaymentHeldEvent } from '@shared/events/payment-held.event';
 import {
   Currency,
   EscrowStatus,

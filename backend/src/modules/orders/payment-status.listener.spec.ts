@@ -1,9 +1,9 @@
 import { Test } from '@nestjs/testing';
 import { PaymentStatusListener } from './payment-status.listener';
 import { OrdersService } from './orders.service';
-import { PaymentHeldEvent } from '../payments/events/payment-held.event';
-import { PaymentReleasedEvent } from '../payments/events/payment-released.event';
-import { PaymentRefundedEvent } from '../payments/events/payment-refunded.event';
+import { PaymentHeldEvent } from '@shared/events/payment-held.event';
+import { PaymentReleasedEvent } from '@shared/events/payment-released.event';
+import { PaymentRefundedEvent } from '@shared/events/payment-refunded.event';
 import { Currency, OrderStatus } from '@shared/enums';
 
 describe('PaymentStatusListener', () => {

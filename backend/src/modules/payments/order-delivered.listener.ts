@@ -3,7 +3,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Payment } from './payment.entity';
-import { OrderDeliveredEvent } from '../orders/events/order-delivered.event';
+import { OrderDeliveredEvent } from '@shared/events/order-delivered.event';
 import { EscrowStatus } from '@shared/enums';
 
 const AUTO_RELEASE_DAYS = 7;

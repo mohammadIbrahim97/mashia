@@ -12,7 +12,7 @@ import {
 } from './helpers/fixtures';
 import { Payment } from '../src/modules/payments/payment.entity';
 import { Order } from '../src/modules/orders/order.entity';
-import { PaymentHeldEvent } from '../src/modules/payments/events/payment-held.event';
+import { PaymentHeldEvent } from '@shared/events/payment-held.event';
 import { PaymentsService } from '../src/modules/payments/payments.service';
 import {
   EscrowStatus,
@@ -335,7 +335,7 @@ describe('Payments (e2e)', () => {
     });
   });
 
-  describe('GET /api/v1/payments/:id and GET /api/v1/payments?orderId=', () => {
+  describe('GET /api/v1/payments/:id and GET /api/v1/payments/by-order/:orderId', () => {
     it('payer and admin see, stranger gets 404; missing payment 404', async () => {
       const { user: seller } = await makeAuthenticatedUser(app, {
         role: UserRole.SELLER,
@@ -379,20 +379,20 @@ describe('Payments (e2e)', () => {
 
       // Payer can look up by orderId
       await request(app.getHttpServer())
-        .get(`/api/v1/payments?orderId=${order.id}`)
+        .get(`/api/v1/payments/by-order/${order.id}`)
         .set('Authorization', `Bearer ${buyerToken}`)
         .expect(200);
 
       // Stranger lookup by orderId also 404
       await request(app.getHttpServer())
-        .get(`/api/v1/payments?orderId=${order.id}`)
+        .get(`/api/v1/payments/by-order/${order.id}`)
         .set('Authorization', `Bearer ${strangerToken}`)
         .expect(404);
 
       // Missing payment: create a second ACCEPTED order without paying
       const { order: unpaid } = await createAcceptedOrder(app, buyer, seller);
       await request(app.getHttpServer())
-        .get(`/api/v1/payments?orderId=${unpaid.id}`)
+        .get(`/api/v1/payments/by-order/${unpaid.id}`)
         .set('Authorization', `Bearer ${buyerToken}`)
         .expect(404);
     });

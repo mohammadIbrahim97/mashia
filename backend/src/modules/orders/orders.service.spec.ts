@@ -17,8 +17,8 @@ import {
   OrderStatus,
 } from '@shared/enums';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { OrderCreatedEvent } from './events/order-created.event';
-import { OrderDeliveredEvent } from './events/order-delivered.event';
+import { OrderCreatedEvent } from '@shared/events/order-created.event';
+import { OrderDeliveredEvent } from '@shared/events/order-delivered.event';
 
 describe('OrdersService', () => {
   let service: OrdersService;

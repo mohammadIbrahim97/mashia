@@ -5,7 +5,6 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
-  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -56,6 +55,18 @@ export class PaymentsController {
     return PaymentResponse.fromPayment(payment);
   }
 
+  @Get('by-order/:orderId')
+  async findByOrder(
+    @CurrentUser() user: User,
+    @Param('orderId', ParseUUIDPipe) orderId: string,
+  ): Promise<PaymentResponse> {
+    const payment = await this.paymentsService.findByOrder(
+      user.id,
+      orderId,
+    );
+    return PaymentResponse.fromPayment(payment);
+  }
+
   @Get(':id')
   async findOne(
     @CurrentUser() user: User,
@@ -65,18 +76,6 @@ export class PaymentsController {
       user.id,
       user.role,
       id,
-    );
-    return PaymentResponse.fromPayment(payment);
-  }
-
-  @Get()
-  async findByOrder(
-    @CurrentUser() user: User,
-    @Query('orderId', ParseUUIDPipe) orderId: string,
-  ): Promise<PaymentResponse> {
-    const payment = await this.paymentsService.findByOrder(
-      user.id,
-      orderId,
     );
     return PaymentResponse.fromPayment(payment);
   }
