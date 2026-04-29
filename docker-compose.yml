@@ -3,15 +3,15 @@ services:
     image: postgres:16-alpine
     container_name: mashia-db
     environment:
-      POSTGRES_DB: sheep_marketplace
-      POSTGRES_USER: sheep_user
-      POSTGRES_PASSWORD: sheep_pass_dev
+      POSTGRES_DB: ${DB_NAME:-sheep_marketplace}
+      POSTGRES_USER: ${DB_USERNAME:-sheep_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-sheep_pass_dev}
     ports:
-      - '5432:5432'
+      - '${DB_PORT:-5432}:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U sheep_user -d sheep_marketplace']
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME:-sheep_user} -d ${DB_NAME:-sheep_marketplace}']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -19,8 +19,11 @@ services:
   redis:
     image: redis:7-alpine
     container_name: mashia-redis
+    command: ['redis-server', '--appendonly', 'yes']
     ports:
-      - '6379:6379'
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redisdata:/data
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
@@ -46,4 +49,5 @@ services:
 
 volumes:
   pgdata:
+  redisdata:
   localstack-data:
