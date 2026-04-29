@@ -25,13 +25,25 @@ export class S3Service implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     try {
-      await this.ensureBucketExists();
+      await this.withTimeout(this.ensureBucketExists(), 5000);
     } catch (err) {
       this.logger.warn(
         `ensureBucketExists failed on startup: ${(err as Error).message}. ` +
           `S3 operations may fail until the bucket is reachable.`,
       );
     }
+  }
+
+  private withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+    return Promise.race([
+      p,
+      new Promise<T>((_, reject) =>
+        setTimeout(
+          () => reject(new Error(`S3 operation timed out after ${ms}ms`)),
+          ms,
+        ).unref(),
+      ),
+    ]);
   }
 
   async upload(key: string, body: Buffer, contentType: string): Promise<void> {
