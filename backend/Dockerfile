@@ -1,14 +1,23 @@
 # syntax=docker/dockerfile:1.7
 
-# ---------- Builder ----------
-FROM node:20-alpine AS builder
+# ---------- deps ----------
+# Production-only node_modules, isolated so it can be cached and copied
+# directly into the runtime image without another npm install.
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+# ---------- build ----------
+# Full install (incl. dev deps) and TypeScript compile to dist/.
+FROM node:20-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
 RUN npm run build
 
-# ---------- Runtime ----------
+# ---------- runtime ----------
 FROM node:20-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
@@ -16,12 +25,9 @@ WORKDIR /app
 # dumb-init handles PID 1 signal forwarding and zombie reaping
 RUN apk add --no-cache dumb-init
 
-# Production-only deps
-COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
-
-# Compiled output
-COPY --from=builder /app/dist ./dist
+COPY --from=deps  /app/node_modules ./node_modules
+COPY --from=build /app/dist         ./dist
+COPY package.json ./
 
 # Run as the non-root `node` user that ships with the alpine image
 USER node

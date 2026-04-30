@@ -8,5 +8,5 @@ export default registerAs('database', () => ({
   password: process.env.DB_PASSWORD || 'sheep_pass_dev',
   database: process.env.DB_NAME || 'sheep_marketplace',
   autoLoadEntities: true,
-  synchronize: process.env.NODE_ENV !== 'production',
+  synchronize: false,
 }));
