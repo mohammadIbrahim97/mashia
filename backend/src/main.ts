@@ -2,11 +2,13 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './shared/interceptors/transform.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(Logger));
 
   app.setGlobalPrefix('api/v1');
 
@@ -27,9 +29,8 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('app.port', 3000);
-  console.log(`Bootstrap complete, calling app.listen(${port})`);
   await app.listen(port);
-  console.log(`Mashia API running on port ${port}`);
+  app.get(Logger).log(`Mashia API running on port ${port}`);
 }
 bootstrap().catch((err) => {
   console.error('Bootstrap failed:', err);
