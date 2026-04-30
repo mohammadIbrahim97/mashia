@@ -11,8 +11,6 @@ import {
   HealthStatus,
 } from '@shared/enums';
 import { CreateListingDto } from './dto/create-listing.dto';
-import { SearchListingsDto } from './dto/search-listings.dto';
-import { UpdateListingDto } from './dto/update-listing.dto';
 
 describe('ListingsService', () => {
   let service: ListingsService;
