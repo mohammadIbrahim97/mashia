@@ -1,14 +1,18 @@
 import 'reflect-metadata';
-import { NestFactory } from '@nestjs/core';
+import { initSentry } from './shared/sentry/sentry';
+initSentry();
+import { NestFactory, HttpAdapterHost } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './shared/interceptors/transform.interceptor';
+import { SentryExceptionFilter } from './shared/sentry/sentry-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
+  app.useGlobalFilters(new SentryExceptionFilter(app.get(HttpAdapterHost).httpAdapter));
 
   app.setGlobalPrefix('api/v1');
 
