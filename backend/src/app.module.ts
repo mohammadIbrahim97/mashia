@@ -1,8 +1,11 @@
+import { randomUUID } from 'crypto';
+import { IncomingMessage, ServerResponse } from 'http';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
+import { LoggerModule } from 'nestjs-pino';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import redisConfig from './config/redis.config';
@@ -26,6 +29,27 @@ import { AdminModule } from './modules/admin/admin.module';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [appConfig, databaseConfig, redisConfig, s3Config],
+    }),
+    LoggerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        pinoHttp: {
+          level: config.get<string>('app.logLevel', 'info'),
+          formatters: {
+            level: (label: string) => ({ level: label }),
+          },
+          timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
+          genReqId: (req: IncomingMessage, res: ServerResponse) => {
+            const headerId = req.headers['x-request-id'];
+            const id =
+              (Array.isArray(headerId) ? headerId[0] : headerId) ||
+              randomUUID();
+            res.setHeader('x-request-id', id);
+            return id;
+          },
+          customProps: (req: IncomingMessage) => ({ requestId: (req as IncomingMessage & { id?: string }).id }),
+        },
+      }),
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
