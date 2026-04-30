@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mashia Design System — Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Tajawal:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* =====================================================================
+   MASHIA DESIGN TOKENS — exposed as CSS variables for the preview.
+   In production, mobile (RN) reads from theme/*.ts directly; admin
+   (Tailwind) maps these into tailwind.config.ts. This file is the
+   visual contract that proves both sides agree on what the design IS.
+   ===================================================================== */
+:root {
+  /* Brand */
+  --brand-primary: #E63911;
+  --brand-primary-hover: #C42A07;
+  --brand-primary-pressed: #9C2007;
+  --brand-primary-muted: #FFF1EE;
+  --brand-secondary: #B07D08;
+  --brand-secondary-hover: #8A6005;
+  --brand-secondary-muted: #FFF8E6;
+  --on-primary: #FFFFFF;
+
+  /* Surfaces */
+  --surface-page: #FBF8F3;
+  --surface-raised: #FFFFFF;
+  --surface-sunken: #F5F0E6;
+  --surface-overlay: rgba(23, 19, 11, 0.55);
+  --surface-inverse: #17130B;
+
+  /* Borders */
+  --border-subtle: #EDE5D4;
+  --border-default: #DCD0B7;
+  --border-strong: #9C8A65;
+
+  /* Text */
+  --text-primary: #17130B;
+  --text-secondary: #5C4F33;
+  --text-tertiary: #9C8A65;
+  --text-link: #2A4694;
+  --text-price: #C42A07;
+
+  /* States */
+  --state-success-bg: #F2F6E8; --state-success-fg: #2C3D08; --state-success-strong: #4F6A12;
+  --state-info-bg:    #EEF1FA; --state-info-fg:    #172759; --state-info-strong:    #2A4694;
+  --state-warning-bg: #FFF6E5; --state-warning-fg: #683E00; --state-warning-strong: #B87100;
+  --state-danger-bg:  #FCEBEC; --state-danger-fg:  #510A11; --state-danger-strong:  #921520;
+  --state-neutral-bg: #F5F0E6; --state-neutral-fg: #403724; --state-neutral-strong: #7A6948;
+
+  /* Typography */
+  --font-sans: 'IBM Plex Sans Arabic', 'IBM Plex Sans', system-ui, sans-serif;
+  --font-display: 'Tajawal', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  /* Radii */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 4px rgba(23, 19, 11, 0.06), 0 1px 2px rgba(23, 19, 11, 0.04);
+  --shadow-md: 0 4px 12px rgba(23, 19, 11, 0.08), 0 2px 4px rgba(23, 19, 11, 0.04);
+  --shadow-lg: 0 12px 28px rgba(23, 19, 11, 0.12), 0 4px 8px rgba(23, 19, 11, 0.06);
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--surface-page);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* =====================================================================
+   PAGE LAYOUT
+   ===================================================================== */
+.page {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 48px 32px 96px;
+}
+
+.masthead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--border-default);
+  margin-bottom: 48px;
+  flex-wrap: wrap;
+}
+.masthead .brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.logo-mark {
+  width: 56px; height: 56px;
+  background: var(--brand-primary);
+  border-radius: var(--radius-md);
+  display: grid; place-items: center;
+  color: var(--on-primary);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 32px;
+  line-height: 1;
+  box-shadow: var(--shadow-md);
+}
+.brand h1 {
+  font-family: var(--font-display);
+  font-size: 32px;
+  line-height: 1.1;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+}
+.brand .tagline {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.masthead .meta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-align: right;
+}
+.masthead .meta strong {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Section blocks */
+.section {
+  margin-bottom: 64px;
+}
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--brand-primary);
+  margin-bottom: 6px;
+}
+.section h2 {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text-primary);
+}
+.section .lede {
+  font-size: 15px;
+  color: var(--text-secondary);
+  max-width: 540px;
+  line-height: 1.6;
+}
+
+/* =====================================================================
+   COLOR TOKEN GRID
+   ===================================================================== */
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+.swatch {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.swatch .chip {
+  height: 88px;
+}
+.swatch .meta {
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+.swatch .name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.swatch .hex {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+/* =====================================================================
+   TYPE SCALE
+   ===================================================================== */
+.type-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 32px;
+}
+.type-grid .col h3 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.type-row {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.type-row:last-child { border-bottom: none; }
+.type-row .lbl {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-tertiary);
+  margin-bottom: 4px;
+}
+
+/* =====================================================================
+   PARITY GRID — Arabic (RTL) vs English (LTR), side by side
+   ===================================================================== */
+.parity {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+@media (max-width: 980px) {
+  .parity { grid-template-columns: 1fr; }
+  .type-grid { grid-template-columns: 1fr; }
+}
+.frame {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.frame-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.frame-head .dir-tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  padding: 3px 8px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-subtle);
+}
+.frame-head .dir-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.frame-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  background: var(--surface-page);
+}
+
+/* =====================================================================
+   STATUS BADGE
+   ===================================================================== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.badge .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+/* state-themed badges */
+.badge.success { background: var(--state-success-bg); color: var(--state-success-fg); }
+.badge.success .dot { background: var(--state-success-strong); }
+.badge.info    { background: var(--state-info-bg);    color: var(--state-info-fg); }
+.badge.info    .dot { background: var(--state-info-strong); }
+.badge.warning { background: var(--state-warning-bg); color: var(--state-warning-fg); }
+.badge.warning .dot { background: var(--state-warning-strong); }
+.badge.danger  { background: var(--state-danger-bg);  color: var(--state-danger-fg); }
+.badge.danger  .dot { background: var(--state-danger-strong); }
+.badge.neutral { background: var(--state-neutral-bg); color: var(--state-neutral-fg); }
+.badge.neutral .dot { background: var(--state-neutral-strong); }
+
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.badge-group h4 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 10px;
+}
+.badge-group + .badge-group { margin-top: 16px; }
+
+/* =====================================================================
+   BUTTON
+   ===================================================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease), transform 80ms var(--ease);
+  user-select: none;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary {
+  background: var(--brand-primary);
+  color: var(--on-primary);
+}
+.btn-primary:hover { background: var(--brand-primary-hover); }
+.btn-secondary {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+.btn-secondary:hover { border-color: var(--border-strong); background: var(--surface-sunken); }
+.btn-destructive {
+  background: var(--state-danger-strong);
+  color: var(--on-primary);
+}
+.btn-destructive:hover { background: #700F18; }
+.btn-ghost {
+  background: transparent;
+  color: var(--brand-primary);
+}
+.btn-ghost:hover { background: var(--brand-primary-muted); }
+.btn-sm { min-height: 36px; padding: 0 14px; font-size: 14px; border-radius: var(--radius-sm); }
+.btn-lg { min-height: 52px; padding: 0 24px; font-size: 17px; }
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* =====================================================================
+   INPUT
+   ===================================================================== */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.field .req { color: var(--brand-primary); margin-inline-start: 4px; }
+.input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  transition: border-color 140ms var(--ease), box-shadow 140ms var(--ease);
+}
+.input-wrap:focus-within {
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 3px rgba(247, 93, 60, 0.32);
+}
+.input-wrap input {
+  flex: 1; min-width: 0;
+  background: transparent;
+  border: none; outline: none;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  color: var(--text-primary);
+  padding: 10px 0;
+}
+.input-wrap input::placeholder { color: var(--text-tertiary); }
+.input-wrap .icon {
+  color: var(--text-tertiary);
+  display: grid; place-items: center;
+  width: 20px; height: 20px;
+  flex-shrink: 0;
+}
+.field .helper {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.field.error .input-wrap {
+  border-color: var(--state-danger-strong);
+}
+.field.error .helper { color: var(--state-danger-strong); }
+
+/* =====================================================================
+   LISTING CARD
+   ===================================================================== */
+.listing {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 200ms var(--ease), transform 200ms var(--ease);
+  cursor: pointer;
+}
+.listing:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+.listing-image {
+  aspect-ratio: 4 / 3;
+  position: relative;
+  background: var(--surface-sunken);
+  /* SVG placeholder of a stylized sheep silhouette on warm grad */
+  background-image:
+    radial-gradient(circle at 30% 40%, rgba(255,255,255,0.6), transparent 60%),
+    linear-gradient(135deg, #E8DFC8 0%, #C8B68C 100%);
+}
+.listing-image .silhouette {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+.listing-premium {
+  position: absolute;
+  top: 10px;
+  inset-inline-start: 10px;
+  background: var(--brand-secondary);
+  color: var(--on-primary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 3px 8px;
+  border-radius: var(--radius-xs);
+  text-transform: uppercase;
+}
+.listing-health {
+  position: absolute;
+  bottom: 10px;
+  inset-inline-start: 10px;
+}
+.listing-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.listing-title {
+  font-family: var(--font-sans);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+.listing-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 2px;
+}
+.listing-price {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-price);
+  line-height: 1.1;
+}
+.listing-price-old {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+}
+.listing-seller {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+.listing-tick {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--state-success-strong);
+  color: var(--on-primary);
+  display: grid; place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+}
+.listing-location {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* =====================================================================
+   RTL ADJUSTMENTS
+   The whole point: when [dir="rtl"] is set, almost nothing here needs to
+   change because we use logical properties (inset-inline-start,
+   margin-inline-*, padding-inline-*). The two exceptions are:
+   1. Eyebrow text-transform: Arabic doesn't use uppercase, so we strip it.
+   2. Letter-spacing: Arabic letters connect, so wide tracking breaks them.
+   ===================================================================== */
+[dir="rtl"] .eyebrow,
+[dir="rtl"] .listing-premium {
+  text-transform: none;
+  letter-spacing: 0;
+}
+[dir="rtl"] .masthead .meta {
+  text-align: left;
+}
+
+/* Mirror directional icons (chevrons, arrows) */
+[dir="rtl"] .icon-mirror {
+  transform: scaleX(-1);
+}
+
+/* =====================================================================
+   FOOTER
+   ===================================================================== */
+.footer {
+  margin-top: 64px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-default);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+</style>
+</head>
+
+<body>
+<div class="page">
+
+  <!-- =================================================================
+       MASTHEAD
+       ================================================================= -->
+  <header class="masthead">
+    <div class="brand">
+      <div class="logo-mark">م</div>
+      <div>
+        <h1>Mashia Design System</h1>
+        <div class="tagline">Trust-forward marketplace tokens · Syria → GCC · v0.1</div>
+      </div>
+    </div>
+    <div class="meta">
+      <strong>tokens-spec</strong> · 2026.04<br>
+      mobile (RN) + admin (Next.js)<br>
+      ar · tr · en
+    </div>
+  </header>
+
+  <!-- =================================================================
+       1. COLOR TOKENS
+       ================================================================= -->
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">01 · Color</div>
+        <h2>Brand & semantic palette</h2>
+      </div>
+      <p class="lede">
+        Mashia Red carries every primary action. Date Palm gold marks
+        verified sellers. Earth-toned sand replaces cool grey so livestock
+        photography feels grounded, not clinical.
+      </p>
+    </div>
+
+    <div class="color-grid">
+      <div class="swatch"><div class="chip" style="background:#E63911"></div><div class="meta"><div class="name">brand.primary</div><div class="hex">#E63911 · Mashia Red</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#B07D08"></div><div class="meta"><div class="name">brand.secondary</div><div class="hex">#B07D08 · Date Palm</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#4F6A12"></div><div class="meta"><div class="name">state.success</div><div class="hex">#4F6A12 · Olive</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#2A4694"></div><div class="meta"><div class="name">state.info</div><div class="hex">#2A4694 · Indigo</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#B87100"></div><div class="meta"><div class="name">state.warning</div><div class="hex">#B87100 · Amber</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#921520"></div><div class="meta"><div class="name">state.danger</div><div class="hex">#921520 · Crimson</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#FBF8F3;border-bottom:1px solid var(--border-subtle)"></div><div class="meta"><div class="name">surface.page</div><div class="hex">#FBF8F3 · Sand 25</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#17130B"></div><div class="meta"><div class="name">surface.inverse</div><div class="hex">#17130B · Sand 900</div></div></div>
+    </div>
+  </section>
+
+  <!-- =================================================================
+       2. TYPOGRAPHY
+       ================================================================= -->
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">02 · Typography</div>
+        <h2>Arabic-first pairing</h2>
+      </div>
+      <p class="lede">
+        IBM Plex Sans Arabic for body and UI. Tajawal for prices, headlines,
+        and brand moments. Both are free, open, and ship matching Latin
+        siblings so mixed-script strings stay aligned.
+      </p>
+    </div>
+
+    <div class="type-grid">
+      <div class="col">
+        <h3>Arabic — العربية</h3>
+        <div class="type-row">
+          <div class="lbl">displayLarge · Tajawal 700</div>
+          <div style="font-family:var(--font-display);font-size:36px;font-weight:700;line-height:1.2">سوق الماشية المعتمد</div>
+        </div>
+        <div class="type-row">
+          <div class="lbl">headlineMedium · Plex Sans Arabic 600</div>
+          <div style="font-size:22px;font-weight:600;line-height:1.35">خروف عواسي ذكر، ٤ أشهر</div>
+        </div>
+        <div class="type-row">
+          <div class="lbl">body · Plex Sans Arabic 400</div>
+          <div style="font-size:16px;line-height:1.55">يتم الاحتفاظ بالمبلغ في حساب الضمان حتى تأكيد التسليم. شحن آمن من حلب إلى دبي.</div>
+        </div>
+        <div class="type-row">
+          <div class="lbl">priceLarge · Tajawal 700</div>
+          <div style="font-family:var(--font-display);font-size:26px;font-weight:700;color:var(--text-price);line-height:1.1">١٬٢٥٠ د.إ</div>
+        </div>
+        <div class="type-row">
+          <div class="lbl">caption · Plex Sans Arabic 400</div>
+          <div style="font-size:13px;color:var(--text-tertiary)">منذ ٣ ساعات · حلب، سوريا</div>
+        </div>
+      </div>
+      <div class="col">
+        <h3>Latin — English / Türkçe</h3>
+        <div class="type-row">
+          <div class="lbl">displayLarge · Tajawal 700</div>
+          <div style="font-family:var(--font-display);font-size:36px;font-weight:700;line-height:1.2">Verified livestock trade</div>
+        </div>
+        <div class="type-row">
+          <div class="lbl">headlineMedium · Plex Sans 600</div>
+          <div style="font-size:22px;font-weight:600;line-height:1.35">Awassi ram, 4 months old</div>
+        </div>
+        <div class="type-row">
+          <div class="lbl">body · Plex Sans 400</div>
+          <div style="font-size:16px;line-height:1.55">Funds are held in escrow until delivery is confirmed. Secure shipping from Aleppo to Dubai.</div>
+        </div>
+        <div class="type-row">
+          <div class="lbl">priceLarge · Tajawal 700</div>
+          <div style="font-family:var(--font-display);font-size:26px;font-weight:700;color:var(--text-price);line-height:1.1">1,250 AED</div>
+        </div>
+        <div class="type-row">
+          <div class="lbl">caption · Plex Sans 400</div>
+          <div style="font-size:13px;color:var(--text-tertiary)">3 hours ago · Aleppo, Syria</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================
+       3. STATUS BADGES — full state library
+       ================================================================= -->
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">03 · State</div>
+        <h2>Status badges</h2>
+      </div>
+      <p class="lede">
+        Every transactional state — escrow, KYC, order lifecycle, animal
+        health — uses the same badge component. Visual consistency across
+        ten state types is the trust story.
+      </p>
+    </div>
+
+    <div class="parity">
+      <!-- ENGLISH (LTR) -->
+      <div class="frame" dir="ltr" lang="en">
+        <div class="frame-head">
+          <span class="dir-name">English</span>
+          <span class="dir-tag">dir=ltr</span>
+        </div>
+        <div class="frame-body">
+          <div class="badge-group">
+            <h4>Escrow</h4>
+            <div class="badge-row">
+              <span class="badge info"><span class="dot"></span>Held in escrow</span>
+              <span class="badge success"><span class="dot"></span>Released to seller</span>
+              <span class="badge warning"><span class="dot"></span>Disputed</span>
+              <span class="badge danger"><span class="dot"></span>Refunded</span>
+            </div>
+          </div>
+          <div class="badge-group">
+            <h4>KYC</h4>
+            <div class="badge-row">
+              <span class="badge warning"><span class="dot"></span>Verification pending</span>
+              <span class="badge success"><span class="dot"></span>Verified seller</span>
+              <span class="badge danger"><span class="dot"></span>Rejected</span>
+            </div>
+          </div>
+          <div class="badge-group">
+            <h4>Order</h4>
+            <div class="badge-row">
+              <span class="badge neutral"><span class="dot"></span>Placed</span>
+              <span class="badge info"><span class="dot"></span>Paid</span>
+              <span class="badge info"><span class="dot"></span>Shipped</span>
+              <span class="badge success"><span class="dot"></span>Delivered</span>
+              <span class="badge danger"><span class="dot"></span>Cancelled</span>
+            </div>
+          </div>
+          <div class="badge-group">
+            <h4>Animal health</h4>
+            <div class="badge-row">
+              <span class="badge success"><span class="dot"></span>Healthy</span>
+              <span class="badge warning"><span class="dot"></span>Quarantine</span>
+              <span class="badge danger"><span class="dot"></span>Flagged</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ARABIC (RTL) -->
+      <div class="frame" dir="rtl" lang="ar">
+        <div class="frame-head">
+          <span class="dir-name">العربية</span>
+          <span class="dir-tag">dir=rtl</span>
+        </div>
+        <div class="frame-body">
+          <div class="badge-group">
+            <h4>الضمان</h4>
+            <div class="badge-row">
+              <span class="badge info"><span class="dot"></span>محتجز في الضمان</span>
+              <span class="badge success"><span class="dot"></span>تم التحويل للبائع</span>
+              <span class="badge warning"><span class="dot"></span>قيد النزاع</span>
+              <span class="badge danger"><span class="dot"></span>تم الاسترداد</span>
+            </div>
+          </div>
+          <div class="badge-group">
+            <h4>التحقق من الهوية</h4>
+            <div class="badge-row">
+              <span class="badge warning"><span class="dot"></span>قيد التحقق</span>
+              <span class="badge success"><span class="dot"></span>بائع موثّق</span>
+              <span class="badge danger"><span class="dot"></span>مرفوض</span>
+            </div>
+          </div>
+          <div class="badge-group">
+            <h4>الطلب</h4>
+            <div class="badge-row">
+              <span class="badge neutral"><span class="dot"></span>تم الطلب</span>
+              <span class="badge info"><span class="dot"></span>تم الدفع</span>
+              <span class="badge info"><span class="dot"></span>تم الشحن</span>
+              <span class="badge success"><span class="dot"></span>تم التسليم</span>
+              <span class="badge danger"><span class="dot"></span>ملغى</span>
+            </div>
+          </div>
+          <div class="badge-group">
+            <h4>الحالة الصحية</h4>
+            <div class="badge-row">
+              <span class="badge success"><span class="dot"></span>صحيح</span>
+              <span class="badge warning"><span class="dot"></span>حجر صحي</span>
+              <span class="badge danger"><span class="dot"></span>تحت المراجعة</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================
+       4. BUTTONS
+       ================================================================= -->
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">04 · Action</div>
+        <h2>Buttons</h2>
+      </div>
+      <p class="lede">
+        Four variants, three sizes. Primary uses Mashia Red; destructive uses
+        crimson — distinct enough that "Cancel order" never reads like "Buy now".
+      </p>
+    </div>
+
+    <div class="parity">
+      <div class="frame" dir="ltr" lang="en">
+        <div class="frame-head">
+          <span class="dir-name">English</span>
+          <span class="dir-tag">dir=ltr</span>
+        </div>
+        <div class="frame-body">
+          <div class="btn-row">
+            <button class="btn btn-primary">Buy now · 1,250 AED</button>
+            <button class="btn btn-secondary">Make offer</button>
+            <button class="btn btn-ghost">Save listing</button>
+            <button class="btn btn-destructive">Cancel order</button>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary btn-sm">Confirm</button>
+            <button class="btn btn-primary">Confirm</button>
+            <button class="btn btn-primary btn-lg">Confirm</button>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary">
+              <span class="icon-mirror">→</span> Continue to payment
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="frame" dir="rtl" lang="ar">
+        <div class="frame-head">
+          <span class="dir-name">العربية</span>
+          <span class="dir-tag">dir=rtl</span>
+        </div>
+        <div class="frame-body">
+          <div class="btn-row">
+            <button class="btn btn-primary">اشترِ الآن · ١٬٢٥٠ د.إ</button>
+            <button class="btn btn-secondary">تقديم عرض</button>
+            <button class="btn btn-ghost">حفظ الإعلان</button>
+            <button class="btn btn-destructive">إلغاء الطلب</button>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary btn-sm">تأكيد</button>
+            <button class="btn btn-primary">تأكيد</button>
+            <button class="btn btn-primary btn-lg">تأكيد</button>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary">
+              <span class="icon-mirror">→</span> المتابعة إلى الدفع
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================
+       5. INPUTS
+       ================================================================= -->
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">05 · Form</div>
+        <h2>Inputs</h2>
+      </div>
+      <p class="lede">
+        Logical properties (<code style="font-family:var(--font-mono);font-size:13px;background:var(--surface-sunken);padding:1px 5px;border-radius:4px">padding-inline-start</code>)
+        mean leading icons sit on the start side automatically — no per-locale
+        styling needed.
+      </p>
+    </div>
+
+    <div class="parity">
+      <div class="frame" dir="ltr" lang="en">
+        <div class="frame-head">
+          <span class="dir-name">English</span>
+          <span class="dir-tag">dir=ltr</span>
+        </div>
+        <div class="frame-body">
+          <div class="field">
+            <label for="e1">Phone number<span class="req">*</span></label>
+            <div class="input-wrap">
+              <span class="icon">📞</span>
+              <input id="e1" type="tel" placeholder="+971 50 123 4567" />
+            </div>
+            <div class="helper">We'll send a one-time code via SMS.</div>
+          </div>
+          <div class="field">
+            <label for="e2">Search livestock</label>
+            <div class="input-wrap">
+              <span class="icon">🔍</span>
+              <input id="e2" type="search" placeholder="e.g. Awassi ram, 4 months" />
+            </div>
+          </div>
+          <div class="field error">
+            <label for="e3">National ID</label>
+            <div class="input-wrap">
+              <span class="icon">🪪</span>
+              <input id="e3" type="text" value="784-1990-12345" />
+            </div>
+            <div class="helper">ID format invalid — please check and retry.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="frame" dir="rtl" lang="ar">
+        <div class="frame-head">
+          <span class="dir-name">العربية</span>
+          <span class="dir-tag">dir=rtl</span>
+        </div>
+        <div class="frame-body">
+          <div class="field">
+            <label for="a1">رقم الهاتف<span class="req">*</span></label>
+            <div class="input-wrap">
+              <span class="icon">📞</span>
+              <input id="a1" type="tel" placeholder="+٩٧١ ٥٠ ١٢٣ ٤٥٦٧" />
+            </div>
+            <div class="helper">سنرسل لك رمز التحقق عبر رسالة نصية.</div>
+          </div>
+          <div class="field">
+            <label for="a2">ابحث في الماشية</label>
+            <div class="input-wrap">
+              <span class="icon">🔍</span>
+              <input id="a2" type="search" placeholder="مثال: خروف عواسي، ٤ أشهر" />
+            </div>
+          </div>
+          <div class="field error">
+            <label for="a3">رقم الهوية الوطنية</label>
+            <div class="input-wrap">
+              <span class="icon">🪪</span>
+              <input id="a3" type="text" value="٧٨٤-١٩٩٠-١٢٣٤٥" />
+            </div>
+            <div class="helper">صيغة الهوية غير صحيحة — يرجى التحقق والمحاولة مرة أخرى.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================
+       6. LISTING CARD
+       ================================================================= -->
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">06 · Composition</div>
+        <h2>Listing card</h2>
+      </div>
+      <p class="lede">
+        The most-used surface in the app. Photo-forward, price-loud,
+        seller-trust visible. Notice how the price uses the display font —
+        that's the eBay move applied to MENA livestock trade.
+      </p>
+    </div>
+
+    <div class="parity">
+      <div class="frame" dir="ltr" lang="en">
+        <div class="frame-head">
+          <span class="dir-name">English</span>
+          <span class="dir-tag">dir=ltr</span>
+        </div>
+        <div class="frame-body">
+          <article class="listing">
+            <div class="listing-image">
+              <span class="listing-premium">Premium</span>
+              <div class="listing-health">
+                <span class="badge success"><span class="dot"></span>Healthy</span>
+              </div>
+              <div class="silhouette">
+                <svg width="180" height="120" viewBox="0 0 180 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <ellipse cx="90" cy="78" rx="52" ry="28" fill="#FFFFFF" opacity="0.85"/>
+                  <circle cx="135" cy="62" r="18" fill="#5C4F33"/>
+                  <ellipse cx="142" cy="58" rx="3" ry="3" fill="#FBF8F3"/>
+                  <path d="M125 50 Q120 40 128 38" stroke="#403724" stroke-width="3" stroke-linecap="round"/>
+                  <path d="M148 50 Q156 40 152 38" stroke="#403724" stroke-width="3" stroke-linecap="round"/>
+                  <rect x="60" y="100" width="6" height="14" rx="2" fill="#403724"/>
+                  <rect x="78" y="100" width="6" height="14" rx="2" fill="#403724"/>
+                  <rect x="100" y="100" width="6" height="14" rx="2" fill="#403724"/>
+                  <rect x="118" y="100" width="6" height="14" rx="2" fill="#403724"/>
+                </svg>
+              </div>
+            </div>
+            <div class="listing-body">
+              <h3 class="listing-title">Awassi ram, 4 months · grass-fed</h3>
+              <div class="listing-price-row">
+                <span class="listing-price">1,250 AED</span>
+                <span class="listing-price-old">1,500 AED</span>
+              </div>
+              <div class="listing-seller">
+                <span>Hassan Al-Halabi Farms</span>
+                <span class="listing-tick" title="Verified seller">✓</span>
+              </div>
+              <div class="listing-location">
+                <span>🇸🇾</span>
+                <span>Aleppo, Syria · ships to GCC</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <div class="frame" dir="rtl" lang="ar">
+        <div class="frame-head">
+          <span class="dir-name">العربية</span>
+          <span class="dir-tag">dir=rtl</span>
+        </div>
+        <div class="frame-body">
+          <article class="listing">
+            <div class="listing-image">
+              <span class="listing-premium">مميز</span>
+              <div class="listing-health">
+                <span class="badge success"><span class="dot"></span>صحيح</span>
+              </div>
+              <div class="silhouette">
+                <svg width="180" height="120" viewBox="0 0 180 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <ellipse cx="90" cy="78" rx="52" ry="28" fill="#FFFFFF" opacity="0.85"/>
+                  <circle cx="45" cy="62" r="18" fill="#5C4F33"/>
+                  <ellipse cx="38" cy="58" rx="3" ry="3" fill="#FBF8F3"/>
+                  <path d="M55 50 Q60 40 52 38" stroke="#403724" stroke-width="3" stroke-linecap="round"/>
+                  <path d="M32 50 Q24 40 28 38" stroke="#403724" stroke-width="3" stroke-linecap="round"/>
+                  <rect x="60" y="100" width="6" height="14" rx="2" fill="#403724"/>
+                  <rect x="78" y="100" width="6" height="14" rx="2" fill="#403724"/>
+                  <rect x="100" y="100" width="6" height="14" rx="2" fill="#403724"/>
+                  <rect x="118" y="100" width="6" height="14" rx="2" fill="#403724"/>
+                </svg>
+              </div>
+            </div>
+            <div class="listing-body">
+              <h3 class="listing-title">خروف عواسي ذكر، ٤ أشهر · يأكل من العشب</h3>
+              <div class="listing-price-row">
+                <span class="listing-price">١٬٢٥٠ د.إ</span>
+                <span class="listing-price-old">١٬٥٠٠ د.إ</span>
+              </div>
+              <div class="listing-seller">
+                <span>مزارع حسن الحلبي</span>
+                <span class="listing-tick" title="بائع موثّق">✓</span>
+              </div>
+              <div class="listing-location">
+                <span>🇸🇾</span>
+                <span>حلب، سوريا · يُشحن إلى دول الخليج</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================
+       FOOTER
+       ================================================================= -->
+  <footer class="footer">
+    <span>mashia · design system · v0.1 · 2026.04</span>
+    <span>tokens populated: colors.ts · typography.ts · spacing.ts</span>
+  </footer>
+
+</div>
+</body>
+</html>
