@@ -67,3 +67,10 @@ export enum EscrowStatus {
   RELEASED = 'released',
   REFUNDED = 'refunded',
 }
+
+export enum MessageType {
+  TEXT = 'text',
+  IMAGE = 'image',
+  CERTIFICATE = 'certificate',
+  OFFER = 'offer',
+}
