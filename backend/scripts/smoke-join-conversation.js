@@ -18,7 +18,8 @@ const DB = {
   password: process.env.DB_PASSWORD || 'sheep_pass_dev',
 };
 const JWT_SECRET = process.env.JWT_SECRET;
-const API_URL = process.env.API_URL || 'http://localhost:3000';
+const apiUrl = new URL(process.env.API_URL || 'http://localhost:3000');
+const WS_URL = `${apiUrl.protocol}//${apiUrl.host}`;
 
 if (!JWT_SECRET) {
   console.error('JWT_SECRET is not set in .env');
@@ -71,7 +72,7 @@ function emitAck(sock, event, payload) {
       JWT_SECRET,
       { expiresIn: '1h' },
     );
-    const sock = io(`${API_URL}/chat`, {
+    const sock = io(`${WS_URL}/chat`, {
       auth: { token },
       transports: ['websocket'],
     });
