@@ -4,6 +4,7 @@ import {
   Get,
   HttpStatus,
   Post,
+  Query,
   Res,
   UseGuards,
 } from '@nestjs/common';
@@ -13,6 +14,8 @@ import { CurrentUser } from '@shared/decorators/current-user.decorator';
 import { User } from '../users/user.entity';
 import { Conversation } from './conversation.entity';
 import { CreateConversationDto } from './dto/create-conversation.dto';
+import { ListConversationsQueryDto } from './dto/list-conversations-query.dto';
+import { ConversationListItemResponse } from './dto/conversation-list-item.response';
 import { MessagingService } from './messaging.service';
 
 @Controller('messaging')
@@ -21,8 +24,15 @@ export class MessagingController {
 
   @Get('conversations')
   @UseGuards(JwtAuthGuard)
-  async listConversations() {
-    return [];
+  async listConversations(
+    @CurrentUser() user: User,
+    @Query() query: ListConversationsQueryDto,
+  ): Promise<ConversationListItemResponse[]> {
+    return this.messagingService.listConversationsForUser(
+      user.id,
+      query.page ?? 1,
+      query.limit ?? 20,
+    );
   }
 
   @Post('conversations')
