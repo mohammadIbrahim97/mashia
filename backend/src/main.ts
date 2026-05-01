@@ -4,6 +4,7 @@ initSentry();
 import { NestFactory, HttpAdapterHost } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './shared/interceptors/transform.interceptor';
@@ -25,6 +26,8 @@ async function bootstrap() {
   );
 
   app.useGlobalInterceptors(new TransformInterceptor());
+
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   app.enableCors({
     origin: ['http://localhost:3001', 'http://localhost:8081'],
