@@ -82,6 +82,32 @@ export class MessagingService {
     return { created: true, conversation: saved };
   }
 
+  async listMessages(
+    conversationId: string,
+    userId: string,
+    options: { before?: string; limit: number },
+  ): Promise<Message[]> {
+    await this.assertIsParticipant(conversationId, userId);
+
+    const qb = this.messagesRepository
+      .createQueryBuilder('m')
+      .where('m.conversation_id = :cid', { cid: conversationId });
+
+    if (options.before) {
+      qb.andWhere(
+        'm.created_at < (SELECT m2.created_at FROM messages m2 WHERE m2.id = :before)',
+        { before: options.before },
+      );
+    }
+
+    const rows = await qb
+      .orderBy('m.created_at', 'DESC')
+      .take(options.limit)
+      .getMany();
+
+    return rows.reverse();
+  }
+
   async listConversationsForUser(
     userId: string,
     page: number,

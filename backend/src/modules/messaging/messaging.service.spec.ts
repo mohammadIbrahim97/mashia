@@ -51,6 +51,7 @@ interface MsgQbStub {
   orderBy: jest.Mock;
   addOrderBy: jest.Mock;
   groupBy: jest.Mock;
+  take: jest.Mock;
   getMany: jest.Mock<Promise<Message[]>, []>;
   getRawMany: jest.Mock<Promise<unknown[]>, []>;
 }
@@ -68,6 +69,7 @@ const buildMsgQb = (
   qb.orderBy = jest.fn().mockReturnValue(qb);
   qb.addOrderBy = jest.fn().mockReturnValue(qb);
   qb.groupBy = jest.fn().mockReturnValue(qb);
+  qb.take = jest.fn().mockReturnValue(qb);
   qb.getMany = jest.fn().mockResolvedValue(many);
   qb.getRawMany = jest.fn().mockResolvedValue(raw);
   return qb as MsgQbStub;
@@ -218,6 +220,91 @@ describe('MessagingService', () => {
       expect(qb.andWhere).toHaveBeenCalledWith('c.listing_id = :listingId', {
         listingId,
       });
+    });
+  });
+
+  describe('listMessages', () => {
+    const setup = (rows: Message[]) => {
+      convRepo.findOne.mockResolvedValue({
+        id: conversationId,
+        participantIds: [participantA, participantB],
+      } as Conversation);
+      const qb = buildMsgQb(rows);
+      msgRepo.createQueryBuilder.mockReturnValue(
+        qb as unknown as ReturnType<typeof msgRepo.createQueryBuilder>,
+      );
+      return qb;
+    };
+
+    it('throws ForbiddenException when caller is not a participant', async () => {
+      convRepo.findOne.mockResolvedValue({
+        id: conversationId,
+        participantIds: [participantA, participantB],
+      } as Conversation);
+      await expect(
+        service.listMessages(conversationId, stranger, { limit: 50 }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('throws NotFoundException when conversation does not exist', async () => {
+      convRepo.findOne.mockResolvedValue(null);
+      await expect(
+        service.listMessages(conversationId, participantA, { limit: 50 }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('queries by conversation_id and orders by created_at DESC then reverses to ASC', async () => {
+      const newest = {
+        id: 'm3',
+        conversationId,
+        createdAt: new Date('2026-05-01T03:00:00Z'),
+      } as Message;
+      const middle = {
+        id: 'm2',
+        conversationId,
+        createdAt: new Date('2026-05-01T02:00:00Z'),
+      } as Message;
+      const oldest = {
+        id: 'm1',
+        conversationId,
+        createdAt: new Date('2026-05-01T01:00:00Z'),
+      } as Message;
+      const qb = setup([newest, middle, oldest]);
+
+      const result = await service.listMessages(conversationId, participantA, { limit: 50 });
+
+      expect(qb.where).toHaveBeenCalledWith('m.conversation_id = :cid', { cid: conversationId });
+      expect(qb.orderBy).toHaveBeenCalledWith('m.created_at', 'DESC');
+      expect(qb.take).toHaveBeenCalledWith(50);
+      expect(result.map((m) => m.id)).toEqual(['m1', 'm2', 'm3']);
+    });
+
+    it('applies "before" cursor with subquery on created_at', async () => {
+      const qb = setup([]);
+      const before = '99999999-9999-4999-8999-999999999999';
+
+      await service.listMessages(conversationId, participantA, { before, limit: 50 });
+
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'm.created_at < (SELECT m2.created_at FROM messages m2 WHERE m2.id = :before)',
+        { before },
+      );
+    });
+
+    it('does not apply "before" filter when undefined', async () => {
+      const qb = setup([]);
+
+      await service.listMessages(conversationId, participantA, { limit: 50 });
+
+      expect(qb.andWhere).not.toHaveBeenCalled();
+    });
+
+    it('respects custom limit', async () => {
+      const qb = setup([]);
+
+      await service.listMessages(conversationId, participantA, { limit: 200 });
+
+      expect(qb.take).toHaveBeenCalledWith(200);
     });
   });
 

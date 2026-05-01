@@ -3,6 +3,8 @@ import {
   Controller,
   Get,
   HttpStatus,
+  Param,
+  ParseUUIDPipe,
   Post,
   Query,
   Res,
@@ -13,8 +15,10 @@ import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
 import { User } from '../users/user.entity';
 import { Conversation } from './conversation.entity';
+import { Message } from './message.entity';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { ListConversationsQueryDto } from './dto/list-conversations-query.dto';
+import { ListMessagesQueryDto } from './dto/list-messages-query.dto';
 import { ConversationListItemResponse } from './dto/conversation-list-item.response';
 import { MessagingService } from './messaging.service';
 
@@ -33,6 +37,19 @@ export class MessagingController {
       query.page ?? 1,
       query.limit ?? 20,
     );
+  }
+
+  @Get('conversations/:id/messages')
+  @UseGuards(JwtAuthGuard)
+  async listMessages(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: ListMessagesQueryDto,
+  ): Promise<Message[]> {
+    return this.messagingService.listMessages(id, user.id, {
+      before: query.before,
+      limit: query.limit ?? 50,
+    });
   }
 
   @Post('conversations')
