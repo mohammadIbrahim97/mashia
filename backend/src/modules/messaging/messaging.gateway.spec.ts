@@ -49,7 +49,7 @@ describe('MessagingGateway', () => {
   let gateway: MessagingGateway;
   let jwtService: jest.Mocked<Pick<JwtService, 'verify'>>;
   let messagingService: jest.Mocked<
-    Pick<MessagingService, 'assertIsParticipant' | 'sendMessage'>
+    Pick<MessagingService, 'assertIsParticipant' | 'sendMessage' | 'markMessagesRead'>
   >;
 
   beforeEach(async () => {
@@ -57,6 +57,7 @@ describe('MessagingGateway', () => {
     messagingService = {
       assertIsParticipant: jest.fn(),
       sendMessage: jest.fn(),
+      markMessagesRead: jest.fn(),
     };
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -327,6 +328,116 @@ describe('MessagingGateway', () => {
 
       expect(ack).toEqual({ ok: false, error: 'unauthorized' });
       expect(messagingService.sendMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleMarkRead', () => {
+    const buildAuthedSocket = (): RoomTrackingSocket => {
+      const client = buildSocket() as RoomTrackingSocket;
+      client.data.userId = userId;
+      return client;
+    };
+
+    const messageIds = [
+      '33333333-3333-4333-8333-333333333333',
+      '44444444-4444-4444-8444-444444444444',
+    ];
+    const validPayload = { conversationId, messageIds };
+
+    it('persists, broadcasts to other sockets, and acks ok=true with updated ids + readAt', async () => {
+      const client = buildAuthedSocket();
+      const mocks = client as unknown as BroadcastMocks;
+      const readAt = new Date('2026-05-03T12:00:00Z');
+      messagingService.markMessagesRead.mockResolvedValue({
+        updated: messageIds,
+        readAt,
+      });
+
+      const ack = await gateway.handleMarkRead(client, validPayload);
+
+      expect(messagingService.markMessagesRead).toHaveBeenCalledWith(
+        conversationId,
+        userId,
+        messageIds,
+      );
+      expect(mocks.to).toHaveBeenCalledWith(`conversation:${conversationId}`);
+      expect(mocks.emit).toHaveBeenCalledWith('messageRead', {
+        messageIds,
+        readerId: userId,
+        readAt,
+      });
+      expect(ack).toEqual({ ok: true, updated: messageIds, readAt });
+    });
+
+    it('does not broadcast when 0 rows updated (own messages or already read), but still acks ok=true', async () => {
+      const client = buildAuthedSocket();
+      const mocks = client as unknown as BroadcastMocks;
+      messagingService.markMessagesRead.mockResolvedValue({
+        updated: [],
+        readAt: null,
+      });
+
+      const ack = await gateway.handleMarkRead(client, validPayload);
+
+      expect(mocks.to).not.toHaveBeenCalled();
+      expect(ack).toEqual({ ok: true, updated: [], readAt: null });
+    });
+
+    it('acks forbidden and does not broadcast when caller is not a participant', async () => {
+      const client = buildAuthedSocket();
+      const mocks = client as unknown as BroadcastMocks;
+      messagingService.markMessagesRead.mockRejectedValue(
+        new ForbiddenException(),
+      );
+
+      const ack = await gateway.handleMarkRead(client, validPayload);
+
+      expect(ack).toEqual({ ok: false, error: 'forbidden' });
+      expect(mocks.to).not.toHaveBeenCalled();
+    });
+
+    it('acks not_found when conversation does not exist', async () => {
+      const client = buildAuthedSocket();
+      const mocks = client as unknown as BroadcastMocks;
+      messagingService.markMessagesRead.mockRejectedValue(
+        new NotFoundException(),
+      );
+
+      const ack = await gateway.handleMarkRead(client, validPayload);
+
+      expect(ack).toEqual({ ok: false, error: 'not_found' });
+      expect(mocks.to).not.toHaveBeenCalled();
+    });
+
+    it.each<[string, unknown]>([
+      ['conversationId is not a uuid v4', { ...validPayload, conversationId: 'not-a-uuid' }],
+      ['messageIds is empty', { ...validPayload, messageIds: [] }],
+      ['messageIds contains a non-uuid', { ...validPayload, messageIds: [messageIds[0], 'bad'] }],
+      ['messageIds exceeds 200 entries', {
+        ...validPayload,
+        messageIds: Array.from(
+          { length: 201 },
+          (_, i) => `${i.toString().padStart(8, '0')}-2222-4222-8222-222222222222`,
+        ),
+      }],
+      ['messageIds is missing', { conversationId }],
+      ['payload is null', null],
+    ])('acks invalid_payload when %s', async (_label, badPayload) => {
+      const client = buildAuthedSocket();
+
+      const ack = await gateway.handleMarkRead(client, badPayload);
+
+      expect(ack).toEqual({ ok: false, error: 'invalid_payload' });
+      expect(messagingService.markMessagesRead).not.toHaveBeenCalled();
+    });
+
+    it('acks unauthorized when client.data.userId is missing', async () => {
+      const client = buildSocket() as RoomTrackingSocket;
+
+      const ack = await gateway.handleMarkRead(client, validPayload);
+
+      expect(ack).toEqual({ ok: false, error: 'unauthorized' });
+      expect(messagingService.markMessagesRead).not.toHaveBeenCalled();
     });
   });
 });

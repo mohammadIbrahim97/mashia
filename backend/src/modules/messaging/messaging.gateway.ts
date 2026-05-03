@@ -17,6 +17,7 @@ import { plainToInstance } from 'class-transformer';
 import { isUUID, validate } from 'class-validator';
 import { Socket } from 'socket.io';
 import { Message } from './message.entity';
+import { MarkReadDto } from './dto/mark-read.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { MessagingService } from './messaging.service';
 
@@ -37,6 +38,15 @@ export interface SendMessageAck {
   ok: boolean;
   error?: SendMessageAckError;
   message?: Message;
+}
+
+export type MarkReadAckError = JoinConversationAckError;
+
+export interface MarkReadAck {
+  ok: boolean;
+  error?: MarkReadAckError;
+  updated?: string[];
+  readAt?: Date | null;
 }
 
 export interface AuthSocket extends Socket {
@@ -137,6 +147,46 @@ export class MessagingGateway
 
     client.to(`conversation:${dto.conversationId}`).emit('newMessage', saved);
     return { ok: true, message: saved };
+  }
+
+  @SubscribeMessage('markRead')
+  async handleMarkRead(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: unknown,
+  ): Promise<MarkReadAck> {
+    const dto =
+      plainToInstance(MarkReadDto, payload as object) ?? new MarkReadDto();
+    const errors = await validate(dto);
+    if (errors.length > 0) {
+      return { ok: false, error: 'invalid_payload' };
+    }
+
+    const userId = client.data.userId;
+    if (!userId) {
+      return { ok: false, error: 'unauthorized' };
+    }
+
+    let result: { updated: string[]; readAt: Date | null };
+    try {
+      result = await this.messagingService.markMessagesRead(
+        dto.conversationId,
+        userId,
+        dto.messageIds,
+      );
+    } catch (err) {
+      const error = this.mapServiceError(err);
+      if (error) return { ok: false, error };
+      throw err;
+    }
+
+    if (result.updated.length > 0) {
+      client.to(`conversation:${dto.conversationId}`).emit('messageRead', {
+        messageIds: result.updated,
+        readerId: userId,
+        readAt: result.readAt,
+      });
+    }
+    return { ok: true, updated: result.updated, readAt: result.readAt };
   }
 
   private mapServiceError(
