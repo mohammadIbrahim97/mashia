@@ -55,5 +55,17 @@ jobs:
           JWT_SECRET: test-secret
           JWT_REFRESH_SECRET: test-refresh-secret
 
+      - name: Test (e2e)
+        working-directory: backend
+        run: npm run test:e2e
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: sheep_user
+          DB_PASSWORD: sheep_pass_test
+          DB_NAME: sheep_marketplace_test
+          JWT_SECRET: test-secret
+          JWT_REFRESH_SECRET: test-refresh-secret
+
       - name: Docker build
         run: docker build -t mashia-backend:ci ./backend

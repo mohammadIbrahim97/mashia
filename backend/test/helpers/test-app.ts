@@ -1,5 +1,6 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { AppModule } from '../../src/app.module';
 
 export async function createTestApp(): Promise<INestApplication> {
@@ -16,6 +17,7 @@ export async function createTestApp(): Promise<INestApplication> {
       transform: true,
     }),
   );
+  app.useWebSocketAdapter(new IoAdapter(app));
   await app.init();
   return app;
 }

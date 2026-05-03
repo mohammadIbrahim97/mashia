@@ -4,7 +4,7 @@ export default async function globalSetup(): Promise<void> {
   const client = new Client({
     host: process.env.DB_HOST ?? 'localhost',
     port: Number(process.env.DB_PORT ?? 5432),
-    user: process.env.DB_USER ?? 'sheep_user',
+    user: process.env.DB_USERNAME ?? process.env.DB_USER ?? 'sheep_user',
     password: process.env.DB_PASSWORD ?? 'sheep_pass_dev',
     database: 'postgres',
   });
@@ -22,4 +22,13 @@ export default async function globalSetup(): Promise<void> {
   process.env.JWT_SECRET = process.env.JWT_SECRET ?? 'test-secret-change-me';
   process.env.JWT_REFRESH_SECRET =
     process.env.JWT_REFRESH_SECRET ?? 'test-refresh-secret-change-me';
+
+  // Apply migrations against mashia_test. data-source.ts reads DB_NAME at
+  // construction time, so it must be required AFTER the env var is set.
+  /* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports */
+  const dataSource = require('../src/data-source').default;
+  /* eslint-enable @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports */
+  await dataSource.initialize();
+  await dataSource.runMigrations();
+  await dataSource.destroy();
 }
