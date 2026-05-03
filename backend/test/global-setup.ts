@@ -1,21 +1,34 @@
 import { Client } from 'pg';
 
 export default async function globalSetup(): Promise<void> {
-  const client = new Client({
+  const sysClient = new Client({
     host: process.env.DB_HOST ?? 'localhost',
     port: Number(process.env.DB_PORT ?? 5432),
     user: process.env.DB_USERNAME ?? process.env.DB_USER ?? 'sheep_user',
     password: process.env.DB_PASSWORD ?? 'sheep_pass_dev',
     database: 'postgres',
   });
-  await client.connect();
-  const res = await client.query(
+  await sysClient.connect();
+  const res = await sysClient.query(
     `SELECT 1 FROM pg_database WHERE datname = 'mashia_test'`,
   );
   if (res.rowCount === 0) {
-    await client.query(`CREATE DATABASE mashia_test`);
+    await sysClient.query(`CREATE DATABASE mashia_test`);
   }
-  await client.end();
+  await sysClient.end();
+
+  // Init migration depends on uuid_generate_v4() — enable the extension on
+  // mashia_test before running migrations.
+  const dbClient = new Client({
+    host: process.env.DB_HOST ?? 'localhost',
+    port: Number(process.env.DB_PORT ?? 5432),
+    user: process.env.DB_USERNAME ?? process.env.DB_USER ?? 'sheep_user',
+    password: process.env.DB_PASSWORD ?? 'sheep_pass_dev',
+    database: 'mashia_test',
+  });
+  await dbClient.connect();
+  await dbClient.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
+  await dbClient.end();
 
   process.env.DB_NAME = 'mashia_test';
   process.env.NODE_ENV = 'test';
