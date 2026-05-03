@@ -520,11 +520,7 @@ describe('MessagingService', () => {
 
     it('issues a single guarded UPDATE and returns updated ids + readAt', async () => {
       convRepo.findOne.mockResolvedValue(buildParticipantConv());
-      const readAt = new Date('2026-05-03T12:00:00Z');
-      const qb = buildUpdateQb([
-        { id: messageIds[0], read_at: readAt },
-        { id: messageIds[1], read_at: readAt },
-      ]);
+      const qb = buildUpdateQb([{ id: messageIds[0] }, { id: messageIds[1] }]);
       msgRepo.createQueryBuilder.mockReturnValue(
         qb as unknown as ReturnType<typeof msgRepo.createQueryBuilder>,
       );
@@ -536,7 +532,7 @@ describe('MessagingService', () => {
       );
 
       expect(qb.update).toHaveBeenCalledWith(Message);
-      expect(qb.set).toHaveBeenCalledWith({ readAt: expect.any(Function) });
+      expect(qb.set).toHaveBeenCalledWith({ readAt: expect.any(Date) });
       expect(qb.where).toHaveBeenCalledWith('id = ANY(:ids)', { ids: messageIds });
       expect(qb.andWhere).toHaveBeenCalledWith(
         'conversation_id = :conversationId',
@@ -546,8 +542,10 @@ describe('MessagingService', () => {
         readerId: participantA,
       });
       expect(qb.andWhere).toHaveBeenCalledWith('read_at IS NULL');
-      expect(qb.returning).toHaveBeenCalledWith(['id', 'read_at']);
-      expect(result).toEqual({ updated: messageIds, readAt });
+      expect(qb.returning).toHaveBeenCalledWith(['id']);
+      expect(result.updated).toEqual(messageIds);
+      const setArg = qb.set.mock.calls[0][0] as { readAt: Date };
+      expect(result.readAt).toBe(setArg.readAt);
     });
 
     it('returns { updated: [], readAt: null } when UPDATE affects 0 rows (idempotent)', async () => {

@@ -76,24 +76,25 @@ export class MessagingService {
   ): Promise<{ updated: string[]; readAt: Date | null }> {
     await this.assertIsParticipant(conversationId, readerId);
 
+    const readAt = new Date();
     const result = await this.messagesRepository
       .createQueryBuilder()
       .update(Message)
-      .set({ readAt: () => 'now()' })
+      .set({ readAt })
       .where('id = ANY(:ids)', { ids: messageIds })
       .andWhere('conversation_id = :conversationId', { conversationId })
       .andWhere('sender_id != :readerId', { readerId })
       .andWhere('read_at IS NULL')
-      .returning(['id', 'read_at'])
+      .returning(['id'])
       .execute();
 
-    const rows = (result.raw ?? []) as Array<{ id: string; read_at: Date }>;
+    const rows = (result.raw ?? []) as Array<{ id: string }>;
     if (rows.length === 0) {
       return { updated: [], readAt: null };
     }
     return {
       updated: rows.map((r) => r.id),
-      readAt: rows[0].read_at,
+      readAt,
     };
   }
 
