@@ -305,58 +305,16 @@ describe('MessagingGateway', () => {
       expect(mocks.to).not.toHaveBeenCalled();
     });
 
-    it('acks invalid_payload when conversationId is not a uuid v4', async () => {
+    it.each<[string, unknown]>([
+      ['conversationId is not a uuid v4', { ...validPayload, conversationId: 'not-a-uuid' }],
+      ['content is empty', { ...validPayload, content: '' }],
+      ['content exceeds 4000 chars', { ...validPayload, content: 'x'.repeat(4001) }],
+      ['type is not a MessageType value', { ...validPayload, type: 'sticker' }],
+      ['payload is null', null],
+    ])('acks invalid_payload when %s', async (_label, badPayload) => {
       const client = buildAuthedSocket();
 
-      const ack = await gateway.handleSendMessage(client, {
-        ...validPayload,
-        conversationId: 'not-a-uuid',
-      });
-
-      expect(ack).toEqual({ ok: false, error: 'invalid_payload' });
-      expect(messagingService.sendMessage).not.toHaveBeenCalled();
-    });
-
-    it('acks invalid_payload when content is empty', async () => {
-      const client = buildAuthedSocket();
-
-      const ack = await gateway.handleSendMessage(client, {
-        ...validPayload,
-        content: '',
-      });
-
-      expect(ack).toEqual({ ok: false, error: 'invalid_payload' });
-      expect(messagingService.sendMessage).not.toHaveBeenCalled();
-    });
-
-    it('acks invalid_payload when content exceeds 4000 chars', async () => {
-      const client = buildAuthedSocket();
-
-      const ack = await gateway.handleSendMessage(client, {
-        ...validPayload,
-        content: 'x'.repeat(4001),
-      });
-
-      expect(ack).toEqual({ ok: false, error: 'invalid_payload' });
-      expect(messagingService.sendMessage).not.toHaveBeenCalled();
-    });
-
-    it('acks invalid_payload when type is not a MessageType value', async () => {
-      const client = buildAuthedSocket();
-
-      const ack = await gateway.handleSendMessage(client, {
-        ...validPayload,
-        type: 'sticker',
-      });
-
-      expect(ack).toEqual({ ok: false, error: 'invalid_payload' });
-      expect(messagingService.sendMessage).not.toHaveBeenCalled();
-    });
-
-    it('acks invalid_payload when payload is null', async () => {
-      const client = buildAuthedSocket();
-
-      const ack = await gateway.handleSendMessage(client, null);
+      const ack = await gateway.handleSendMessage(client, badPayload);
 
       expect(ack).toEqual({ ok: false, error: 'invalid_payload' });
       expect(messagingService.sendMessage).not.toHaveBeenCalled();

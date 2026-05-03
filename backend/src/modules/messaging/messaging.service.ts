@@ -56,13 +56,12 @@ export class MessagingService {
     await this.assertIsParticipant(conversationId, senderId);
 
     return this.dataSource.transaction(async (manager) => {
-      const draft = manager.create(Message, {
+      const saved = await manager.save(Message, {
         conversationId,
         senderId,
         content,
         type,
       });
-      const saved = await manager.save(Message, draft);
       await manager.update(Conversation, conversationId, {
         lastMessageAt: saved.createdAt,
       });

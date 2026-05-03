@@ -81,7 +81,7 @@ describe('MessagingService', () => {
     Pick<Repository<Conversation>, 'findOne' | 'createQueryBuilder' | 'create' | 'save'>
   >;
   let msgRepo: jest.Mocked<Pick<Repository<Message>, 'createQueryBuilder'>>;
-  let txManager: { create: jest.Mock; save: jest.Mock; update: jest.Mock };
+  let txManager: { save: jest.Mock; update: jest.Mock };
   let dataSource: { transaction: jest.Mock };
 
   beforeEach(async () => {
@@ -93,7 +93,6 @@ describe('MessagingService', () => {
     };
     msgRepo = { createQueryBuilder: jest.fn() };
     txManager = {
-      create: jest.fn((_entity: unknown, payload: unknown) => payload),
       save: jest.fn(),
       update: jest.fn().mockResolvedValue({ affected: 1 }),
     };
@@ -519,12 +518,6 @@ describe('MessagingService', () => {
 
       expect(result).toBe(saved);
       expect(dataSource.transaction).toHaveBeenCalledTimes(1);
-      expect(txManager.create).toHaveBeenCalledWith(Message, {
-        conversationId,
-        senderId: participantA,
-        content: 'hi',
-        type: MessageType.TEXT,
-      });
       expect(txManager.save).toHaveBeenCalledWith(Message, {
         conversationId,
         senderId: participantA,

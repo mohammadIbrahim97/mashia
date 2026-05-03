@@ -13,10 +13,11 @@ import {
   SubscribeMessage,
   WebSocketGateway,
 } from '@nestjs/websockets';
-import { isUUID } from 'class-validator';
+import { plainToInstance } from 'class-transformer';
+import { isUUID, validate } from 'class-validator';
 import { Socket } from 'socket.io';
-import { MessageType } from '@shared/enums';
 import { Message } from './message.entity';
+import { SendMessageDto } from './dto/send-message.dto';
 import { MessagingService } from './messaging.service';
 
 export type JoinConversationAckError =
@@ -41,8 +42,6 @@ export interface SendMessageAck {
 export interface AuthSocket extends Socket {
   data: { userId?: string };
 }
-
-const MAX_MESSAGE_CONTENT_LENGTH = 4000;
 
 @WebSocketGateway({ namespace: '/chat', cors: true })
 export class MessagingGateway
@@ -95,12 +94,8 @@ export class MessagingGateway
     try {
       await this.messagingService.assertIsParticipant(conversationId, userId);
     } catch (err) {
-      if (err instanceof NotFoundException) {
-        return { ok: false, error: 'not_found' };
-      }
-      if (err instanceof ForbiddenException) {
-        return { ok: false, error: 'forbidden' };
-      }
+      const error = this.mapServiceError(err);
+      if (error) return { ok: false, error };
       throw err;
     }
 
@@ -113,8 +108,11 @@ export class MessagingGateway
     @ConnectedSocket() client: AuthSocket,
     @MessageBody() payload: unknown,
   ): Promise<SendMessageAck> {
-    const parsed = this.parseSendMessagePayload(payload);
-    if (!parsed) {
+    const dto =
+      plainToInstance(SendMessageDto, payload as object) ??
+      new SendMessageDto();
+    const errors = await validate(dto);
+    if (errors.length > 0) {
       return { ok: false, error: 'invalid_payload' };
     }
 
@@ -126,54 +124,27 @@ export class MessagingGateway
     let saved: Message;
     try {
       saved = await this.messagingService.sendMessage(
-        parsed.conversationId,
+        dto.conversationId,
         userId,
-        parsed.content,
-        parsed.type,
+        dto.content,
+        dto.type,
       );
     } catch (err) {
-      if (err instanceof NotFoundException) {
-        return { ok: false, error: 'not_found' };
-      }
-      if (err instanceof ForbiddenException) {
-        return { ok: false, error: 'forbidden' };
-      }
+      const error = this.mapServiceError(err);
+      if (error) return { ok: false, error };
       throw err;
     }
 
-    client
-      .to(`conversation:${parsed.conversationId}`)
-      .emit('newMessage', saved);
+    client.to(`conversation:${dto.conversationId}`).emit('newMessage', saved);
     return { ok: true, message: saved };
   }
 
-  private parseSendMessagePayload(
-    payload: unknown,
-  ): { conversationId: string; content: string; type: MessageType } | null {
-    const p = payload as
-      | { conversationId?: unknown; content?: unknown; type?: unknown }
-      | null;
-    const conversationId = p?.conversationId;
-    const content = p?.content;
-    const type = p?.type;
-
-    if (typeof conversationId !== 'string' || !isUUID(conversationId, '4')) {
-      return null;
-    }
-    if (
-      typeof content !== 'string' ||
-      content.length === 0 ||
-      content.length > MAX_MESSAGE_CONTENT_LENGTH
-    ) {
-      return null;
-    }
-    if (
-      typeof type !== 'string' ||
-      !Object.values(MessageType).includes(type as MessageType)
-    ) {
-      return null;
-    }
-    return { conversationId, content, type: type as MessageType };
+  private mapServiceError(
+    err: unknown,
+  ): 'not_found' | 'forbidden' | null {
+    if (err instanceof NotFoundException) return 'not_found';
+    if (err instanceof ForbiddenException) return 'forbidden';
+    return null;
   }
 
   private extractToken(client: AuthSocket): string | null {
