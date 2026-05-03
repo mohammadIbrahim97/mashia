@@ -130,11 +130,14 @@ function connect(token) {
   });
 }
 
+// Use stderr for everything so output isn't lost when process.exit() flushes.
+const log = (...args) => console.error(...args);
+
 function expect(label, cond, detail) {
   if (cond) {
-    console.log(`  ok  — ${label}`);
+    log(`  ok  — ${label}`);
   } else {
-    console.error(`  FAIL — ${label}`, detail ?? '');
+    log(`  FAIL — ${label}`, detail ?? '');
     process.exitCode = 1;
   }
 }
@@ -145,18 +148,18 @@ function expect(label, cond, detail) {
   try {
     const { reader, sender, conversationId, peerMessageId, ownMessageId } =
       await seed();
-    console.log('seeded:');
-    console.log('  reader.id        =', reader.id);
-    console.log('  sender.id        =', sender.id);
-    console.log('  conversationId   =', conversationId);
-    console.log('  peerMessageId    =', peerMessageId);
-    console.log('  ownMessageId     =', ownMessageId);
+    log('seeded:');
+    log('  reader.id        =', reader.id);
+    log('  sender.id        =', sender.id);
+    log('  conversationId   =', conversationId);
+    log('  peerMessageId    =', peerMessageId);
+    log('  ownMessageId     =', ownMessageId);
 
     [readerSock, senderSock] = await Promise.all([
       connect(tokenFor(reader)),
       connect(tokenFor(sender)),
     ]);
-    console.log('connected: reader', readerSock.id, '/ sender', senderSock.id);
+    log('connected: reader', readerSock.id, '/ sender', senderSock.id);
 
     await emitAck(readerSock, 'joinConversation', { conversationId });
     await emitAck(senderSock, 'joinConversation', { conversationId });
@@ -165,12 +168,12 @@ function expect(label, cond, detail) {
     const broadcasts = [];
     senderSock.on('messageRead', (payload) => broadcasts.push(payload));
 
-    console.log('\n[1] reader marks both messages — own one must be excluded');
+    log('\n[1] reader marks both messages — own one must be excluded');
     const ack1 = await emitAck(readerSock, 'markRead', {
       conversationId,
       messageIds: [peerMessageId, ownMessageId],
     });
-    console.log('  ack:', ack1);
+    log('  ack:', ack1);
     expect('ack ok=true', ack1.ok === true);
     expect(
       'updated has exactly the peer message id',
@@ -194,27 +197,27 @@ function expect(label, cond, detail) {
       expect('broadcast.readerId = reader.id', broadcasts[0].readerId === reader.id);
     }
 
-    console.log('\n[2] reader marks again — idempotent, no new broadcast');
+    log('\n[2] reader marks again — idempotent, no new broadcast');
     const before = broadcasts.length;
     const ack2 = await emitAck(readerSock, 'markRead', {
       conversationId,
       messageIds: [peerMessageId, ownMessageId],
     });
-    console.log('  ack:', ack2);
+    log('  ack:', ack2);
     expect('ack ok=true', ack2.ok === true);
     expect('updated is empty', Array.isArray(ack2.updated) && ack2.updated.length === 0);
     expect('readAt is null', ack2.readAt === null);
     await new Promise((r) => setTimeout(r, 100));
     expect('no additional messageRead broadcast', broadcasts.length === before);
 
-    console.log('\n[3] DB state');
+    log('\n[3] DB state');
     const { peerReadAt, ownReadAt } = await checkReadStates(peerMessageId, ownMessageId);
-    console.log('  peer.read_at =', peerReadAt);
-    console.log('  own.read_at  =', ownReadAt);
+    log('  peer.read_at =', peerReadAt);
+    log('  own.read_at  =', ownReadAt);
     expect('peer message read_at set', peerReadAt instanceof Date);
     expect('own message read_at NULL', ownReadAt === null);
 
-    console.log('\n[4] invalid payload acks');
+    log('\n[4] invalid payload acks');
     const badUuid = await emitAck(readerSock, 'markRead', {
       conversationId: 'not-a-uuid',
       messageIds: [peerMessageId],
@@ -226,7 +229,7 @@ function expect(label, cond, detail) {
     if (process.exitCode === 1) {
       console.error('\nsmoke test FAILED');
     } else {
-      console.log('\nsmoke test OK');
+      log('\nsmoke test OK');
     }
   } catch (err) {
     console.error('smoke test failed:', err);
