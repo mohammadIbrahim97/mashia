@@ -1,3 +1,7 @@
+// Register TS path aliases so TypeORM can require entity files (e.g.
+// '@shared/enums') when initialize() loads them via plain Node require.
+// Jest's moduleNameMapper only applies inside test workers, not here.
+import 'tsconfig-paths/register';
 import { Client } from 'pg';
 
 export default async function globalSetup(): Promise<void> {
