@@ -13,8 +13,11 @@ import {
   SubscribeMessage,
   WebSocketGateway,
 } from '@nestjs/websockets';
-import { isUUID } from 'class-validator';
+import { plainToInstance } from 'class-transformer';
+import { isUUID, validate } from 'class-validator';
 import { Socket } from 'socket.io';
+import { Message } from './message.entity';
+import { SendMessageDto } from './dto/send-message.dto';
 import { MessagingService } from './messaging.service';
 
 export type JoinConversationAckError =
@@ -26,6 +29,14 @@ export type JoinConversationAckError =
 export interface JoinConversationAck {
   ok: boolean;
   error?: JoinConversationAckError;
+}
+
+export type SendMessageAckError = JoinConversationAckError;
+
+export interface SendMessageAck {
+  ok: boolean;
+  error?: SendMessageAckError;
+  message?: Message;
 }
 
 export interface AuthSocket extends Socket {
@@ -83,17 +94,57 @@ export class MessagingGateway
     try {
       await this.messagingService.assertIsParticipant(conversationId, userId);
     } catch (err) {
-      if (err instanceof NotFoundException) {
-        return { ok: false, error: 'not_found' };
-      }
-      if (err instanceof ForbiddenException) {
-        return { ok: false, error: 'forbidden' };
-      }
+      const error = this.mapServiceError(err);
+      if (error) return { ok: false, error };
       throw err;
     }
 
     await client.join(`conversation:${conversationId}`);
     return { ok: true };
+  }
+
+  @SubscribeMessage('sendMessage')
+  async handleSendMessage(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: unknown,
+  ): Promise<SendMessageAck> {
+    const dto =
+      plainToInstance(SendMessageDto, payload as object) ??
+      new SendMessageDto();
+    const errors = await validate(dto);
+    if (errors.length > 0) {
+      return { ok: false, error: 'invalid_payload' };
+    }
+
+    const userId = client.data.userId;
+    if (!userId) {
+      return { ok: false, error: 'unauthorized' };
+    }
+
+    let saved: Message;
+    try {
+      saved = await this.messagingService.sendMessage(
+        dto.conversationId,
+        userId,
+        dto.content,
+        dto.type,
+      );
+    } catch (err) {
+      const error = this.mapServiceError(err);
+      if (error) return { ok: false, error };
+      throw err;
+    }
+
+    client.to(`conversation:${dto.conversationId}`).emit('newMessage', saved);
+    return { ok: true, message: saved };
+  }
+
+  private mapServiceError(
+    err: unknown,
+  ): 'not_found' | 'forbidden' | null {
+    if (err instanceof NotFoundException) return 'not_found';
+    if (err instanceof ForbiddenException) return 'forbidden';
+    return null;
   }
 
   private extractToken(client: AuthSocket): string | null {
