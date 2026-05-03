@@ -69,6 +69,34 @@ export class MessagingService {
     });
   }
 
+  async markMessagesRead(
+    conversationId: string,
+    readerId: string,
+    messageIds: string[],
+  ): Promise<{ updated: string[]; readAt: Date | null }> {
+    await this.assertIsParticipant(conversationId, readerId);
+
+    const result = await this.messagesRepository
+      .createQueryBuilder()
+      .update(Message)
+      .set({ readAt: () => 'now()' })
+      .where('id = ANY(:ids)', { ids: messageIds })
+      .andWhere('conversation_id = :conversationId', { conversationId })
+      .andWhere('sender_id != :readerId', { readerId })
+      .andWhere('read_at IS NULL')
+      .returning(['id', 'read_at'])
+      .execute();
+
+    const rows = (result.raw ?? []) as Array<{ id: string; read_at: Date }>;
+    if (rows.length === 0) {
+      return { updated: [], readAt: null };
+    }
+    return {
+      updated: rows.map((r) => r.id),
+      readAt: rows[0].read_at,
+    };
+  }
+
   async findOrCreateConversation(
     currentUserId: string,
     dto: CreateConversationDto,

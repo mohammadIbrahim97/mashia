@@ -466,6 +466,107 @@ describe('MessagingService', () => {
     });
   });
 
+  describe('markMessagesRead', () => {
+    const buildParticipantConv = (): Conversation =>
+      ({
+        id: conversationId,
+        participantIds: [participantA, participantB],
+      }) as Conversation;
+
+    interface UpdateQbStub {
+      update: jest.Mock;
+      set: jest.Mock;
+      where: jest.Mock;
+      andWhere: jest.Mock;
+      returning: jest.Mock;
+      execute: jest.Mock<Promise<{ raw: unknown[] }>, []>;
+    }
+
+    const buildUpdateQb = (raw: unknown[]): UpdateQbStub => {
+      const qb: Partial<UpdateQbStub> = {};
+      qb.update = jest.fn().mockReturnValue(qb);
+      qb.set = jest.fn().mockReturnValue(qb);
+      qb.where = jest.fn().mockReturnValue(qb);
+      qb.andWhere = jest.fn().mockReturnValue(qb);
+      qb.returning = jest.fn().mockReturnValue(qb);
+      qb.execute = jest.fn().mockResolvedValue({ raw });
+      return qb as UpdateQbStub;
+    };
+
+    const messageIds = [
+      '33333333-3333-4333-8333-333333333333',
+      '44444444-4444-4444-8444-444444444444',
+    ];
+
+    it('throws ForbiddenException when caller is not a participant (no UPDATE)', async () => {
+      convRepo.findOne.mockResolvedValue(buildParticipantConv());
+
+      await expect(
+        service.markMessagesRead(conversationId, stranger, messageIds),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(msgRepo.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when conversation does not exist', async () => {
+      convRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.markMessagesRead(conversationId, participantA, messageIds),
+      ).rejects.toBeInstanceOf(NotFoundException);
+
+      expect(msgRepo.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    it('issues a single guarded UPDATE and returns updated ids + readAt', async () => {
+      convRepo.findOne.mockResolvedValue(buildParticipantConv());
+      const readAt = new Date('2026-05-03T12:00:00Z');
+      const qb = buildUpdateQb([
+        { id: messageIds[0], read_at: readAt },
+        { id: messageIds[1], read_at: readAt },
+      ]);
+      msgRepo.createQueryBuilder.mockReturnValue(
+        qb as unknown as ReturnType<typeof msgRepo.createQueryBuilder>,
+      );
+
+      const result = await service.markMessagesRead(
+        conversationId,
+        participantA,
+        messageIds,
+      );
+
+      expect(qb.update).toHaveBeenCalledWith(Message);
+      expect(qb.set).toHaveBeenCalledWith({ readAt: expect.any(Function) });
+      expect(qb.where).toHaveBeenCalledWith('id = ANY(:ids)', { ids: messageIds });
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'conversation_id = :conversationId',
+        { conversationId },
+      );
+      expect(qb.andWhere).toHaveBeenCalledWith('sender_id != :readerId', {
+        readerId: participantA,
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith('read_at IS NULL');
+      expect(qb.returning).toHaveBeenCalledWith(['id', 'read_at']);
+      expect(result).toEqual({ updated: messageIds, readAt });
+    });
+
+    it('returns { updated: [], readAt: null } when UPDATE affects 0 rows (idempotent)', async () => {
+      convRepo.findOne.mockResolvedValue(buildParticipantConv());
+      const qb = buildUpdateQb([]);
+      msgRepo.createQueryBuilder.mockReturnValue(
+        qb as unknown as ReturnType<typeof msgRepo.createQueryBuilder>,
+      );
+
+      const result = await service.markMessagesRead(
+        conversationId,
+        participantA,
+        messageIds,
+      );
+
+      expect(result).toEqual({ updated: [], readAt: null });
+    });
+  });
+
   describe('sendMessage', () => {
     const buildParticipantConv = (): Conversation =>
       ({
