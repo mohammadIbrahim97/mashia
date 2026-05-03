@@ -5,7 +5,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
+import { MessageType } from '@shared/enums';
 import { Conversation } from './conversation.entity';
 import { Message } from './message.entity';
 import { CreateConversationDto } from './dto/create-conversation.dto';
@@ -28,6 +29,7 @@ export class MessagingService {
     private readonly conversationsRepository: Repository<Conversation>,
     @InjectRepository(Message)
     private readonly messagesRepository: Repository<Message>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async assertIsParticipant(
@@ -43,6 +45,29 @@ export class MessagingService {
     if (!conversation.participantIds.includes(userId)) {
       throw new ForbiddenException('Not a conversation participant');
     }
+  }
+
+  async sendMessage(
+    conversationId: string,
+    senderId: string,
+    content: string,
+    type: MessageType,
+  ): Promise<Message> {
+    await this.assertIsParticipant(conversationId, senderId);
+
+    return this.dataSource.transaction(async (manager) => {
+      const draft = manager.create(Message, {
+        conversationId,
+        senderId,
+        content,
+        type,
+      });
+      const saved = await manager.save(Message, draft);
+      await manager.update(Conversation, conversationId, {
+        lastMessageAt: saved.createdAt,
+      });
+      return saved;
+    });
   }
 
   async findOrCreateConversation(

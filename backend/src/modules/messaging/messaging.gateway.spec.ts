@@ -2,6 +2,8 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
+import { MessageType } from '@shared/enums';
+import { Message } from './message.entity';
 import { AuthSocket, MessagingGateway } from './messaging.gateway';
 import { MessagingService } from './messaging.service';
 
@@ -13,6 +15,11 @@ interface RoomTrackingSocket extends AuthSocket {
   join: jest.Mock<Promise<void>, [string]>;
 }
 
+interface BroadcastMocks {
+  to: jest.Mock<{ emit: jest.Mock }, [string]>;
+  emit: jest.Mock;
+}
+
 const buildSocket = (
   overrides: Partial<AuthSocket['handshake']> = {},
 ): AuthSocket => {
@@ -22,6 +29,8 @@ const buildSocket = (
     ...overrides,
   };
   const rooms = new Set<string>();
+  const emit = jest.fn();
+  const to = jest.fn(() => ({ emit }));
   return {
     id: 'sock-1',
     handshake,
@@ -31,17 +40,24 @@ const buildSocket = (
     join: jest.fn(async (room: string) => {
       rooms.add(room);
     }),
+    emit,
+    to,
   } as unknown as RoomTrackingSocket;
 };
 
 describe('MessagingGateway', () => {
   let gateway: MessagingGateway;
   let jwtService: jest.Mocked<Pick<JwtService, 'verify'>>;
-  let messagingService: jest.Mocked<Pick<MessagingService, 'assertIsParticipant'>>;
+  let messagingService: jest.Mocked<
+    Pick<MessagingService, 'assertIsParticipant' | 'sendMessage'>
+  >;
 
   beforeEach(async () => {
     jwtService = { verify: jest.fn() };
-    messagingService = { assertIsParticipant: jest.fn() };
+    messagingService = {
+      assertIsParticipant: jest.fn(),
+      sendMessage: jest.fn(),
+    };
     const moduleRef = await Test.createTestingModule({
       providers: [
         MessagingGateway,
@@ -221,6 +237,138 @@ describe('MessagingGateway', () => {
       expect(ack).toEqual({ ok: false, error: 'unauthorized' });
       expect(messagingService.assertIsParticipant).not.toHaveBeenCalled();
       expect(client.join).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleSendMessage', () => {
+    const buildAuthedSocket = (): RoomTrackingSocket => {
+      const client = buildSocket() as RoomTrackingSocket;
+      client.data.userId = userId;
+      return client;
+    };
+
+    const validPayload = {
+      conversationId,
+      content: 'hello',
+      type: MessageType.TEXT,
+    };
+
+    const buildSavedMessage = (): Message =>
+      ({
+        id: 'msg-1',
+        conversationId,
+        senderId: userId,
+        content: 'hello',
+        type: MessageType.TEXT,
+        createdAt: new Date('2026-05-03T12:00:00Z'),
+        readAt: null,
+      }) as Message;
+
+    it('persists, broadcasts to other sockets in the room, and acks ok=true with the message', async () => {
+      const client = buildAuthedSocket();
+      const mocks = client as unknown as BroadcastMocks;
+      const saved = buildSavedMessage();
+      messagingService.sendMessage.mockResolvedValue(saved);
+
+      const ack = await gateway.handleSendMessage(client, validPayload);
+
+      expect(messagingService.sendMessage).toHaveBeenCalledWith(
+        conversationId,
+        userId,
+        'hello',
+        MessageType.TEXT,
+      );
+      expect(mocks.to).toHaveBeenCalledWith(`conversation:${conversationId}`);
+      expect(mocks.emit).toHaveBeenCalledWith('newMessage', saved);
+      expect(ack).toEqual({ ok: true, message: saved });
+    });
+
+    it('acks forbidden and does not broadcast when caller is not a participant', async () => {
+      const client = buildAuthedSocket();
+      const mocks = client as unknown as BroadcastMocks;
+      messagingService.sendMessage.mockRejectedValue(new ForbiddenException());
+
+      const ack = await gateway.handleSendMessage(client, validPayload);
+
+      expect(ack).toEqual({ ok: false, error: 'forbidden' });
+      expect(mocks.to).not.toHaveBeenCalled();
+    });
+
+    it('acks not_found when conversation does not exist', async () => {
+      const client = buildAuthedSocket();
+      const mocks = client as unknown as BroadcastMocks;
+      messagingService.sendMessage.mockRejectedValue(new NotFoundException());
+
+      const ack = await gateway.handleSendMessage(client, validPayload);
+
+      expect(ack).toEqual({ ok: false, error: 'not_found' });
+      expect(mocks.to).not.toHaveBeenCalled();
+    });
+
+    it('acks invalid_payload when conversationId is not a uuid v4', async () => {
+      const client = buildAuthedSocket();
+
+      const ack = await gateway.handleSendMessage(client, {
+        ...validPayload,
+        conversationId: 'not-a-uuid',
+      });
+
+      expect(ack).toEqual({ ok: false, error: 'invalid_payload' });
+      expect(messagingService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('acks invalid_payload when content is empty', async () => {
+      const client = buildAuthedSocket();
+
+      const ack = await gateway.handleSendMessage(client, {
+        ...validPayload,
+        content: '',
+      });
+
+      expect(ack).toEqual({ ok: false, error: 'invalid_payload' });
+      expect(messagingService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('acks invalid_payload when content exceeds 4000 chars', async () => {
+      const client = buildAuthedSocket();
+
+      const ack = await gateway.handleSendMessage(client, {
+        ...validPayload,
+        content: 'x'.repeat(4001),
+      });
+
+      expect(ack).toEqual({ ok: false, error: 'invalid_payload' });
+      expect(messagingService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('acks invalid_payload when type is not a MessageType value', async () => {
+      const client = buildAuthedSocket();
+
+      const ack = await gateway.handleSendMessage(client, {
+        ...validPayload,
+        type: 'sticker',
+      });
+
+      expect(ack).toEqual({ ok: false, error: 'invalid_payload' });
+      expect(messagingService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('acks invalid_payload when payload is null', async () => {
+      const client = buildAuthedSocket();
+
+      const ack = await gateway.handleSendMessage(client, null);
+
+      expect(ack).toEqual({ ok: false, error: 'invalid_payload' });
+      expect(messagingService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('acks unauthorized when client.data.userId is missing', async () => {
+      const client = buildSocket() as RoomTrackingSocket;
+
+      const ack = await gateway.handleSendMessage(client, validPayload);
+
+      expect(ack).toEqual({ ok: false, error: 'unauthorized' });
+      expect(messagingService.sendMessage).not.toHaveBeenCalled();
     });
   });
 });
