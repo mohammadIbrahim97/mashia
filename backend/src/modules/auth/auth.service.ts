@@ -33,7 +33,9 @@ export class AuthService {
     phone: string,
     code: string,
   ): Promise<{ verified: boolean; userExists: boolean }> {
-    await this.otpService.verify(phone, code);
+    // Peek-only — the OTP is consumed by /auth/login or /auth/register so
+    // the client can branch on userExists without spending the code first.
+    await this.otpService.peek(phone, code);
     const user = await this.usersService.findByPhone(phone);
     return { verified: true, userExists: !!user };
   }

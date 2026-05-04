@@ -118,4 +118,32 @@ describe('OtpService', () => {
       expect(mockRedis.del).not.toHaveBeenCalled();
     });
   });
+
+  describe('peek', () => {
+    it('returns true for a valid OTP without consuming it', async () => {
+      mockRedis.get.mockResolvedValue('123456');
+
+      const result = await service.peek('+966501234567', '123456');
+
+      expect(result).toBe(true);
+      expect(mockRedis.del).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException for expired or non-existent OTP', async () => {
+      mockRedis.get.mockResolvedValue(null);
+
+      await expect(service.peek('+966501234567', '123456')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('throws BadRequestException for incorrect OTP and does not consume', async () => {
+      mockRedis.get.mockResolvedValue('123456');
+
+      await expect(service.peek('+966501234567', '999999')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockRedis.del).not.toHaveBeenCalled();
+    });
+  });
 });

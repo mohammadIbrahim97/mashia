@@ -54,4 +54,23 @@ export class OtpService {
     await this.redis.del(codeKey);
     return true;
   }
+
+  /**
+   * Like {@link verify} but does not consume the code on success. Used by
+   * `/auth/otp/verify` so the client can branch on `userExists` before
+   * spending the OTP on the actual `/auth/login` or `/auth/register` call.
+   */
+  async peek(phone: string, code: string): Promise<boolean> {
+    const storedCode = await this.redis.get(`otp:code:${phone}`);
+
+    if (!storedCode) {
+      throw new BadRequestException('OTP expired or not found.');
+    }
+
+    if (storedCode !== code) {
+      throw new BadRequestException('Invalid OTP.');
+    }
+
+    return true;
+  }
 }
