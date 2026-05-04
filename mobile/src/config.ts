@@ -20,5 +20,5 @@ function defaultApiBaseUrl(): string {
 export const config = {
   apiBaseUrl: defaultApiBaseUrl(),
   apiPathPrefix: '/api/v1',
-  jwtKeychainService: 'com.mashia.app.auth',
+  jwtKeychainService: 'com.mashia.auth',
 } as const;

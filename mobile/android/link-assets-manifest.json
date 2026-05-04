@@ -1,0 +1,33 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "src/assets/fonts/Fraunces-Italic-Variable.ttf",
+      "sha1": "0552b0eb9e25b1bfba4e43b8bc8e9f022afeb109"
+    },
+    {
+      "path": "src/assets/fonts/Fraunces-Variable.ttf",
+      "sha1": "4b74bfd08dd86caaf307a875b6f027198b29f337"
+    },
+    {
+      "path": "src/assets/fonts/JetBrainsMono-Medium.ttf",
+      "sha1": "5bf8fa15598c049508345993d774fae5e0722d42"
+    },
+    {
+      "path": "src/assets/fonts/Manrope-Variable.ttf",
+      "sha1": "b190c931d200c0e72563c94a5f7568ca69bdb8b6"
+    },
+    {
+      "path": "src/assets/fonts/NOTICE.md",
+      "sha1": "de11cc69094d5ea9aba6a399daa3a32247084780"
+    },
+    {
+      "path": "src/assets/fonts/OFL.txt",
+      "sha1": "35e88dc68a9284b42fff88613e72b3ce7eef97a2"
+    },
+    {
+      "path": "src/assets/fonts/ReemKufi-Variable.ttf",
+      "sha1": "6fc57f9580ea7887d9b9684f9c58f75855ebc388"
+    }
+  ]
+}
