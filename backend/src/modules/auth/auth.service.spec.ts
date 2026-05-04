@@ -41,6 +41,7 @@ describe('AuthService', () => {
     otpService = {
       generateAndSend: jest.fn().mockResolvedValue(undefined),
       verify: jest.fn().mockResolvedValue(true),
+      peek: jest.fn().mockResolvedValue(true),
     } as unknown as jest.Mocked<OtpService>;
 
     usersService = {
@@ -92,10 +93,11 @@ describe('AuthService', () => {
   });
 
   describe('verifyOtp', () => {
-    it('should return verified true and userExists false for new phone', async () => {
+    it('should peek (not consume) the OTP and return userExists false for new phone', async () => {
       usersService.findByPhone.mockResolvedValue(null);
       const result = await authService.verifyOtp('+966501234567', '123456');
-      expect(otpService.verify).toHaveBeenCalledWith('+966501234567', '123456');
+      expect(otpService.peek).toHaveBeenCalledWith('+966501234567', '123456');
+      expect(otpService.verify).not.toHaveBeenCalled();
       expect(usersService.findByPhone).toHaveBeenCalledWith('+966501234567');
       expect(result).toEqual({ verified: true, userExists: false });
     });
@@ -106,8 +108,8 @@ describe('AuthService', () => {
       expect(result).toEqual({ verified: true, userExists: true });
     });
 
-    it('should propagate errors from otpService.verify', async () => {
-      otpService.verify.mockRejectedValue(new Error('OTP expired'));
+    it('should propagate errors from otpService.peek', async () => {
+      otpService.peek.mockRejectedValue(new Error('OTP expired'));
       await expect(authService.verifyOtp('+966501234567', '123456')).rejects.toThrow('OTP expired');
       expect(usersService.findByPhone).not.toHaveBeenCalled();
     });
