@@ -19,7 +19,7 @@ import {
   PhoneInput,
   StepIndicator,
 } from '@components/index';
-import { AuthStackParamList } from '@navigation/AuthStack';
+import { AuthStackParamList } from '@navigation/types';
 import { colors, fonts, radii, spacing, type } from '@theme/index';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'RecoverAccess'>;

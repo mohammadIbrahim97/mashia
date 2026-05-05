@@ -1,11 +1,17 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { DevPreviewScreen } from '@screens/DevPreviewScreen';
 import { Icon, IconName } from '@components/Icon';
 import { colors, type } from '@theme/index';
+import { HomeStack } from './HomeStack';
+import { OrdersStack } from './OrdersStack';
+import { ChatStack } from './ChatStack';
+import { ProfileStack } from './ProfileStack';
 
 export type MainTabsParamList = {
-  Home: undefined;
+  HomeTab: undefined;
+  OrdersTab: undefined;
+  ChatTab: undefined;
+  ProfileTab: undefined;
 };
 
 const Tabs = createBottomTabNavigator<MainTabsParamList>();
@@ -14,12 +20,6 @@ const tabIcon =
   (name: IconName) =>
   ({ color }: { color: string }) => <Icon name={name} size={22} color={color} />;
 
-/**
- * Phase A: a single tab pointing at the design-system preview so we can
- * walk through tokens and components on a real device. Phase C will add
- * Listings / Chat / Orders / Account tabs and replace the preview with the
- * Home feed.
- */
 export function MainTabs() {
   return (
     <Tabs.Navigator
@@ -35,9 +35,24 @@ export function MainTabs() {
       }}
     >
       <Tabs.Screen
-        name="Home"
-        component={DevPreviewScreen}
-        options={{ tabBarIcon: tabIcon('shoppingBag'), title: 'Preview' }}
+        name="HomeTab"
+        component={HomeStack}
+        options={{ tabBarIcon: tabIcon('home'), title: 'Home' }}
+      />
+      <Tabs.Screen
+        name="OrdersTab"
+        component={OrdersStack}
+        options={{ tabBarIcon: tabIcon('shoppingBag'), title: 'Orders' }}
+      />
+      <Tabs.Screen
+        name="ChatTab"
+        component={ChatStack}
+        options={{ tabBarIcon: tabIcon('message'), title: 'Chat' }}
+      />
+      <Tabs.Screen
+        name="ProfileTab"
+        component={ProfileStack}
+        options={{ tabBarIcon: tabIcon('user'), title: 'Account' }}
       />
     </Tabs.Navigator>
   );
