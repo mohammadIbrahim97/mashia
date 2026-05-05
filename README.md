@@ -9,7 +9,7 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 
 | Layer | Stack | Status |
 |---|---|---|
-| Backend API | NestJS, PostgreSQL, Redis, Socket.io, S3 | **Complete** |
+| Backend API | NestJS, PostgreSQL, Redis, Socket.io, S3 | **API done · AWS infra pending** |
 | Mobile App | React Native 0.73, TypeScript, Zustand | **Core screens done** |
 | Admin Dashboard | Next.js 14, Tailwind CSS | Not started |
 
@@ -17,8 +17,9 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 
 ## What's Done
 
-### Backend (Goal 1) — 100% Complete
-All 8 modules fully implemented, tested, and CI passing on `develop`.
+### Backend (Goal 1) — API Complete / Infrastructure Pending
+
+**API code — done.** All 8 modules fully implemented, tested, CI passing on `develop`.
 
 | Module | Endpoints |
 |---|---|
@@ -30,6 +31,20 @@ All 8 modules fully implemented, tested, and CI passing on `develop`.
 | Certificates | POST /certificates, GET /certificates/listing/:id, PATCH /certificates/:id/verify |
 | Messaging | REST + Socket.io /chat namespace (send, markRead, broadcast) |
 | Admin | GET /admin/dashboard, /admin/users, /admin/orders, PATCH kyc/suspend/flag |
+
+**AWS Infrastructure — not provisioned** (issues #82, #86–93, #239–246):
+- [ ] RDS PostgreSQL Multi-AZ in me-south-1 (#88 / #239)
+- [ ] ElastiCache Redis in me-south-1 (#89 / #240)
+- [ ] S3 bucket with server-side encryption in me-south-1 (#90 / #241)
+- [ ] ECR repository for backend Docker image (#242)
+- [ ] ECS Fargate service + ALB + health checks (#243)
+- [ ] GitHub Actions CD pipeline: Docker → ECR → ECS (#244 / #87)
+- [ ] CloudFront CDN for media files (#92 / #246)
+- [ ] CloudWatch monitoring + log aggregation (#91 / #245)
+
+**Also pending:**
+- [ ] Payment gateway real integration — escrow.service is a stub for MVP (#132)
+- [ ] Certificate expiry auto-flag scheduler (#61)
 
 ### Mobile — Phases A, B, C Complete
 
