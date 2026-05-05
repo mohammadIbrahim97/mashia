@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mashia · Brand Guide v1.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700;9..144,900&family=Manrope:wght@300;400;500;600;700;800&family=Reem+Kufi:wght@400;500;600;700&family=Tajawal:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* =====================================================
+     MASHIA BRAND GUIDE — TOKENS
+     Verified: Syrian flag green #007A3D, Saudi flag green #006C35
+     Approximated (heritage accents, pending official brand book)
+     ===================================================== */
+  :root {
+    /* Mashia Green Scale — bridge between Syria #007A3D and Saudi #006C35 */
+    --mashia-50:  #ECF7F0;
+    --mashia-100: #D0EADB;
+    --mashia-200: #A4D6B8;
+    --mashia-300: #6FBC8F;
+    --mashia-400: #3FA068;
+    --mashia-500: #1A8649;
+    --mashia-600: #007339;  /* BRAND CORE */
+    --mashia-700: #005C2E;
+    --mashia-800: #014824;
+    --mashia-900: #0A371E;
+    --mashia-950: #04210F;
+
+    /* Heritage accents */
+    --qasioun-gold:    #C9974A;
+    --palmyra-sand:    #DECDA6;
+    --ebla-bronze:     #7C5234;
+    --orontes-green:   #5C9856;
+    --med-blue:        #1F5F8F;
+    --basalt-black:    #1A1E1B;
+
+    /* Neutrals */
+    --parchment:  #F6F1E7;
+    --paper:      #FBF8F1;
+    --ink:        #14181A;
+    --muted:      #6B6E66;
+    --hairline:   rgba(20,24,26,0.12);
+
+    /* Type */
+    --font-display: 'Fraunces', 'Times New Roman', serif;
+    --font-body:    'Manrope', system-ui, sans-serif;
+    --font-mono:    'JetBrains Mono', monospace;
+    --font-ar-display: 'Reem Kufi', 'Tajawal', serif;
+    --font-ar-body:    'Tajawal', 'Reem Kufi', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    /* subtle paper grain */
+    background-image:
+      radial-gradient(rgba(20,24,26,0.018) 1px, transparent 1px),
+      radial-gradient(rgba(20,24,26,0.012) 1px, transparent 1px);
+    background-size: 3px 3px, 7px 7px;
+    background-position: 0 0, 1px 1px;
+  }
+
+  /* ============= LAYOUT RAIL ============= */
+  .rail {
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    width: 56px;
+    border-right: 1px solid var(--hairline);
+    background: var(--paper);
+    z-index: 50;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: space-between;
+    padding: 24px 0;
+  }
+  .rail .mark {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: 20px;
+    color: var(--mashia-600);
+    transform: rotate(-90deg);
+    letter-spacing: 0.04em;
+  }
+  .rail .vmeta {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  main { margin-left: 56px; }
+
+  .container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 48px;
+  }
+  @media (max-width: 720px) {
+    .container { padding: 0 24px; }
+    .rail { width: 36px; }
+    main { margin-left: 36px; }
+  }
+
+  /* ============= HERO ============= */
+  .hero {
+    min-height: 100vh;
+    background: var(--mashia-600);
+    color: var(--paper);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    padding: 64px 48px 48px;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 80% 20%, rgba(201,151,74,0.18), transparent 50%),
+      radial-gradient(circle at 20% 90%, rgba(0,0,0,0.25), transparent 60%);
+    pointer-events: none;
+  }
+  .hero-grid {
+    position: relative;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 48px;
+    align-items: end;
+  }
+  .hero-meta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    opacity: 0.7;
+    position: absolute;
+    top: 48px; left: 0;
+    display: flex;
+    gap: 32px;
+  }
+  .hero-meta span:first-child { color: var(--qasioun-gold); }
+
+  .wordmark {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: clamp(72px, 14vw, 220px);
+    line-height: 0.85;
+    letter-spacing: -0.04em;
+    font-variation-settings: "opsz" 144;
+  }
+  .wordmark em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--qasioun-gold);
+  }
+  .wordmark-ar {
+    font-family: var(--font-ar-display);
+    font-weight: 400;
+    font-size: clamp(56px, 11vw, 180px);
+    line-height: 1;
+    direction: rtl;
+    margin-top: 8px;
+    color: var(--palmyra-sand);
+  }
+  .hero-tagline {
+    max-width: 360px;
+    font-size: 15px;
+    line-height: 1.5;
+    opacity: 0.85;
+    font-weight: 300;
+  }
+  .hero-tagline strong {
+    display: block;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 20px;
+    margin-bottom: 12px;
+    color: var(--qasioun-gold);
+  }
+
+  /* ============= SECTIONS ============= */
+  section { padding: 120px 0; border-bottom: 1px solid var(--hairline); }
+  section:last-child { border-bottom: 0; }
+
+  .section-head {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 32px;
+    margin-bottom: 64px;
+    align-items: start;
+  }
+  .section-num {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--mashia-600);
+    letter-spacing: 0.2em;
+    padding-top: 14px;
+    border-top: 2px solid var(--mashia-600);
+  }
+  .section-title {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(40px, 5vw, 64px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .section-title em { font-style: italic; color: var(--mashia-700); font-weight: 500; }
+  .section-lede {
+    margin-top: 16px;
+    max-width: 620px;
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+
+  /* ============= 01 CONCEPT ============= */
+  .concept-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 64px;
+    margin-top: 32px;
+  }
+  @media (max-width: 720px) { .concept-grid { grid-template-columns: 1fr; gap: 32px; } }
+
+  .flag-card {
+    border: 1px solid var(--hairline);
+    padding: 32px;
+    background: var(--parchment);
+  }
+  .flag-card .swatch {
+    height: 140px;
+    margin-bottom: 24px;
+    position: relative;
+    display: flex; align-items: flex-end;
+    padding: 16px;
+  }
+  .flag-card .swatch code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--paper);
+    background: rgba(0,0,0,0.3);
+    padding: 4px 8px;
+    letter-spacing: 0.05em;
+  }
+  .flag-card h3 {
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+  .flag-card p {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .bridge-note {
+    margin-top: 64px;
+    padding: 48px;
+    background: var(--mashia-950);
+    color: var(--paper);
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+  @media (max-width: 720px) { .bridge-note { grid-template-columns: 1fr; padding: 32px; } }
+
+  .bridge-arrow {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 80px;
+    color: var(--qasioun-gold);
+    line-height: 1;
+  }
+  .bridge-note p {
+    font-family: var(--font-display);
+    font-size: 22px;
+    line-height: 1.5;
+    font-weight: 300;
+  }
+  .bridge-note p strong { color: var(--qasioun-gold); font-weight: 500; }
+
+  /* ============= 02 COLOR ============= */
+  .scale {
+    display: grid;
+    grid-template-columns: repeat(11, 1fr);
+    border: 1px solid var(--hairline);
+    overflow: hidden;
+  }
+  @media (max-width: 720px) { .scale { grid-template-columns: repeat(11, minmax(60px, 1fr)); overflow-x: auto; } }
+
+  .step {
+    aspect-ratio: 1 / 1.4;
+    padding: 12px 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    position: relative;
+  }
+  .step .num { font-weight: 500; }
+  .step .hex { opacity: 0.85; }
+  .step.brand::after {
+    content: 'BRAND';
+    position: absolute;
+    top: 12px; right: 10px;
+    font-size: 9px;
+    background: var(--paper);
+    color: var(--mashia-600);
+    padding: 2px 6px;
+    font-weight: 700;
+  }
+
+  .heritage {
+    margin-top: 80px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--hairline);
+    border: 1px solid var(--hairline);
+  }
+  @media (max-width: 900px) { .heritage { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 540px) { .heritage { grid-template-columns: 1fr; } }
+
+  .heritage-card {
+    background: var(--paper);
+    padding: 28px;
+    min-height: 280px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+  }
+  .heritage-card .chip {
+    width: 64px; height: 64px;
+    border-radius: 0;
+    box-shadow: 0 8px 24px -8px rgba(0,0,0,0.2);
+  }
+  .heritage-card h4 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 24px;
+    margin-top: 24px;
+    letter-spacing: -0.01em;
+  }
+  .heritage-card .ar {
+    font-family: var(--font-ar-display);
+    font-size: 18px;
+    color: var(--muted);
+    direction: rtl;
+    margin-top: 4px;
+  }
+  .heritage-card p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.55;
+    margin-top: 16px;
+  }
+  .heritage-card code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink);
+    margin-top: 16px;
+    display: inline-block;
+    border-top: 1px solid var(--hairline);
+    padding-top: 12px;
+  }
+
+  /* Color usage diagram */
+  .usage-bar {
+    margin-top: 80px;
+    height: 64px;
+    display: flex;
+    border: 1px solid var(--hairline);
+  }
+  .usage-bar > div {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .usage-bar .u-primary { flex: 60; background: var(--mashia-600); color: var(--paper); }
+  .usage-bar .u-neutral { flex: 25; background: var(--paper); color: var(--ink); }
+  .usage-bar .u-accent { flex: 12; background: var(--qasioun-gold); color: var(--basalt-black); }
+  .usage-bar .u-other { flex: 3; background: var(--med-blue); color: var(--paper); }
+  .usage-caption {
+    margin-top: 16px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  /* ============= 03 TYPOGRAPHY ============= */
+  .type-pair {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 48px;
+    padding: 56px 0;
+    border-top: 1px solid var(--hairline);
+    align-items: start;
+  }
+  .type-pair:last-of-type { border-bottom: 1px solid var(--hairline); }
+  @media (max-width: 720px) { .type-pair { grid-template-columns: 1fr; gap: 24px; } }
+
+  .type-meta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+  .type-meta strong {
+    display: block;
+    color: var(--mashia-700);
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+
+  .type-specimen-display {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(48px, 7vw, 96px);
+    line-height: 1;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+  }
+  .type-specimen-display em {
+    font-style: italic;
+    color: var(--mashia-600);
+  }
+  .type-specimen-display .ar {
+    font-family: var(--font-ar-display);
+    font-weight: 500;
+    direction: rtl;
+    line-height: 1.1;
+    margin-top: 16px;
+  }
+
+  .type-specimen-body {
+    font-family: var(--font-body);
+    font-size: 18px;
+    line-height: 1.65;
+    max-width: 620px;
+    color: var(--ink);
+  }
+  .type-specimen-body .ar {
+    font-family: var(--font-ar-body);
+    direction: rtl;
+    margin-top: 24px;
+    font-size: 19px;
+    line-height: 1.85;
+  }
+
+  /* Type scale */
+  .scale-table {
+    margin-top: 80px;
+    border-top: 1px solid var(--hairline);
+  }
+  .scale-row {
+    display: grid;
+    grid-template-columns: 120px 1fr 100px;
+    gap: 32px;
+    padding: 24px 0;
+    border-bottom: 1px solid var(--hairline);
+    align-items: baseline;
+  }
+  @media (max-width: 720px) { .scale-row { grid-template-columns: 80px 1fr; } .scale-row .meta-right { display: none; } }
+
+  .scale-row .label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .scale-row .sample { font-family: var(--font-display); color: var(--ink); }
+  .scale-row.body .sample { font-family: var(--font-body); }
+  .scale-row .meta-right {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  /* ============= 04 APPLICATION ============= */
+  .app-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--hairline);
+    border: 1px solid var(--hairline);
+  }
+  @media (max-width: 720px) { .app-grid { grid-template-columns: 1fr; } }
+
+  .app-card {
+    background: var(--paper);
+    padding: 48px;
+    min-height: 320px;
+  }
+  .app-card.dark { background: var(--basalt-black); color: var(--parchment); }
+
+  .app-card h5 {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 32px;
+  }
+  .app-card.dark h5 { color: var(--palmyra-sand); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 24px;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 0.02em;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 200ms ease;
+    text-decoration: none;
+  }
+  .btn-primary { background: var(--mashia-600); color: var(--paper); }
+  .btn-primary:hover { background: var(--mashia-700); }
+  .btn-secondary { background: transparent; color: var(--ink); border-color: var(--ink); }
+  .btn-secondary:hover { background: var(--ink); color: var(--paper); }
+  .btn-ghost { background: transparent; color: var(--mashia-600); padding-left: 0; padding-right: 0; }
+  .btn-ghost:hover { color: var(--mashia-700); }
+  .btn-accent { background: var(--qasioun-gold); color: var(--basalt-black); }
+  .btn-accent:hover { background: var(--ebla-bronze); color: var(--paper); }
+
+  .btn-row { display: flex; flex-wrap: wrap; gap: 12px; }
+
+  .product-card {
+    background: var(--paper);
+    border: 1px solid var(--hairline);
+    padding: 24px;
+    max-width: 320px;
+  }
+  .product-card .badge {
+    display: inline-block;
+    background: var(--mashia-50);
+    color: var(--mashia-700);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    margin-bottom: 16px;
+  }
+  .product-card h6 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 22px;
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+  .product-card .price {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 18px;
+    color: var(--mashia-700);
+    margin-top: 16px;
+  }
+
+  .ar-card {
+    direction: rtl;
+    text-align: right;
+  }
+  .ar-card h6 { font-family: var(--font-ar-display); font-weight: 600; font-size: 24px; }
+  .ar-card .badge { font-family: var(--font-ar-body); font-size: 11px; }
+  .ar-card .product-desc { font-family: var(--font-ar-body); }
+
+  /* ============= FOOTER ============= */
+  footer {
+    padding: 80px 0 64px;
+    background: var(--basalt-black);
+    color: var(--palmyra-sand);
+  }
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 48px;
+    align-items: end;
+  }
+  footer .mark-lg {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 80px;
+    line-height: 1;
+    color: var(--qasioun-gold);
+  }
+  footer .meta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    line-height: 2;
+    text-align: right;
+    opacity: 0.8;
+  }
+  footer .disclaimer {
+    grid-column: 1 / -1;
+    margin-top: 64px;
+    padding-top: 32px;
+    border-top: 1px solid rgba(222,205,166,0.15);
+    font-size: 12px;
+    line-height: 1.7;
+    max-width: 720px;
+    opacity: 0.7;
+  }
+
+</style>
+</head>
+<body>
+
+<aside class="rail">
+  <div class="mark">MASHIA</div>
+  <div class="vmeta">v1.0 · 2026</div>
+</aside>
+
+<main>
+
+  <!-- ============= HERO ============= -->
+  <header class="hero">
+    <div class="hero-meta">
+      <span>● BRAND GUIDE</span>
+      <span>VOLUME 01</span>
+      <span>2026 EDITION</span>
+    </div>
+    <div class="hero-grid">
+      <div>
+        <div class="wordmark">Mash<em>ia</em></div>
+        <div class="wordmark-ar">مشية</div>
+      </div>
+      <div class="hero-tagline">
+        <strong>A Green Thread</strong>
+        Between the cedar valleys of Sham and the sands of the Hejaz, one color carries memory. Mashia takes that thread and weaves it forward.
+      </div>
+    </div>
+  </header>
+
+  <!-- ============= 01 CONCEPT ============= -->
+  <section id="concept">
+    <div class="container">
+      <div class="section-head">
+        <div class="section-num">01 · CONCEPT</div>
+        <div>
+          <h2 class="section-title">Why <em>green</em>.</h2>
+          <p class="section-lede">
+            Both Syria and Saudi Arabia carry green at the heart of their flags — not as decoration, but as inheritance. Green threads through Islamic history, fertile river valleys, and the deserts that bloom after rain. For a brand named <em>Mashia</em> — Arabic for <em>desire, what is wanted</em> — green is the natural anchor: rooted, generous, and unmistakably regional.
+          </p>
+        </div>
+      </div>
+
+      <div class="concept-grid">
+        <div class="flag-card">
+          <div class="swatch" style="background: #007A3D;">
+            <code>#007A3D</code>
+          </div>
+          <h3>Syrian Green</h3>
+          <p>The green of the Syrian flag, evoking the Umayyad period and tied through national identity to fertile land and historical continuity.</p>
+        </div>
+        <div class="flag-card">
+          <div class="swatch" style="background: #006C35;">
+            <code>#006C35</code>
+          </div>
+          <h3>Saudi Green</h3>
+          <p>The deep green of the Saudi flag, symbol of Islam and the kingdom's enduring identity. Slightly cooler and deeper than its Syrian counterpart.</p>
+        </div>
+      </div>
+
+      <div class="bridge-note">
+        <div class="bridge-arrow">→</div>
+        <p>
+          Mashia Green sits <strong>between the two</strong> — a deliberate bridge color (<code style="font-family: var(--font-mono); font-size: 18px; color: var(--qasioun-gold);">#007339</code>) that reads as native in both Damascus and Riyadh. Not a borrowed green. A shared one.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============= 02 COLOR ============= -->
+  <section id="color">
+    <div class="container">
+      <div class="section-head">
+        <div class="section-num">02 · COLOR</div>
+        <div>
+          <h2 class="section-title">A palette of <em>place</em>.</h2>
+          <p class="section-lede">
+            One dominant green, anchored to the flags. Five heritage accents — gold, sand, bronze, blue, and basalt — drawn from Syria's terrain and architecture. Use the green generously. Use the accents like spice.
+          </p>
+        </div>
+      </div>
+
+      <h3 style="font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin-bottom: 24px;">Mashia Green · Tonal Scale</h3>
+      <div class="scale">
+        <div class="step" style="background: var(--mashia-50);  color: var(--mashia-900);"><div class="num">50</div><div class="hex">ECF7F0</div></div>
+        <div class="step" style="background: var(--mashia-100); color: var(--mashia-900);"><div class="num">100</div><div class="hex">D0EADB</div></div>
+        <div class="step" style="background: var(--mashia-200); color: var(--mashia-900);"><div class="num">200</div><div class="hex">A4D6B8</div></div>
+        <div class="step" style="background: var(--mashia-300); color: var(--mashia-950);"><div class="num">300</div><div class="hex">6FBC8F</div></div>
+        <div class="step" style="background: var(--mashia-400); color: var(--mashia-950);"><div class="num">400</div><div class="hex">3FA068</div></div>
+        <div class="step" style="background: var(--mashia-500); color: var(--paper);"><div class="num">500</div><div class="hex">1A8649</div></div>
+        <div class="step brand" style="background: var(--mashia-600); color: var(--paper);"><div class="num">600</div><div class="hex">007339</div></div>
+        <div class="step" style="background: var(--mashia-700); color: var(--paper);"><div class="num">700</div><div class="hex">005C2E</div></div>
+        <div class="step" style="background: var(--mashia-800); color: var(--paper);"><div class="num">800</div><div class="hex">014824</div></div>
+        <div class="step" style="background: var(--mashia-900); color: var(--paper);"><div class="num">900</div><div class="hex">0A371E</div></div>
+        <div class="step" style="background: var(--mashia-950); color: var(--paper);"><div class="num">950</div><div class="hex">04210F</div></div>
+      </div>
+      <p style="font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 16px; letter-spacing: 0.06em;">600 is the brand core · 100–200 for surfaces · 700–900 for hover & emphasis</p>
+
+      <h3 style="font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin: 80px 0 24px;">Heritage Accents</h3>
+      <div class="heritage">
+
+        <div class="heritage-card">
+          <div class="chip" style="background: var(--qasioun-gold);"></div>
+          <div>
+            <h4>Qasioun Gold</h4>
+            <div class="ar">ذهب قاسيون</div>
+            <p>The golden glow of Mount Qasioun at sunset over Damascus. For accents, calls to action, and moments of warmth.</p>
+            <code>#C9974A</code>
+          </div>
+        </div>
+
+        <div class="heritage-card">
+          <div class="chip" style="background: var(--palmyra-sand);"></div>
+          <div>
+            <h4>Palmyra Sand</h4>
+            <div class="ar">رمل تدمر</div>
+            <p>The limestone of Palmyra's ruins, weathered by desert wind. A neutral surface that breathes warmth into long-form reading.</p>
+            <code>#DECDA6</code>
+          </div>
+        </div>
+
+        <div class="heritage-card">
+          <div class="chip" style="background: var(--ebla-bronze);"></div>
+          <div>
+            <h4>Ebla Bronze</h4>
+            <div class="ar">برونز إيبلا</div>
+            <p>The fired clay of Ebla's ancient tablets. A grounded mid-tone — pairs with green for editorial depth without competing.</p>
+            <code>#7C5234</code>
+          </div>
+        </div>
+
+        <div class="heritage-card">
+          <div class="chip" style="background: var(--orontes-green);"></div>
+          <div>
+            <h4>Orontes Green</h4>
+            <div class="ar">أخضر العاصي</div>
+            <p>The fertile river valley between Hama and Antakya. Lighter, softer green for illustrations and secondary surfaces.</p>
+            <code>#5C9856</code>
+          </div>
+        </div>
+
+        <div class="heritage-card">
+          <div class="chip" style="background: var(--med-blue);"></div>
+          <div>
+            <h4>Mediterranean Blue</h4>
+            <div class="ar">أزرق المتوسط</div>
+            <p>The Latakia coast at midday. Reserved for informational states, links inside editorial copy, and rare contrast.</p>
+            <code>#1F5F8F</code>
+          </div>
+        </div>
+
+        <div class="heritage-card">
+          <div class="chip" style="background: var(--basalt-black);"></div>
+          <div>
+            <h4>Basalt Black</h4>
+            <div class="ar">أسود البازلت</div>
+            <p>The volcanic stone of Hauran's southern villages. The base for body type, dark mode surfaces, and structural elements.</p>
+            <code>#1A1E1B</code>
+          </div>
+        </div>
+
+      </div>
+
+      <h3 style="font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin: 80px 0 24px;">Recommended proportions</h3>
+      <div class="usage-bar">
+        <div class="u-primary">60% Green</div>
+        <div class="u-neutral">25% Neutral</div>
+        <div class="u-accent">12% Gold</div>
+        <div class="u-other">3%</div>
+      </div>
+      <p class="usage-caption">A 60 / 25 / 12 / 3 split keeps the brand recognizably green while leaving room for warmth and information.</p>
+    </div>
+  </section>
+
+  <!-- ============= 03 TYPOGRAPHY ============= -->
+  <section id="typography">
+    <div class="container">
+      <div class="section-head">
+        <div class="section-num">03 · TYPOGRAPHY</div>
+        <div>
+          <h2 class="section-title">Two scripts, <em>one voice</em>.</h2>
+          <p class="section-lede">
+            Mashia speaks Arabic and Latin in the same breath. The display pair pulls from classical roots — a contemporary serif against a Kufic-rooted Arabic. The body pair is clean, modern, and engineered for screens.
+          </p>
+        </div>
+      </div>
+
+      <!-- Display pair -->
+      <div class="type-pair">
+        <div class="type-meta">
+          <strong>DISPLAY</strong>
+          Fraunces · Latin<br>
+          Reem Kufi · Arabic<br>
+          Weights: 400, 500, 700<br>
+          Use for: hero, section titles, marketing
+        </div>
+        <div>
+          <div class="type-specimen-display">
+            The <em>green</em> thread.
+            <div class="ar">الخيط الأخضر</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Body pair -->
+      <div class="type-pair">
+        <div class="type-meta">
+          <strong>BODY</strong>
+          Manrope · Latin<br>
+          Tajawal · Arabic<br>
+          Weights: 300, 400, 500, 700<br>
+          Use for: paragraphs, UI, system
+        </div>
+        <div>
+          <div class="type-specimen-body">
+            Mashia is a place where things move — requests, deliveries, a steady weave between people. The interface should feel like that: clear, honest, generous in its use of space, and confident in its color.
+            <div class="ar">
+              مشية مكان تتحرك فيه الأشياء — الطلبات، التوصيل، نسيج هادئ بين الناس. يجب أن تشعر الواجهة بهذا الإحساس: واضحة، صادقة، كريمة في استخدامها للمساحة، وواثقة في لونها.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Type scale -->
+      <h3 style="font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin: 80px 0 0;">Type Scale</h3>
+      <div class="scale-table">
+        <div class="scale-row">
+          <div class="label">Display</div>
+          <div class="sample" style="font-size: 72px; line-height: 1; font-weight: 400; letter-spacing: -0.025em;">Aa Mashia</div>
+          <div class="meta-right">72 / 72 · -2.5%</div>
+        </div>
+        <div class="scale-row">
+          <div class="label">H1</div>
+          <div class="sample" style="font-size: 48px; line-height: 1.05; font-weight: 500; letter-spacing: -0.02em;">Section heading</div>
+          <div class="meta-right">48 / 50 · -2%</div>
+        </div>
+        <div class="scale-row">
+          <div class="label">H2</div>
+          <div class="sample" style="font-size: 32px; line-height: 1.15; font-weight: 500; letter-spacing: -0.015em;">Subsection</div>
+          <div class="meta-right">32 / 37 · -1.5%</div>
+        </div>
+        <div class="scale-row">
+          <div class="label">H3</div>
+          <div class="sample" style="font-size: 22px; line-height: 1.3; font-weight: 600;">Card title</div>
+          <div class="meta-right">22 / 29 · 0%</div>
+        </div>
+        <div class="scale-row body">
+          <div class="label">Body L</div>
+          <div class="sample" style="font-size: 18px; line-height: 1.6; font-weight: 400;">Body large is for editorial paragraphs and lead-ins.</div>
+          <div class="meta-right">18 / 29 · 0%</div>
+        </div>
+        <div class="scale-row body">
+          <div class="label">Body</div>
+          <div class="sample" style="font-size: 16px; line-height: 1.55; font-weight: 400;">Body is the workhorse — UI labels, descriptions, paragraphs.</div>
+          <div class="meta-right">16 / 25 · 0%</div>
+        </div>
+        <div class="scale-row body">
+          <div class="label">Caption</div>
+          <div class="sample" style="font-size: 13px; line-height: 1.5; font-weight: 500; color: var(--muted);">Caption · metadata · timestamps</div>
+          <div class="meta-right">13 / 20 · 0%</div>
+        </div>
+      </div>
+
+      <p style="margin-top: 32px; font-size: 14px; color: var(--muted); max-width: 620px;">All four typefaces are available free under the SIL Open Font License via Google Fonts. Self-host for production or subset to Latin + Arabic ranges only to keep payload under ~140 KB.</p>
+    </div>
+  </section>
+
+  <!-- ============= 04 APPLICATION ============= -->
+  <section id="application">
+    <div class="container">
+      <div class="section-head">
+        <div class="section-num">04 · APPLICATION</div>
+        <div>
+          <h2 class="section-title">In <em>practice</em>.</h2>
+          <p class="section-lede">
+            Buttons, cards, and surface treatments. Light by default, with a rich Basalt-Black dark mode. RTL is first-class, not an afterthought.
+          </p>
+        </div>
+      </div>
+
+      <div class="app-grid">
+
+        <div class="app-card">
+          <h5>Buttons</h5>
+          <div class="btn-row">
+            <a class="btn btn-primary" href="#">Place order →</a>
+            <a class="btn btn-secondary" href="#">View details</a>
+            <a class="btn btn-ghost" href="#">Cancel</a>
+            <a class="btn btn-accent" href="#">Featured</a>
+          </div>
+          <p style="margin-top: 32px; font-size: 13px; color: var(--muted); line-height: 1.6;">Primary uses Mashia 600. Accent uses Qasioun Gold for one-of moments — never two on the same screen.</p>
+        </div>
+
+        <div class="app-card dark">
+          <h5>Dark mode</h5>
+          <div class="btn-row">
+            <a class="btn" style="background: var(--mashia-400); color: var(--basalt-black);" href="#">Place order →</a>
+            <a class="btn" style="background: transparent; color: var(--palmyra-sand); border-color: var(--palmyra-sand);" href="#">View details</a>
+            <a class="btn" style="background: transparent; color: var(--mashia-300); padding-left: 0; padding-right: 0;" href="#">Cancel</a>
+          </div>
+          <p style="margin-top: 32px; font-size: 13px; opacity: 0.75; line-height: 1.6;">In dark mode, brand green shifts up to 400 (#3FA068) for legibility. Body text uses Palmyra Sand instead of pure white — softer on the eye.</p>
+        </div>
+
+        <div class="app-card">
+          <h5>Card · LTR</h5>
+          <div class="product-card">
+            <span class="badge">New · This week</span>
+            <h6>Saffron honey, hand-poured</h6>
+            <p style="font-size: 13px; color: var(--muted); line-height: 1.5;">From the Bekaa, in 250g jars. Limited weekly run.</p>
+            <div class="price">38 SAR</div>
+          </div>
+        </div>
+
+        <div class="app-card">
+          <h5 style="text-align: right;">بطاقة · RTL</h5>
+          <div class="product-card ar-card">
+            <span class="badge">جديد · هذا الأسبوع</span>
+            <h6>عسل الزعفران، مسكوب يدوياً</h6>
+            <p class="product-desc" style="font-size: 14px; color: var(--muted); line-height: 1.7;">من سهل البقاع، بعبوات ٢٥٠ غرام. كمية محدودة كل أسبوع.</p>
+            <div class="price">٣٨ ريال</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="margin-top: 64px; padding: 32px; background: var(--mashia-50); border-left: 4px solid var(--mashia-600);">
+        <strong style="font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mashia-700);">Accessibility note</strong>
+        <p style="margin-top: 12px; font-size: 14px; line-height: 1.65; color: var(--ink);">
+          Mashia 600 on Paper passes WCAG AA for normal text (contrast ≈ 5.2:1). Avoid Mashia 400 / 500 on white for body copy — use only for large headings or non-text UI. Qasioun Gold on Basalt Black passes AA. Test every accent on a real surface before shipping.
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============= FOOTER ============= -->
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <div class="mark-lg">Mashia.</div>
+        <div class="meta">
+          BRAND GUIDE · v1.0<br>
+          KIEL · 2026<br>
+          MOHAMMAD IBRAHIM
+        </div>
+        <div class="disclaimer">
+          The Mashia palette is inspired by the Syrian National Visual Identity unveiled July 2025 (Qasioun Gold, Ebla Bronze, Palmyra Sand, Orontes Green, Mediterranean Blue, Basalt Black) and by the shared green of the Syrian and Saudi national flags. Heritage accent HEX values in this guide are visual approximations of the named colors — once the official Syrian Identity brand book HEX values become publicly available, replace the values in <code style="font-family: var(--font-mono);">:root</code> to match. Mashia is an independent project and is not affiliated with either national brand program.
+        </div>
+      </div>
+    </div>
+  </footer>
+
+</main>
+
+</body>
+</html>
