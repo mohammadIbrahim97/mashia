@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
+  ImagePickerResponse,
   launchCamera,
   launchImageLibrary,
 } from 'react-native-image-picker';
@@ -22,7 +23,7 @@ type PickSource = 'library' | 'camera';
 function pickImage(source: PickSource): Promise<PickedFile | null> {
   return new Promise((resolve) => {
     const opts = { mediaType: 'photo' as const, quality: 0.8 as const };
-    const handler = (response: Parameters<Parameters<typeof launchImageLibrary>[1]>[0]) => {
+    const handler = (response: ImagePickerResponse) => {
       const asset = response.assets?.[0];
       if (!asset || !asset.uri) {
         resolve(null);
