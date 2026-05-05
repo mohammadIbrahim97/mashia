@@ -13,7 +13,7 @@ import { AppBar, Chip, ChipKind } from '@components/index';
 import { OrdersStackParamList } from '@navigation/types';
 import { Order } from '@services/orders.service';
 import { useOrders } from '@store/orders.store';
-import { colors, spacing, type } from '@theme/index';
+import { colors, fonts, spacing, type } from '@theme/index';
 
 type Props = NativeStackScreenProps<OrdersStackParamList, 'MyOrders'>;
 
