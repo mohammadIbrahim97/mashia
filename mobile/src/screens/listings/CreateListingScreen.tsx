@@ -20,7 +20,7 @@ import { ProfileStackParamList } from '@navigation/types';
 import { errorMessage } from '@services/api';
 import { CreateListingPayload, listingsService } from '@services/listings.service';
 import { uploadsService } from '@services/uploads.service';
-import { colors, fonts, radii, spacing, type } from '@theme/index';
+import { colors, fonts, radii, spacing } from '@theme/index';
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'CreateListing'>;
 
