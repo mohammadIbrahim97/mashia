@@ -42,6 +42,20 @@ export class ListingsController {
     return this.listingsService.findAll(query);
   }
 
+  @Get('mine')
+  @UseGuards(JwtAuthGuard)
+  async findMine(
+    @CurrentUser() user: User,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.listingsService.findMine(
+      user.id,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 20,
+    );
+  }
+
   @Get(':id')
   async findById(@Param('id', ParseUUIDPipe) id: string): Promise<Listing> {
     return this.listingsService.findById(id);

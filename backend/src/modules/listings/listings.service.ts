@@ -107,6 +107,20 @@ export class ListingsService {
     return this.listingsRepository.save(listing);
   }
 
+  async findMine(
+    sellerId: string,
+    page = 1,
+    limit = 20,
+  ): Promise<{ data: Listing[]; total: number; page: number; limit: number }> {
+    const [data, total] = await this.listingsRepository.findAndCount({
+      where: { sellerId },
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { data, total, page, limit };
+  }
+
   async remove(id: string, sellerId: string): Promise<{ message: string }> {
     const listing = await this.listingsRepository.findOne({ where: { id } });
     if (!listing) throw new NotFoundException('Listing not found');
