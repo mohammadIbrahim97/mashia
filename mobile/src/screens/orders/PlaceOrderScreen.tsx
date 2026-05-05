@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AppBar, Button, Icon, Overline } from '@components/index';
-import { HomeStackParamList } from '@navigation/HomeStack';
+import { HomeStackParamList } from '@navigation/types';
 import { ordersService } from '@services/orders.service';
 import { errorMessage } from '@services/api';
 import { colors, fonts, radii, spacing, type } from '@theme/index';

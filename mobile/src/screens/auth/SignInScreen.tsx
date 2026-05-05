@@ -13,7 +13,7 @@ import {
   PhoneInput,
   StepIndicator,
 } from '@components/index';
-import { AuthStackParamList } from '@navigation/AuthStack';
+import { AuthStackParamList } from '@navigation/types';
 import { errorMessage } from '@services/api';
 import { authService } from '@services/auth.service';
 import { useAuth } from '@hooks/useAuth';

@@ -6,15 +6,9 @@ import { PlaceOrderScreen } from '@screens/orders/PlaceOrderScreen';
 import { OrderConfirmationScreen } from '@screens/orders/OrderConfirmationScreen';
 import { PaymentMethodScreen } from '@screens/orders/PaymentMethodScreen';
 import { PaymentResultScreen } from '@screens/orders/PaymentResultScreen';
+import { HomeStackParamList } from './types';
 
-export type HomeStackParamList = {
-  HomeFeed: undefined;
-  ListingDetail: { listingId: string };
-  PlaceOrder: { listingId: string; pricePerHead: number; currency: string };
-  OrderConfirmation: { orderId: string };
-  PaymentMethod: { orderId: string; totalPrice: number; currency: string };
-  PaymentResult: { success: boolean; orderId: string };
-};
+export type { HomeStackParamList };
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
 

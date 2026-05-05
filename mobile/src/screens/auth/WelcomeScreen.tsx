@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button, Overline } from '@components/index';
-import { AuthStackParamList } from '@navigation/AuthStack';
+import { AuthStackParamList } from '@navigation/types';
 import { colors, fonts, radii, spacing, type } from '@theme/index';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;

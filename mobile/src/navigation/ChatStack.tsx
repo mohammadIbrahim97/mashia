@@ -3,10 +3,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ConversationsScreen } from '@screens/messaging/ConversationsScreen';
 import { ChatScreen } from '@screens/messaging/ChatScreen';
 
-export type ChatStackParamList = {
-  Conversations: undefined;
-  Chat: { conversationId: string; title: string };
-};
+import { ChatStackParamList } from './types';
+export type { ChatStackParamList };
 
 const Stack = createNativeStackNavigator<ChatStackParamList>();
 

@@ -4,13 +4,9 @@ import { MyOrdersScreen } from '@screens/orders/MyOrdersScreen';
 import { OrderDetailScreen } from '@screens/orders/OrderDetailScreen';
 import { PaymentMethodScreen } from '@screens/orders/PaymentMethodScreen';
 import { PaymentResultScreen } from '@screens/orders/PaymentResultScreen';
+import { OrdersStackParamList } from './types';
 
-export type OrdersStackParamList = {
-  MyOrders: undefined;
-  OrderDetail: { orderId: string };
-  PaymentMethod: { orderId: string; totalPrice: number; currency: string };
-  PaymentResult: { success: boolean; orderId: string };
-};
+export type { OrdersStackParamList };
 
 const Stack = createNativeStackNavigator<OrdersStackParamList>();
 

@@ -8,7 +8,7 @@ import {
   launchImageLibrary,
 } from 'react-native-image-picker';
 import { AppBar, Button, Chip, Icon, Overline } from '@components/index';
-import { ProfileStackParamList } from '@navigation/ProfileStack';
+import { ProfileStackParamList } from '@navigation/types';
 import { kycService, KycStatusResponse } from '@services/kyc.service';
 import { errorMessage } from '@services/api';
 import { useAuth } from '@hooks/useAuth';

@@ -5,13 +5,8 @@ import { SignInScreen } from '@screens/auth/SignInScreen';
 import { SignUpScreen } from '@screens/auth/SignUpScreen';
 import { RecoverAccessScreen } from '@screens/auth/RecoverAccessScreen';
 
-export type AuthStackParamList = {
-  Welcome: undefined;
-  SignIn: undefined;
-  /** Optional pre-filled phone + verified code from a SignIn → SignUp redirect. */
-  SignUp: { phone?: string; code?: string } | undefined;
-  RecoverAccess: undefined;
-};
+import { AuthStackParamList } from './types';
+export type { AuthStackParamList };
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 

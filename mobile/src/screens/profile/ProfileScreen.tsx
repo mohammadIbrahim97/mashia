@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AppBar, Chip, Icon, Monogram, Overline } from '@components/index';
-import { ProfileStackParamList } from '@navigation/ProfileStack';
+import { ProfileStackParamList } from '@navigation/types';
 import { useAuth } from '@hooks/useAuth';
 import { colors, fonts, radii, spacing, type } from '@theme/index';
 

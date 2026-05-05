@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { io, Socket } from 'socket.io-client';
 import { AppBar, Icon } from '@components/index';
-import { ChatStackParamList } from '@navigation/ChatStack';
+import { ChatStackParamList } from '@navigation/types';
 import { useMessaging } from '@store/messaging.store';
 import { useAuth } from '@hooks/useAuth';
 import { Message } from '@services/messaging.service';

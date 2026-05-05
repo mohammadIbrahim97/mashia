@@ -8,15 +8,8 @@ import { MyListingsScreen } from '@screens/listings/MyListingsScreen';
 import { CreateListingScreen } from '@screens/listings/CreateListingScreen';
 import { ListingDetailScreen } from '@screens/listings/ListingDetailScreen';
 
-export type ProfileStackParamList = {
-  Profile: undefined;
-  EditProfile: undefined;
-  Settings: undefined;
-  KycUpload: undefined;
-  MyListings: undefined;
-  CreateListing: { editId?: string } | undefined;
-  ListingDetail: { listingId: string };
-};
+import { ProfileStackParamList } from './types';
+export type { ProfileStackParamList };
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
 

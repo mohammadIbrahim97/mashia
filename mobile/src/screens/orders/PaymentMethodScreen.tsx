@@ -9,7 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AppBar, Button, Icon, Overline } from '@components/index';
-import { OrdersStackParamList } from '@navigation/OrdersStack';
+import { OrdersStackParamList } from '@navigation/types';
 import { paymentsService } from '@services/payments.service';
 import { errorMessage } from '@services/api';
 import { colors, fonts, radii, spacing, type } from '@theme/index';

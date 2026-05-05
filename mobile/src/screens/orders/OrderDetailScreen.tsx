@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AppBar, Button, Icon, Overline } from '@components/index';
-import { OrdersStackParamList } from '@navigation/OrdersStack';
+import { OrdersStackParamList } from '@navigation/types';
 import { useAuth } from '@hooks/useAuth';
 import { useOrders } from '@store/orders.store';
 import { colors, radii, spacing, type } from '@theme/index';

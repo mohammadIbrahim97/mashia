@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AppBar } from '@components/index';
-import { ChatStackParamList } from '@navigation/ChatStack';
+import { ChatStackParamList } from '@navigation/types';
 import { useMessaging } from '@store/messaging.store';
 import { ConversationItem } from '@services/messaging.service';
 import { colors, fonts, radii, spacing, type } from '@theme/index';

@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AppBar, Chip, ChipKind } from '@components/index';
-import { OrdersStackParamList } from '@navigation/OrdersStack';
+import { OrdersStackParamList } from '@navigation/types';
 import { Order } from '@services/orders.service';
 import { useOrders } from '@store/orders.store';
 import { colors, spacing, type } from '@theme/index';

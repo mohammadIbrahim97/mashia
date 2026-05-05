@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button, Icon } from '@components/index';
-import { OrdersStackParamList } from '@navigation/OrdersStack';
+import { OrdersStackParamList } from '@navigation/types';
 import { colors, fonts, spacing, type } from '@theme/index';
 
 type Props = NativeStackScreenProps<OrdersStackParamList, 'PaymentResult'>;

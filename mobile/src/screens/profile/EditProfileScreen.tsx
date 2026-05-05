@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AppBar, Button, Icon, Overline } from '@components/index';
-import { ProfileStackParamList } from '@navigation/ProfileStack';
+import { ProfileStackParamList } from '@navigation/types';
 import { api, errorMessage } from '@services/api';
 import { authService } from '@services/auth.service';
 import { useAuth } from '@hooks/useAuth';

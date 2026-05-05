@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AppBar, Chip, ChipKind, Icon } from '@components/index';
-import { ProfileStackParamList } from '@navigation/ProfileStack';
+import { ProfileStackParamList } from '@navigation/types';
 import { Listing, listingsService } from '@services/listings.service';
 import { useListings } from '@store/listings.store';
 import { colors, fonts, radii, spacing, type } from '@theme/index';
