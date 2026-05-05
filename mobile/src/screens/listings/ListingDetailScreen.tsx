@@ -11,7 +11,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AppBar, Button, Chip, Icon } from '@components/index';
+import { HomeStackParamList } from '@navigation/types';
 import { errorMessage } from '@services/api';
 import { messagingService } from '@services/messaging.service';
 import { useListings } from '@store/listings.store';
@@ -19,10 +21,7 @@ import { colors, fonts, radii, spacing, type } from '@theme/index';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
-type Props = {
-  navigation: any;
-  route: { params: { listingId: string } };
-};
+type Props = NativeStackScreenProps<HomeStackParamList, 'ListingDetail'>;
 
 function healthChipKind(status: string): 'verified' | 'pending' | 'neutral' {
   if (status === 'certified') return 'verified';
