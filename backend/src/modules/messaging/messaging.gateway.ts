@@ -149,6 +149,41 @@ export class MessagingGateway
     return { ok: true, message: saved };
   }
 
+  @SubscribeMessage('typing')
+  async handleTyping(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() payload: unknown,
+  ): Promise<{ ok: boolean; error?: JoinConversationAckError }> {
+    const data = payload as { conversationId?: unknown; isTyping?: unknown } | null;
+    const conversationId = data?.conversationId;
+    const isTyping = data?.isTyping;
+    if (
+      typeof conversationId !== 'string' ||
+      !isUUID(conversationId, '4') ||
+      typeof isTyping !== 'boolean'
+    ) {
+      return { ok: false, error: 'invalid_payload' };
+    }
+
+    const userId = client.data.userId;
+    if (!userId) {
+      return { ok: false, error: 'unauthorized' };
+    }
+
+    try {
+      await this.messagingService.assertIsParticipant(conversationId, userId);
+    } catch (err) {
+      const error = this.mapServiceError(err);
+      if (error) return { ok: false, error };
+      throw err;
+    }
+
+    client
+      .to(`conversation:${conversationId}`)
+      .emit('userTyping', { conversationId, userId, isTyping });
+    return { ok: true };
+  }
+
   @SubscribeMessage('markRead')
   async handleMarkRead(
     @ConnectedSocket() client: AuthSocket,

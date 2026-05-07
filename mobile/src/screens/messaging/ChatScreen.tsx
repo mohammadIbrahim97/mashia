@@ -75,6 +75,22 @@ export function ChatScreen({ navigation, route }: Props) {
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [otherTyping, setOtherTyping] = useState(false);
+
+  const typingStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sentTypingRef = useRef(false);
+  const otherTypingClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const emitTypingStop = useCallback(() => {
+    if (typingStopTimerRef.current) {
+      clearTimeout(typingStopTimerRef.current);
+      typingStopTimerRef.current = null;
+    }
+    if (sentTypingRef.current && socketRef.current) {
+      socketRef.current.emit('typing', { conversationId, isTyping: false });
+      sentTypingRef.current = false;
+    }
+  }, [conversationId]);
 
   useEffect(() => {
     loadMessages(conversationId, true);
@@ -94,18 +110,56 @@ export function ChatScreen({ navigation, route }: Props) {
       socket.on('newMessage', (msg: Message) => {
         appendMessage(conversationId, msg);
       });
+
+      socket.on(
+        'userTyping',
+        ({ isTyping }: { conversationId: string; userId: string; isTyping: boolean }) => {
+          setOtherTyping(isTyping);
+          if (otherTypingClearRef.current) {
+            clearTimeout(otherTypingClearRef.current);
+            otherTypingClearRef.current = null;
+          }
+          if (isTyping) {
+            otherTypingClearRef.current = setTimeout(
+              () => setOtherTyping(false),
+              5000,
+            );
+          }
+        },
+      );
     })();
 
     return () => {
+      emitTypingStop();
+      if (otherTypingClearRef.current) clearTimeout(otherTypingClearRef.current);
       socket?.disconnect();
       socketRef.current = null;
     };
-  }, [conversationId]);
+  }, [conversationId, appendMessage, loadMessages, emitTypingStop]);
+
+  const onChangeBody = useCallback(
+    (next: string) => {
+      setBody(next);
+      if (!socketRef.current) return;
+      if (next.length === 0) {
+        emitTypingStop();
+        return;
+      }
+      if (!sentTypingRef.current) {
+        socketRef.current.emit('typing', { conversationId, isTyping: true });
+        sentTypingRef.current = true;
+      }
+      if (typingStopTimerRef.current) clearTimeout(typingStopTimerRef.current);
+      typingStopTimerRef.current = setTimeout(emitTypingStop, 3000);
+    },
+    [conversationId, emitTypingStop],
+  );
 
   const onSend = useCallback(() => {
     const trimmed = body.trim();
     if (!trimmed || sending || !socketRef.current) return;
 
+    emitTypingStop();
     setSending(true);
     socketRef.current.emit(
       'sendMessage',
@@ -118,7 +172,7 @@ export function ChatScreen({ navigation, route }: Props) {
         }
       },
     );
-  }, [body, sending, conversationId, appendMessage]);
+  }, [body, sending, conversationId, appendMessage, emitTypingStop]);
 
   const sendImage = useCallback(
     async (source: PickSource) => {
@@ -228,6 +282,11 @@ export function ChatScreen({ navigation, route }: Props) {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
+        {otherTyping ? (
+          <View style={styles.typingRow}>
+            <Text style={styles.typingText}>{title} is typing…</Text>
+          </View>
+        ) : null}
         <View style={styles.inputRow}>
           <Pressable
             style={({ pressed }) => [
@@ -247,7 +306,7 @@ export function ChatScreen({ navigation, route }: Props) {
           <TextInput
             style={styles.input}
             value={body}
-            onChangeText={setBody}
+            onChangeText={onChangeBody}
             placeholder="Type a message…"
             placeholderTextColor={colors.muted}
             multiline
@@ -402,5 +461,16 @@ const styles = StyleSheet.create({
   },
   attachBtnPressed: {
     backgroundColor: colors.mashia[100],
+  },
+  typingRow: {
+    paddingHorizontal: spacing[4],
+    paddingTop: spacing[2],
+    backgroundColor: colors.paper,
+  },
+  typingText: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    fontStyle: 'italic',
+    color: colors.muted,
   },
 });
