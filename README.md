@@ -10,7 +10,7 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 | Layer | Stack | Status |
 |---|---|---|
 | Backend API | NestJS, PostgreSQL, Redis, Socket.io, S3 | **API done · AWS infra pending** |
-| Mobile App | React Native 0.73, TypeScript, Zustand | **Core screens done** |
+| Mobile App | React Native 0.73, TypeScript, Zustand | **Phases A–C done · Phase D in progress** |
 | Admin Dashboard | Next.js 14, Tailwind CSS | Not started |
 
 ---
@@ -43,8 +43,12 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 - [ ] CloudWatch monitoring + log aggregation (#91 / #245)
 
 **Also pending:**
-- [ ] Payment gateway real integration — escrow.service is a stub for MVP (#132)
+- [ ] Payment gateway real integration (#132) — **deferred, labeled `After Beta phase`** until business registration. MVP uses manual bank-transfer flow handled by admin.
 - [ ] Certificate expiry auto-flag scheduler (#61)
+
+**Recent backend changes (on `claude/list-next-tasks-qByz2`, not yet on `develop`):**
+- `messaging.gateway.ts` — `typing` event handler broadcasts `userTyping` to room participants (#142)
+- `uploads/` — `chat_image` purpose allowed; `generatePresignedUploadUrl` now also returns `fileUrl` (signed read URL, 7-day expiry) (#140)
 
 ### Mobile — Phases A, B, C Complete
 
@@ -57,7 +61,7 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 - WelcomeScreen, SignInScreen, SignUpScreen (phone + OTP + role + profile), RecoverAccessScreen
 - JWT stored in Keychain, auto-refresh via Axios interceptor, auth state in Zustand
 
-**Phase C — All Core Screens** (current branch, merged to develop)
+**Phase C — All Core Screens** (merged to develop)
 - **Navigation**: HomeStack, OrdersStack, ChatStack, ProfileStack all wired with typed params via `navigation/types.ts`
 - **Services**: `listings`, `orders`, `payments`, `messaging`, `kyc`, `uploads` (S3 presigned URLs)
 - **Stores**: `listings.store`, `orders.store`, `messaging.store` (Zustand)
@@ -69,16 +73,20 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
   - Profile: ProfileScreen, EditProfileScreen, SettingsScreen, KycUploadScreen
   - Certificates: UploadCertificateScreen *(stub)*, CertificateDetailScreen *(stub)*
 
+**Phase D — Business Polish** (in progress, branch `claude/list-next-tasks-qByz2`)
+- [x] Image sending in chat: camera/gallery → S3 presigned upload → `<Image>` bubble; "Photo" preview in ConversationsScreen (#140)
+- [x] Typing indicator in ChatScreen — debounced emit, 3s idle stop, 5s safety auto-clear, italic line above input (#142)
+- [x] Bug fix: mobile↔backend message field mismatch (`body` → `content`); text send/receive was silently failing DTO validation in Phase C
+- [ ] Payment gateway — **deferred to `After Beta phase`** (#132)
+
 ---
 
 ## What's Next
 
 ### Mobile — Remaining Work
 
-**Phase D — Business Polish** (phase-07 remaining issues)
-- [ ] Image sending in chat: camera/gallery → S3 → image message (#140)
-- [ ] Typing indicator in ChatScreen (#142)
-- [ ] Real payment gateway integration — STC Pay / Mada deep-link or webview (#132)
+**Phase D — Business Polish** (#140 + #142 done on branch; #132 deferred)
+- [ ] Real payment gateway integration — STC Pay / Mada (#132). **Deferred**: requires registered company; until beta, manual bank-transfer flow with unique reference + admin handles release.
 
 **Phase E — Certificates Mobile** (phase-07, #143–146)
 - [ ] Implement UploadCertificateScreen: type picker, authority, dates, file/photo
@@ -165,7 +173,7 @@ node scripts/seed-demo-users.js
 ```
 mashia/
 ├── backend/          NestJS API — 8 modules, fully implemented
-├── mobile/           React Native 0.73 — Phases A+B+C done
+├── mobile/           React Native 0.73 — Phases A+B+C done, D in progress
 ├── admin/            Next.js — not started
 ├── docs/             Specs, requirements, implementation plans
 ├── docker-compose.yml
@@ -189,23 +197,31 @@ mashia/
 
 ## Active Branch
 
-Working branch: `claude/continue-development-QQU9Y`
+Working branch: `claude/list-next-tasks-qByz2` (Phase D — chat images + typing indicator)
 
 Merge flow (always do this to trigger CI):
 ```bash
 git checkout develop
 git pull origin develop
-git merge origin/claude/continue-development-QQU9Y
+git merge origin/claude/list-next-tasks-qByz2
 git push origin develop
 ```
 
 CI triggers automatically on push to `develop` when `mobile/**` files change.
+
+To auto-close the related issues on merge, include in the merge commit body:
+```
+Closes #140
+Closes #142
+```
 
 ---
 
 ## GitHub Issues State
 
 - **Closed (done)**: #94–128, #130–131, #133–134, #136–139, #141, #148–149, #151
-- **Open — mobile remaining**: #132, #140, #142–146, #150, #152–163
-- **Open — admin dashboard**: #173–226
+- **Done on branch, awaiting merge to `develop`**: #140 (chat images), #142 (typing indicator)
+- **Deferred — `After Beta phase` label** (until business registration + manual bank-transfer flow proven): #129, #132, #210–214
+- **Open — mobile remaining**: #143–146, #150, #152–163
+- **Open — admin dashboard**: #173–209, #215–226 (excl. deferred)
 - **Open — infra/deployment**: #82, #86–93, #239–246
