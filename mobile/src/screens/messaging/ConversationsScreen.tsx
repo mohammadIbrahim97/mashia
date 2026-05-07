@@ -83,7 +83,11 @@ export function ConversationsScreen({ navigation }: Props) {
           </View>
           <View style={styles.rowBottom}>
             <Text style={styles.preview} numberOfLines={1}>
-              {item.lastMessage ? item.lastMessage.body : 'No messages yet'}
+              {item.lastMessage
+                ? item.lastMessage.type === 'image'
+                  ? 'Photo'
+                  : item.lastMessage.content
+                : 'No messages yet'}
             </Text>
             {item.unreadCount > 0 ? (
               <View style={styles.badge}>

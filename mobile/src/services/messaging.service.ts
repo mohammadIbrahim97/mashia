@@ -6,7 +6,7 @@ export type ConversationParticipant = {
 };
 
 export type LastMessage = {
-  body: string;
+  content: string;
   type: string;
   createdAt: string;
 };
@@ -23,7 +23,7 @@ export type Message = {
   id: string;
   conversationId: string;
   senderId: string;
-  body: string;
+  content: string;
   type: string;
   readAt: string | null;
   createdAt: string;

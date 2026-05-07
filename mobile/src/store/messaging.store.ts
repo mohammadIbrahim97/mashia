@@ -62,7 +62,7 @@ export const useMessaging = create<MessagingState>((set, get) => ({
           ? {
               ...c,
               lastMessage: {
-                body: msg.body,
+                content: msg.content,
                 type: msg.type,
                 createdAt: msg.createdAt,
               },

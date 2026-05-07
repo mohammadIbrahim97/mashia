@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,15 +14,44 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import {
+  ImagePickerResponse,
+  launchCamera,
+  launchImageLibrary,
+} from 'react-native-image-picker';
 import { io, Socket } from 'socket.io-client';
 import { AppBar, Icon } from '@components/index';
 import { ChatStackParamList } from '@navigation/types';
 import { useMessaging } from '@store/messaging.store';
 import { useAuth } from '@hooks/useAuth';
 import { Message } from '@services/messaging.service';
+import { uploadsService } from '@services/uploads.service';
 import { loadTokens } from '@services/api';
 import { config } from '../../config';
 import { colors, fonts, radii, spacing, type } from '@theme/index';
+
+type PickedImage = { uri: string; type: string; name: string };
+type PickSource = 'library' | 'camera';
+
+function pickImage(source: PickSource): Promise<PickedImage | null> {
+  return new Promise((resolve) => {
+    const opts = { mediaType: 'photo' as const, quality: 0.8 as const };
+    const handler = (response: ImagePickerResponse) => {
+      const asset = response.assets?.[0];
+      if (!asset || !asset.uri) {
+        resolve(null);
+        return;
+      }
+      resolve({
+        uri: asset.uri,
+        type: asset.type ?? 'image/jpeg',
+        name: asset.fileName ?? 'photo.jpg',
+      });
+    };
+    if (source === 'camera') launchCamera(opts, handler);
+    else launchImageLibrary(opts, handler);
+  });
+}
 
 type Props = NativeStackScreenProps<ChatStackParamList, 'Chat'>;
 
@@ -43,6 +74,7 @@ export function ChatScreen({ navigation, route }: Props) {
   const socketRef = useRef<Socket | null>(null);
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     loadMessages(conversationId, true);
@@ -77,7 +109,7 @@ export function ChatScreen({ navigation, route }: Props) {
     setSending(true);
     socketRef.current.emit(
       'sendMessage',
-      { conversationId, body: trimmed, type: 'text' },
+      { conversationId, content: trimmed, type: 'text' },
       (ack: { ok: boolean; message?: Message }) => {
         setSending(false);
         if (ack.ok && ack.message) {
@@ -88,21 +120,72 @@ export function ChatScreen({ navigation, route }: Props) {
     );
   }, [body, sending, conversationId, appendMessage]);
 
+  const sendImage = useCallback(
+    async (source: PickSource) => {
+      if (uploadingImage || !socketRef.current) return;
+
+      const file = await pickImage(source);
+      if (!file) return;
+
+      setUploadingImage(true);
+      try {
+        const { uploadUrl, fileUrl } = await uploadsService.getPresignedUrl(
+          'chat_image',
+          file.type,
+          file.name,
+        );
+        await uploadsService.uploadToS3(uploadUrl, file.uri, file.type);
+
+        socketRef.current.emit(
+          'sendMessage',
+          { conversationId, content: fileUrl, type: 'image' },
+          (ack: { ok: boolean; message?: Message }) => {
+            if (ack.ok && ack.message) {
+              appendMessage(conversationId, ack.message);
+            }
+          },
+        );
+      } catch {
+        Alert.alert('Upload failed', 'Could not send image. Try again.');
+      } finally {
+        setUploadingImage(false);
+      }
+    },
+    [uploadingImage, conversationId, appendMessage],
+  );
+
+  const onAttach = useCallback(() => {
+    Alert.alert('Send image', undefined, [
+      { text: 'Camera', onPress: () => sendImage('camera') },
+      { text: 'Gallery', onPress: () => sendImage('library') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, [sendImage]);
+
   const reversed = [...messages].reverse();
 
   const renderItem = useCallback(
     ({ item }: { item: Message }) => {
       const isOwn = item.senderId === user?.id;
+      const isImage = item.type === 'image';
       return (
         <View style={[styles.bubbleRow, isOwn ? styles.bubbleRowOwn : styles.bubbleRowOther]}>
           {!isOwn ? (
             <Text style={styles.senderName}>{title}</Text>
           ) : null}
-          <View style={[styles.bubble, isOwn ? styles.bubbleOwn : styles.bubbleOther]}>
-            <Text style={[styles.bubbleText, isOwn ? styles.bubbleTextOwn : styles.bubbleTextOther]}>
-              {item.body}
-            </Text>
-          </View>
+          {isImage ? (
+            <Image
+              source={{ uri: item.content }}
+              style={styles.imageBubble}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.bubble, isOwn ? styles.bubbleOwn : styles.bubbleOther]}>
+              <Text style={[styles.bubbleText, isOwn ? styles.bubbleTextOwn : styles.bubbleTextOther]}>
+                {item.content}
+              </Text>
+            </View>
+          )}
           <Text style={[styles.bubbleTime, isOwn ? styles.bubbleTimeOwn : styles.bubbleTimeOther]}>
             {formatBubbleTime(item.createdAt)}
           </Text>
@@ -146,6 +229,21 @@ export function ChatScreen({ navigation, route }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.inputRow}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.attachBtn,
+              uploadingImage && styles.attachBtnDisabled,
+              pressed && !uploadingImage && styles.attachBtnPressed,
+            ]}
+            onPress={onAttach}
+            disabled={uploadingImage}
+          >
+            {uploadingImage ? (
+              <ActivityIndicator size="small" color={colors.mashia[600]} />
+            ) : (
+              <Icon name="image" size={20} color={colors.mashia[600]} />
+            )}
+          </Pressable>
           <TextInput
             style={styles.input}
             value={body}
@@ -221,6 +319,12 @@ const styles = StyleSheet.create({
   bubbleOther: {
     backgroundColor: colors.parchment,
   },
+  imageBubble: {
+    width: 220,
+    height: 220,
+    borderRadius: radii.md,
+    backgroundColor: colors.parchment,
+  },
   bubbleText: {
     fontFamily: fonts.body,
     fontSize: 15,
@@ -281,5 +385,22 @@ const styles = StyleSheet.create({
   },
   sendBtnPressed: {
     backgroundColor: colors.mashia[700],
+  },
+  attachBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.pill,
+    backgroundColor: colors.mashia[50],
+    borderWidth: 1,
+    borderColor: colors.mashia[200],
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  attachBtnDisabled: {
+    opacity: 0.5,
+  },
+  attachBtnPressed: {
+    backgroundColor: colors.mashia[100],
   },
 });

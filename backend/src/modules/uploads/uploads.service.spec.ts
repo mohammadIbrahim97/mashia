@@ -9,6 +9,7 @@ describe('UploadsService', () => {
   beforeEach(async () => {
     s3Service = {
       getSignedUploadUrl: jest.fn().mockResolvedValue('https://s3.example.com/presigned'),
+      getSignedReadUrl: jest.fn().mockResolvedValue('https://s3.example.com/read'),
     } as unknown as jest.Mocked<S3Service>;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -31,6 +32,7 @@ describe('UploadsService', () => {
 
     expect(result.key).toMatch(/^listings\/user-123\/[a-f0-9-]+\.jpg$/);
     expect(result.uploadUrl).toBe('https://s3.example.com/presigned');
+    expect(result.fileUrl).toBe('https://s3.example.com/read');
     expect(result.expiresIn).toBe(300);
   });
 

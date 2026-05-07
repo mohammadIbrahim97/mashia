@@ -1,7 +1,7 @@
 import { IsIn, IsString, Length } from 'class-validator';
 
 export class PresignedUrlDto {
-  @IsIn(['listing', 'certificate'])
+  @IsIn(['listing', 'certificate', 'chat_image'])
   purpose: string;
 
   @IsIn(['image/jpeg', 'image/png', 'image/webp'])

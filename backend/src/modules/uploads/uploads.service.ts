@@ -9,6 +9,7 @@ const CONTENT_TYPE_TO_EXT: Record<string, string> = {
 };
 
 const PRESIGN_EXPIRY_SECONDS = 300;
+const READ_URL_EXPIRY_SECONDS = 7 * 24 * 60 * 60;
 
 @Injectable()
 export class UploadsService {
@@ -19,15 +20,19 @@ export class UploadsService {
     purpose: string,
     contentType: string,
     fileName: string,
-  ): Promise<{ uploadUrl: string; key: string; expiresIn: number }> {
+  ): Promise<{
+    uploadUrl: string;
+    fileUrl: string;
+    key: string;
+    expiresIn: number;
+  }> {
     const ext = CONTENT_TYPE_TO_EXT[contentType] ?? this.extractExt(fileName);
     const key = `${purpose}s/${userId}/${randomUUID()}.${ext}`;
-    const uploadUrl = await this.s3Service.getSignedUploadUrl(
-      key,
-      contentType,
-      PRESIGN_EXPIRY_SECONDS,
-    );
-    return { uploadUrl, key, expiresIn: PRESIGN_EXPIRY_SECONDS };
+    const [uploadUrl, fileUrl] = await Promise.all([
+      this.s3Service.getSignedUploadUrl(key, contentType, PRESIGN_EXPIRY_SECONDS),
+      this.s3Service.getSignedReadUrl(key, READ_URL_EXPIRY_SECONDS),
+    ]);
+    return { uploadUrl, fileUrl, key, expiresIn: PRESIGN_EXPIRY_SECONDS };
   }
 
   private extractExt(fileName: string): string {
