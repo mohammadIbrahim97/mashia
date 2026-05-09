@@ -11,17 +11,25 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { CompositeScreenProps } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AppBar, Button, Chip, Icon } from '@components/index';
-import { HomeStackParamList } from '@navigation/types';
+import {
+  HomeStackParamList,
+  ProfileStackParamList,
+} from '@navigation/types';
 import { errorMessage } from '@services/api';
 import { messagingService } from '@services/messaging.service';
+import { useAuth } from '@hooks/useAuth';
 import { useListings } from '@store/listings.store';
 import { colors, fonts, radii, spacing, type } from '@theme/index';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
-type Props = NativeStackScreenProps<HomeStackParamList, 'ListingDetail'>;
+type Props = CompositeScreenProps<
+  NativeStackScreenProps<HomeStackParamList, 'ListingDetail'>,
+  NativeStackScreenProps<ProfileStackParamList, 'ListingDetail'>
+>;
 
 function healthChipKind(status: string): 'verified' | 'pending' | 'neutral' {
   if (status === 'certified') return 'verified';
@@ -47,6 +55,7 @@ export function ListingDetailScreen({ navigation, route }: Props) {
   const selected = useListings((s) => s.selected);
   const detailLoading = useListings((s) => s.detailLoading);
   const loadDetail = useListings((s) => s.loadDetail);
+  const userId = useAuth((s) => s.user?.id);
 
   const [msgBusy, setMsgBusy] = useState(false);
   const [imageIndex, setImageIndex] = useState(0);
@@ -217,6 +226,39 @@ export function ListingDetailScreen({ navigation, route }: Props) {
               <Text style={styles.description}>{listing.description}</Text>
             </View>
           ) : null}
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Veterinary certificate</Text>
+            {listing.certificateId ? (
+              <Pressable
+                style={styles.certRow}
+                onPress={() =>
+                  navigation.navigate('CertificateDetail', {
+                    certificateId: listing.certificateId!,
+                  })
+                }
+              >
+                <Icon name="fileText" size={18} color={colors.mashia[600]} />
+                <Text style={styles.certRowText}>View certificate</Text>
+                <Icon name="chevronRight" size={18} color={colors.muted} />
+              </Pressable>
+            ) : userId === listing.sellerId ? (
+              <Pressable
+                style={styles.certRow}
+                onPress={() =>
+                  navigation.navigate('UploadCertificate', {
+                    listingId: listing.id,
+                  })
+                }
+              >
+                <Icon name="plus" size={18} color={colors.mashia[600]} />
+                <Text style={styles.certRowText}>Upload certificate</Text>
+                <Icon name="chevronRight" size={18} color={colors.muted} />
+              </Pressable>
+            ) : (
+              <Text style={styles.certEmpty}>No certificate uploaded yet.</Text>
+            )}
+          </View>
 
           <View style={styles.sellerCard}>
             <View style={styles.sellerRow}>
@@ -405,6 +447,28 @@ const styles = StyleSheet.create({
   description: {
     ...type.body,
     color: colors.ink,
+  },
+
+  certRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[4],
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: radii.md,
+  },
+  certRowText: {
+    flex: 1,
+    fontFamily: fonts.body,
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.ink,
+  },
+  certEmpty: {
+    ...type.body,
+    color: colors.muted,
   },
 
   sellerCard: {
