@@ -74,3 +74,15 @@ export enum MessageType {
   CERTIFICATE = 'certificate',
   OFFER = 'offer',
 }
+
+export enum CertificateType {
+  VACCINATION = 'vaccination',
+  HEALTH = 'health',
+  ORIGIN = 'origin',
+}
+
+export enum CertificateStatus {
+  PENDING = 'pending',
+  VERIFIED = 'verified',
+  REJECTED = 'rejected',
+}

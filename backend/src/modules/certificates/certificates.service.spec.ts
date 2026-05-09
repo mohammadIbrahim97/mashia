@@ -1,0 +1,220 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
+import { CertificatesService } from './certificates.service';
+import { Certificate } from './certificate.entity';
+import { Listing } from '../listings/listing.entity';
+import {
+  CertificateStatus,
+  CertificateType,
+  HealthStatus,
+} from '@shared/enums';
+import { UploadCertificateDto } from './dto/upload-certificate.dto';
+
+describe('CertificatesService', () => {
+  let service: CertificatesService;
+  let certificates: jest.Mocked<Repository<Certificate>>;
+  let listings: jest.Mocked<Repository<Listing>>;
+
+  const sellerId = '550e8400-e29b-41d4-a716-446655440000';
+  const adminId = '660e8400-e29b-41d4-a716-446655440000';
+  const listingId = '770e8400-e29b-41d4-a716-446655440000';
+
+  const baseDto: UploadCertificateDto = {
+    type: CertificateType.HEALTH,
+    issuingAuthority: 'Saudi Veterinary Authority',
+    issueDate: '2026-01-01',
+    expiryDate: '2027-01-01',
+    fileUrl: 'https://s3.example.com/certificates/abc.png',
+  };
+
+  beforeEach(async () => {
+    const certRepo = {
+      create: jest.fn(),
+      save: jest.fn(),
+      findOne: jest.fn(),
+    };
+    const listingRepo = {
+      findOne: jest.fn(),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        CertificatesService,
+        { provide: getRepositoryToken(Certificate), useValue: certRepo },
+        { provide: getRepositoryToken(Listing), useValue: listingRepo },
+      ],
+    }).compile();
+
+    service = module.get<CertificatesService>(CertificatesService);
+    certificates = module.get(getRepositoryToken(Certificate));
+    listings = module.get(getRepositoryToken(Listing));
+  });
+
+  describe('create', () => {
+    it('saves certificate with status=pending and no listing link when listingId omitted', async () => {
+      const stub = { id: 'cert-1', sellerId, listingId: null } as Certificate;
+      certificates.create.mockReturnValue(stub);
+      certificates.save.mockResolvedValue(stub);
+
+      const result = await service.create(sellerId, baseDto);
+
+      expect(certificates.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sellerId,
+          listingId: null,
+          status: CertificateStatus.PENDING,
+        }),
+      );
+      expect(result).toBe(stub);
+      expect(listings.update).not.toHaveBeenCalled();
+    });
+
+    it('links to listing and sets healthStatus=pending when listingId provided and seller owns it', async () => {
+      const dto = { ...baseDto, listingId };
+      const stub = { id: 'cert-1', sellerId, listingId } as Certificate;
+      listings.findOne.mockResolvedValue({ id: listingId, sellerId } as Listing);
+      certificates.create.mockReturnValue(stub);
+      certificates.save.mockResolvedValue(stub);
+
+      await service.create(sellerId, dto);
+
+      expect(listings.update).toHaveBeenCalledWith(listingId, {
+        certificateId: 'cert-1',
+        healthStatus: HealthStatus.PENDING,
+      });
+    });
+
+    it('throws ForbiddenException when seller does not own the listing', async () => {
+      listings.findOne.mockResolvedValue({
+        id: listingId,
+        sellerId: 'other-seller',
+      } as Listing);
+
+      await expect(
+        service.create(sellerId, { ...baseDto, listingId }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(certificates.save).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when listing does not exist', async () => {
+      listings.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.create(sellerId, { ...baseDto, listingId }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws BadRequestException when expiryDate < issueDate', async () => {
+      await expect(
+        service.create(sellerId, {
+          ...baseDto,
+          issueDate: '2027-01-01',
+          expiryDate: '2026-01-01',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('findById', () => {
+    it('returns certificate when found', async () => {
+      const stub = { id: 'cert-1' } as Certificate;
+      certificates.findOne.mockResolvedValue(stub);
+
+      const result = await service.findById('cert-1');
+
+      expect(result).toBe(stub);
+    });
+
+    it('throws NotFoundException when not found', async () => {
+      certificates.findOne.mockResolvedValue(null);
+
+      await expect(service.findById('missing')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('verify', () => {
+    it('sets status=verified and listing.healthStatus=certified when linked', async () => {
+      const cert = {
+        id: 'cert-1',
+        listingId,
+        status: CertificateStatus.PENDING,
+      } as Certificate;
+      certificates.findOne.mockResolvedValue(cert);
+      certificates.save.mockImplementation(async (c) => c as Certificate);
+
+      const result = await service.verify(adminId, 'cert-1', {
+        status: CertificateStatus.VERIFIED,
+      });
+
+      expect(result.status).toBe(CertificateStatus.VERIFIED);
+      expect(result.verifiedById).toBe(adminId);
+      expect(result.verifiedAt).toBeInstanceOf(Date);
+      expect(listings.update).toHaveBeenCalledWith(listingId, {
+        healthStatus: HealthStatus.CERTIFIED,
+      });
+    });
+
+    it('sets status=rejected with reason and reverts listing healthStatus', async () => {
+      const cert = {
+        id: 'cert-1',
+        listingId,
+        status: CertificateStatus.PENDING,
+      } as Certificate;
+      certificates.findOne.mockResolvedValue(cert);
+      certificates.save.mockImplementation(async (c) => c as Certificate);
+
+      const result = await service.verify(adminId, 'cert-1', {
+        status: CertificateStatus.REJECTED,
+        rejectionReason: 'illegible scan',
+      });
+
+      expect(result.status).toBe(CertificateStatus.REJECTED);
+      expect(result.rejectionReason).toBe('illegible scan');
+      expect(listings.update).toHaveBeenCalledWith(listingId, {
+        healthStatus: HealthStatus.UNCHECKED,
+      });
+    });
+
+    it('does not touch listing when certificate is not linked', async () => {
+      certificates.findOne.mockResolvedValue({
+        id: 'cert-1',
+        listingId: null,
+        status: CertificateStatus.PENDING,
+      } as Certificate);
+      certificates.save.mockImplementation(async (c) => c as Certificate);
+
+      await service.verify(adminId, 'cert-1', {
+        status: CertificateStatus.VERIFIED,
+      });
+
+      expect(listings.update).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException when transitioning to pending', async () => {
+      await expect(
+        service.verify(adminId, 'cert-1', { status: CertificateStatus.PENDING }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws BadRequestException when rejecting without reason', async () => {
+      await expect(
+        service.verify(adminId, 'cert-1', { status: CertificateStatus.REJECTED }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws NotFoundException when certificate is missing', async () => {
+      certificates.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.verify(adminId, 'missing', { status: CertificateStatus.VERIFIED }),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+});

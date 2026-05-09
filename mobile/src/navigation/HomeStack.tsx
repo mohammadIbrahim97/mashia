@@ -6,6 +6,7 @@ import { PlaceOrderScreen } from '@screens/orders/PlaceOrderScreen';
 import { OrderConfirmationScreen } from '@screens/orders/OrderConfirmationScreen';
 import { PaymentMethodScreen } from '@screens/orders/PaymentMethodScreen';
 import { PaymentResultScreen } from '@screens/orders/PaymentResultScreen';
+import { CertificateDetailScreen } from '@screens/certificates/CertificateDetailScreen';
 import { HomeStackParamList } from './types';
 
 export type { HomeStackParamList };
@@ -21,6 +22,7 @@ export function HomeStack() {
       <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
       <Stack.Screen name="PaymentMethod" component={PaymentMethodScreen} />
       <Stack.Screen name="PaymentResult" component={PaymentResultScreen} />
+      <Stack.Screen name="CertificateDetail" component={CertificateDetailScreen} />
     </Stack.Navigator>
   );
 }

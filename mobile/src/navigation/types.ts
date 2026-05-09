@@ -12,6 +12,7 @@ export type HomeStackParamList = {
   OrderConfirmation: { orderId: string };
   PaymentMethod: { orderId: string; totalPrice: number; currency: string };
   PaymentResult: { success: boolean; orderId: string };
+  CertificateDetail: { certificateId: string };
 };
 
 export type OrdersStackParamList = {
@@ -34,4 +35,6 @@ export type ProfileStackParamList = {
   MyListings: undefined;
   CreateListing: { editId?: string } | undefined;
   ListingDetail: { listingId: string };
+  UploadCertificate: { listingId: string };
+  CertificateDetail: { certificateId: string };
 };
