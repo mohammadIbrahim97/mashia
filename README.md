@@ -28,7 +28,7 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 | Listings | CRUD /listings, GET /listings/mine (seller's own) |
 | Orders | POST /orders, GET /orders, GET /orders/:id, PATCH /orders/:id/status |
 | Payments | POST /payments/initiate, /payments/release, GET /payments/order/:id |
-| Certificates | POST /certificates, GET /certificates/listing/:id, PATCH /certificates/:id/verify |
+| Certificates | POST /certificates, GET /certificates/:id, PATCH /certificates/:id/verify |
 | Messaging | REST + Socket.io /chat namespace (send, markRead, broadcast) |
 | Admin | GET /admin/dashboard, /admin/users, /admin/orders, PATCH kyc/suspend/flag |
 
@@ -46,11 +46,12 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 - [ ] Payment gateway real integration (#132) — **deferred, labeled `After Beta phase`** until business registration. MVP uses manual bank-transfer flow handled by admin.
 - [ ] Certificate expiry auto-flag scheduler (#61)
 
-**Recent backend changes (on `claude/list-next-tasks-qByz2`, not yet on `develop`):**
-- `messaging.gateway.ts` — `typing` event handler broadcasts `userTyping` to room participants (#142)
-- `uploads/` — `chat_image` purpose allowed; `generatePresignedUploadUrl` now also returns `fileUrl` (signed read URL, 7-day expiry) (#140)
+**Recent backend changes (on `claude/mashia-status-review-CU7VU`, not yet on `develop`):**
+- `certificates/` — module fully implemented (was empty stubs): entity, DTOs, service, controller, migration `1777600000000-CreateCertificates`, FK `listings.certificate_id` (Phase E, #143–146)
+- Service auto-syncs `listing.healthStatus` → PENDING on upload, CERTIFIED on verify, UNCHECKED on reject
+- 16 new tests; full backend suite 303/303 green
 
-### Mobile — Phases A, B, C Complete
+### Mobile — Phases A–E Complete
 
 **Phase A — Design System**
 - Theme: colors, typography (Fraunces, Manrope, JetBrains Mono), spacing, shadows
@@ -71,13 +72,20 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
   - Payments: PaymentMethodScreen, PaymentResultScreen
   - Messaging: ConversationsScreen, ChatScreen (Socket.io real-time)
   - Profile: ProfileScreen, EditProfileScreen, SettingsScreen, KycUploadScreen
-  - Certificates: UploadCertificateScreen *(stub)*, CertificateDetailScreen *(stub)*
+  - Certificates: UploadCertificateScreen, CertificateDetailScreen *(both real in Phase E)*
 
-**Phase D — Business Polish** (in progress, branch `claude/list-next-tasks-qByz2`)
+**Phase D — Business Polish** (merged to develop, commit `5e83f45`)
 - [x] Image sending in chat: camera/gallery → S3 presigned upload → `<Image>` bubble; "Photo" preview in ConversationsScreen (#140)
 - [x] Typing indicator in ChatScreen — debounced emit, 3s idle stop, 5s safety auto-clear, italic line above input (#142)
 - [x] Bug fix: mobile↔backend message field mismatch (`body` → `content`); text send/receive was silently failing DTO validation in Phase C
 - [ ] Payment gateway — **deferred to `After Beta phase`** (#132)
+
+**Phase E — Certificates** (on branch `claude/mashia-status-review-CU7VU`, awaiting merge to develop)
+- [x] Backend certificates module built from empty stubs: entity, enums (`CertificateType`, `CertificateStatus`), DTOs, service, controller, migration with FKs (#143)
+- [x] `UploadCertificateScreen` — type picker (vaccination/health/origin), authority, issue/expiry dates, S3 presigned photo upload (#144)
+- [x] `CertificateDetailScreen` — image preview, status chip, dates, rejection reason (#146)
+- [x] `ListingDetailScreen` — "View certificate" if linked or "Upload certificate" for owner if missing (#145)
+- [x] Wired into HomeStack and ProfileStack with composite navigation typing
 
 ---
 
@@ -85,13 +93,7 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 
 ### Mobile — Remaining Work
 
-**Phase D — Business Polish** (#140 + #142 done on branch; #132 deferred)
-- [ ] Real payment gateway integration — STC Pay / Mada (#132). **Deferred**: requires registered company; until beta, manual bank-transfer flow with unique reference + admin handles release.
-
-**Phase E — Certificates Mobile** (phase-07, #143–146)
-- [ ] Implement UploadCertificateScreen: type picker, authority, dates, file/photo
-- [ ] CertificateDetailScreen: show status (pending/verified/rejected)
-- [ ] Show certificate status chip on ListingDetailScreen
+Payment gateway #132 is the only outstanding item from Phases D–E. Deferred until beta.
 
 **Phase F — Polish** (phase-08, #152–163)
 - [ ] i18n/RTL: set up react-i18next, add ar/tr/en translation files (#153)
@@ -173,7 +175,7 @@ node scripts/seed-demo-users.js
 ```
 mashia/
 ├── backend/          NestJS API — 8 modules, fully implemented
-├── mobile/           React Native 0.73 — Phases A+B+C done, D in progress
+├── mobile/           React Native 0.73 — Phases A–E done
 ├── admin/            Next.js — not started
 ├── docs/             Specs, requirements, implementation plans
 ├── docker-compose.yml
@@ -197,31 +199,27 @@ mashia/
 
 ## Active Branch
 
-Working branch: `claude/list-next-tasks-qByz2` (Phase D — chat images + typing indicator)
+Working branch: `claude/mashia-status-review-CU7VU` (Phase E — certificates backend + mobile)
 
 Merge flow (always do this to trigger CI):
 ```bash
 git checkout develop
 git pull origin develop
-git merge origin/claude/list-next-tasks-qByz2
+git merge --no-ff origin/claude/mashia-status-review-CU7VU
 git push origin develop
 ```
 
-CI triggers automatically on push to `develop` when `mobile/**` files change.
+CI triggers automatically on push to `develop` when `backend/**` or `mobile/**` files change.
 
-To auto-close the related issues on merge, include in the merge commit body:
-```
-Closes #140
-Closes #142
-```
+Phase E issues #143–#146 are already closed on GitHub; no `Closes #...` footer needed.
 
 ---
 
 ## GitHub Issues State
 
-- **Closed (done)**: #94–128, #130–131, #133–134, #136–139, #141, #148–149, #151
-- **Done on branch, awaiting merge to `develop`**: #140 (chat images), #142 (typing indicator)
+- **Closed (done)**: #94–128, #130–131, #133–134, #136–142, #143–146, #148–149, #151
+- **Done on branch, awaiting merge to `develop`**: Phase E (#143–146) — see `claude/mashia-status-review-CU7VU`
 - **Deferred — `After Beta phase` label** (until business registration + manual bank-transfer flow proven): #129, #132, #210–214
-- **Open — mobile remaining**: #143–146, #150, #152–163
+- **Open — mobile remaining**: #150, #152–163
 - **Open — admin dashboard**: #173–209, #215–226 (excl. deferred)
 - **Open — infra/deployment**: #82, #86–93, #239–246
