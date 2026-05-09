@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString, Length, ValidateIf } from 'class-validator';
+import { IsEnum, IsString, Length, ValidateIf } from 'class-validator';
 import { CertificateStatus } from '@shared/enums';
 
 export class VerifyCertificateDto {
