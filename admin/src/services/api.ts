@@ -8,6 +8,20 @@ export const api = axios.create({
   withCredentials: false,
 });
 
+function readCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const m = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+api.interceptors.request.use((config) => {
+  const token = readCookie('access_token');
+  if (token) {
+    config.headers.set('Authorization', `Bearer ${token}`);
+  }
+  return config;
+});
+
 /**
  * Backend wraps all responses in `{ success: true, data: <payload> }` via a
  * global TransformInterceptor. Use this to peel that layer off in callers.

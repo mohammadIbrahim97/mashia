@@ -12,6 +12,12 @@ import { UploadCertificateDto } from './dto/upload-certificate.dto';
 import { VerifyCertificateDto } from './dto/verify-certificate.dto';
 import { CertificateStatus, HealthStatus } from '@shared/enums';
 
+export type AdminCertificateListQuery = {
+  status?: CertificateStatus | 'all';
+  page?: number;
+  pageSize?: number;
+};
+
 @Injectable()
 export class CertificatesService {
   constructor(
@@ -73,6 +79,65 @@ export class CertificatesService {
       throw new NotFoundException('Certificate not found');
     }
     return certificate;
+  }
+
+  async findForAdmin(query: AdminCertificateListQuery): Promise<{
+    items: Array<
+      Pick<
+        Certificate,
+        | 'id'
+        | 'type'
+        | 'issuingAuthority'
+        | 'issueDate'
+        | 'expiryDate'
+        | 'status'
+        | 'fileUrl'
+        | 'sellerId'
+        | 'listingId'
+        | 'createdAt'
+      > & {
+        sellerName: string | null;
+        listingTitle: string | null;
+      }
+    >;
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    const page = query.page ?? 1;
+    const pageSize = Math.min(query.pageSize ?? 20, 100);
+
+    const qb = this.certificatesRepository
+      .createQueryBuilder('cert')
+      .leftJoin('cert.seller', 'seller')
+      .leftJoin('cert.listing', 'listing')
+      .addSelect(['seller.fullName', 'listing.title'])
+      .orderBy('cert.createdAt', 'DESC')
+      .skip((page - 1) * pageSize)
+      .take(pageSize);
+
+    if (query.status && query.status !== 'all') {
+      qb.where('cert.status = :status', { status: query.status });
+    }
+
+    const [rows, total] = await qb.getManyAndCount();
+
+    const items = rows.map((c) => ({
+      id: c.id,
+      type: c.type,
+      issuingAuthority: c.issuingAuthority,
+      issueDate: c.issueDate,
+      expiryDate: c.expiryDate,
+      status: c.status,
+      fileUrl: c.fileUrl,
+      sellerId: c.sellerId,
+      listingId: c.listingId,
+      createdAt: c.createdAt,
+      sellerName: c.seller?.fullName ?? null,
+      listingTitle: c.listing?.title ?? null,
+    }));
+
+    return { items, total, page, pageSize };
   }
 
   async verify(
