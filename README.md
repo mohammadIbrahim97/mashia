@@ -9,9 +9,9 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 
 | Layer | Stack | Status |
 |---|---|---|
-| Backend API | NestJS, PostgreSQL, Redis, Socket.io, S3 | **8 of 9 modules done · admin module pending · AWS infra pending** |
+| Backend API | NestJS, PostgreSQL, Redis, Socket.io, S3 | **9 modules · admin module bootstrapped (1 endpoint) · AWS infra pending** |
 | Mobile App | React Native 0.73, TypeScript, Zustand | **Phases A–E done** |
-| Admin Dashboard | Next.js 14, Tailwind CSS | **Foundation done — auth + dashboard live; 5 sections placeholder** |
+| Admin Dashboard | Next.js 14, Tailwind CSS | **Foundation done · Certificates section live · 4 sections placeholder** |
 
 ---
 
@@ -19,7 +19,7 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 
 ### Backend (Goal 1) — API Complete / Infrastructure Pending
 
-**API code — 8 of 9 modules done**, tested, CI passing on `develop`. The admin module is an empty `@Module({})` stub — see *What's Next* below for the ~12 endpoints needed.
+**API code — 9 modules wired**, tested, CI passing on `develop`. The admin module exists with one endpoint so far (`GET /admin/certificates`); the rest of the admin endpoints are still to come — see *What's Next*.
 
 | Module | Endpoints |
 |---|---|
@@ -33,7 +33,7 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 | Payments | POST /payments/initiate, POST /payments/:id/release, POST /payments/:id/refund (admin), GET /payments/by-order/:id, GET /payments/:id |
 | Certificates | POST /certificates, GET /certificates/:id, PATCH /certificates/:id/verify (admin) |
 | Messaging | REST + Socket.io /chat namespace (send, markRead, broadcast) |
-| Admin | **(empty stub — no endpoints yet)** |
+| Admin | GET /admin/certificates *(1 of ~12; rest in **What's Next**)* |
 
 **AWS Infrastructure — not provisioned** (issues #82, #86–93, #239–246):
 - [ ] RDS PostgreSQL Multi-AZ in me-south-1 (#88 / #239)
@@ -50,9 +50,11 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 - [ ] Certificate expiry auto-flag scheduler (#61)
 
 **Recent merges to `develop`:**
+- **Admin → Certificates section, end-to-end** (PR #266). First full admin vertical: backend `GET /admin/certificates` (filter/paginate, joins seller + listing); admin frontend `/certificates` list page with tabs (Pending / Verified / Rejected / All) and `/certificates/[id]` detail with Approve / Reject (rejection requires reason). Reusable `ConfirmDialog` component added.
+- **Refresh-on-401 in admin** (same PR). New `services/session.ts` owns `access_token` (15 min) + `refresh_token` (7 days) cookies; axios response interceptor transparently refreshes the access token via `POST /auth/refresh` and retries the failing request once. Single in-flight refresh promise prevents thundering-herd.
 - **Phase E — Certificates module** (was empty stubs): entity, enums, DTOs, service, controller, migration `1777600000000-CreateCertificates` with `listings.certificate_id` FK. Service auto-syncs `listing.healthStatus` → PENDING on upload, CERTIFIED on verify, UNCHECKED on reject (#143–146)
 - **Admin auth** — email + password + optional TOTP. New endpoints under `/auth/admin/*`, `password_hash`/`totp_secret`/`totp_enabled` columns on `users` (migration `1777700000000-AdminAuth`), partial unique index on `email WHERE role='admin'`, bootstrap script `scripts/create-admin.js`
-- Full backend suite **315 tests passing across 30 files**
+- Full backend suite **322 tests passing across 30 files**
 
 ### Mobile — Phases A–E Complete
 
@@ -90,17 +92,25 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 - [x] `ListingDetailScreen` — "View certificate" if linked or "Upload certificate" for owner if missing (#145)
 - [x] Wired into HomeStack and ProfileStack with composite navigation typing
 
-### Admin Dashboard — Foundation Complete
+### Admin Dashboard — Foundation + Certificates Section Live
 
-**Foundation** (Goal 3, merged to develop on branch `claude/admin-foundation`)
+**Foundation** (Goal 3, merged to develop)
 - [x] Next.js 14 App Router scaffold under `admin/`, dev on port 3001
 - [x] Design system tokens (Tailwind theme + globals): full Mashia palette, Fraunces / Manrope / Reem Kufi self-hosted variable fonts in `public/fonts`
-- [x] Atom components: `Button`, `Overline`, `Badge`, `Card`, `KpiCard`, `ComingSoon`
+- [x] Atom components: `Button`, `Overline`, `Badge`, `Card`, `KpiCard`, `ComingSoon`, `ConfirmDialog`
 - [x] Layout: basalt `Sidebar` with all 6 G3 sections + sign-out wired; `Header` ready for detail pages
-- [x] Login (G3-US01): email + password, with optional TOTP second-step (basalt design)
+- [x] Login (G3-US01): email + password, with optional TOTP second-step
 - [x] Dashboard (G3-US02): 8 KPI tiles, attention queues, recent activity feed, commission sparkline (mock data)
-- [x] Placeholder pages for `/users`, `/listings`, `/certificates`, `/orders`, `/payments`
 - [x] not-found page; middleware-based route guard via `access_token` cookie
+- [x] Refresh-on-401 axios interceptor + dual-cookie session helper (PR #266)
+
+**Certificates section — G3-US05** (PR #266)
+- [x] Backend: `GET /admin/certificates` with status filter, pagination, seller + listing joins
+- [x] Admin frontend: `/certificates` list with Pending / Verified / Rejected / All tabs (live counts), table (issuer / type / linked listing / seller / status / submitted)
+- [x] Admin frontend: `/certificates/[id]` detail with image preview, metadata, linked listing/seller card, Approve / Reject buttons; rejection-reason banner; existing `PATCH /certificates/:id/verify` wired to the buttons
+- [x] `ConfirmDialog` modal with optional required-reason textarea (will be reused for suspend / refund / flag in upcoming sections)
+
+**Other sections still placeholder:** `/users`, `/listings`, `/orders`, `/payments`
 
 ---
 
@@ -108,41 +118,41 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 
 Payment gateway #132 is the only outstanding item from Phases D–E. Deferred until beta.
 
-### Admin Dashboard — Section pages still to wire
+### Admin Dashboard — Four sections still to wire
 
-The foundation is live. The five placeholder pages need real content + matching backend endpoints. Build order should be:
+Certificates is live (see *What's Done*). The remaining four placeholder pages need real content + matching backend endpoints.
 
-**1. Backend admin module** (`backend/src/modules/admin/`, currently empty stub)
+**1. Backend admin endpoints — 1 of ~12 done**
 
-Build all of these in one branch, then frontend pages can land against real APIs in a second branch.
-
-| # | Endpoint | Purpose | G3 |
-|---|---|---|---|
-| 1 | `GET /admin/dashboard` | KPI aggregates (counts + revenue) | US02 |
-| 2 | `GET /admin/users` | List + filter (role, kyc status, search) | US03 |
-| 3 | `GET /admin/users/:id` | Profile + KYC docs (presigned URLs) | US03 |
-| 4 | `PATCH /admin/users/:id/kyc` | Approve / reject with reason | US03 |
-| 5 | `PATCH /admin/users/:id/suspend` + `/unsuspend` | Suspend bad actors | US03 |
-| 6 | `GET /admin/listings` | Index across all statuses incl. flagged | US04 |
-| 7 | `PATCH /admin/listings/:id/flag` | Set FLAGGED status (enum exists, no endpoint) | US04 |
-| 8 | `DELETE /admin/listings/:id` | Force-remove | US04 |
-| 9 | `GET /admin/certificates` | Pending-default queue with filters | US05 |
-| 10 | `GET /admin/orders` | Index of all orders (today's `GET /orders` is user-scoped) | US06 |
-| 11 | `POST /admin/payments/:id/release` | Force-release in dispute resolution | US06 |
-| 12 | `GET /admin/payments` + `GET /admin/revenue` | Payment ledger + commission summary | US07 |
+| # | Endpoint | Purpose | G3 | Status |
+|---|---|---|---|---|
+| 1 | `GET /admin/dashboard` | KPI aggregates (counts + revenue) | US02 | — |
+| 2 | `GET /admin/users` | List + filter (role, kyc status, search) | US03 | — |
+| 3 | `GET /admin/users/:id` | Profile + KYC docs (presigned URLs) | US03 | — |
+| 4 | `PATCH /admin/users/:id/kyc` | Approve / reject with reason | US03 | — |
+| 5 | `PATCH /admin/users/:id/suspend` + `/unsuspend` | Suspend bad actors | US03 | — |
+| 6 | `GET /admin/listings` | Index across all statuses incl. flagged | US04 | — |
+| 7 | `PATCH /admin/listings/:id/flag` | Set FLAGGED status (enum exists, no endpoint) | US04 | — |
+| 8 | `DELETE /admin/listings/:id` | Force-remove | US04 | — |
+| 9 | `GET /admin/certificates` | Pending-default queue with filters | US05 | ✅ **shipped (PR #266)** |
+| 10 | `GET /admin/orders` | Index of all orders (today's `GET /orders` is user-scoped) | US06 | — |
+| 11 | `POST /admin/payments/:id/release` | Force-release in dispute resolution | US06 | — |
+| 12 | `GET /admin/payments` + `GET /admin/revenue` | Payment ledger + commission summary | US07 | — |
 
 Plus a migration: `users.suspended` boolean, `users.kyc_rejection_reason`, `users.kyc_reviewed_at`, `users.kyc_reviewed_by_id`.
 
-**2. Admin frontend — wire each section to its endpoints**
+**2. Admin frontend — wire the remaining four sections**
 
-In order of value: **Certificates** first (the only section with a working backend already; it just needs the `GET /admin/certificates` index) → **Users** (KYC review unblocks ops the most) → **Orders** (dispute resolution) → **Listings** → **Payments**.
+Suggested order, by operational value: **Users + KYC review** (unblocks the 23 pending KYC submissions) → **Orders** (dispute resolution) → **Listings** (moderation) → **Payments** (revenue ledger).
 
 Each section reuses the foundation's atoms. Detail pages should mirror the `screens-detail.jsx` layout from the polished design bundle (re-fetch from Claude Design when needed; the prototype JSX is the source of truth for visuals).
 
 **3. Loose ends on the foundation itself**
 - [ ] Settings page with TOTP enable UI (`/auth/admin/totp/setup` + `/enable` exist already, no caller)
 - [ ] Real i18n: language switcher in the sidebar is UI-only. Wire `next-intl` for ar / tr / en + RTL via `dir="rtl"` and Tailwind logical properties
-- [ ] Auth hardening: move `access_token` from a regular cookie set by client JS to an HttpOnly cookie set by a Server Action. Refresh token rotation on the admin client.
+- [ ] Auth hardening: move both cookies to HttpOnly via a Server Action / Route Handler. Refresh-on-401 already shipped (PR #266); HttpOnly is the remaining gap.
+- [ ] `@nestjs/throttler` on `/auth/otp/send` and `/auth/admin/login` to cap brute force / SMS abuse
+- [ ] Real SMS provider — `ConsoleSmsService` is dev-only. `SmsService` interface is already in `backend/src/shared/sms/`; production swap is a one-class drop-in (Unifonic recommended for KSA, AWS SNS as fallback). Defer until business / sender-ID registration.
 - [ ] Replace the static SVG sparkline with real Recharts (deps already declared in `package.json`)
 - [ ] Audit log endpoint + page (referenced by "Open audit log →" link on dashboard)
 - [ ] Production: `admin/Dockerfile` exists; needs ECS Fargate service + custom domain (G3-US09)
@@ -238,9 +248,9 @@ node scripts/seed-demo-users.js
 
 ```
 mashia/
-├── backend/          NestJS API — 8 of 9 modules done; admin module pending
+├── backend/          NestJS API — 9 modules; admin module bootstrapped (1 endpoint)
 ├── mobile/           React Native 0.73 — Phases A–E done
-├── admin/            Next.js 14 — foundation done; section pages placeholder
+├── admin/            Next.js 14 — foundation + Certificates section live; 4 sections placeholder
 ├── docs/             Specs, requirements, implementation plans
 ├── docker-compose.yml
 ├── FILE_MAP.md       Detailed file-by-file reference
@@ -261,7 +271,8 @@ mashia/
 | `backend/src/shared/interceptors/transform.interceptor.ts` | Wraps every response in `{ success, data }` — clients must `unwrap()` |
 | `backend/scripts/create-admin.js` | Bootstrap admin user (since `/auth/register` blocks ADMIN role) |
 | `admin/src/app/(admin)/layout.tsx` | Sidebar + main pane wrapper for all authenticated admin pages |
-| `admin/src/services/api.ts` | Axios instance for admin (talks to `:3000/api/v1`); exports `unwrap()` |
+| `admin/src/services/api.ts` | Axios instance for admin (talks to `:3000/api/v1`); request interceptor attaches Bearer token; response interceptor refreshes on 401 |
+| `admin/src/services/session.ts` | Owns the `access_token` (15m) + `refresh_token` (7d) cookies; only place to set/read them |
 | `admin/tailwind.config.js` | Mashia design tokens — colors, fonts, radii, shadows |
 
 ---
