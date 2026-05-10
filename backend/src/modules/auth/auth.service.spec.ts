@@ -1,7 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import * as bcrypt from 'bcrypt';
+import { authenticator } from 'otplib';
 import { AuthService } from './auth.service';
 import { OtpService } from './otp.service';
 import { UsersService } from '../users/users.service';
@@ -28,6 +35,9 @@ describe('AuthService', () => {
     kycStatus: KycStatus.PENDING,
     kycDocuments: null,
     preferredLanguage: PreferredLanguage.AR,
+    passwordHash: null,
+    totpSecret: null,
+    totpEnabled: false,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -36,6 +46,7 @@ describe('AuthService', () => {
     mockRedis = {
       get: jest.fn().mockResolvedValue(null),
       set: jest.fn().mockResolvedValue('OK'),
+      del: jest.fn().mockResolvedValue(1),
     };
 
     otpService = {
@@ -47,7 +58,9 @@ describe('AuthService', () => {
     usersService = {
       findByPhone: jest.fn().mockResolvedValue(null),
       findById: jest.fn().mockResolvedValue(null),
+      findAdminByEmail: jest.fn().mockResolvedValue(null),
       create: jest.fn().mockResolvedValue(mockUser),
+      updateAuthFields: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<UsersService>;
 
     jwtService = {
@@ -340,6 +353,174 @@ describe('AuthService', () => {
       // TTL should be approximately 5000 (±2 sec for test execution)
       expect(ttl).toBeGreaterThanOrEqual(4998);
       expect(ttl).toBeLessThanOrEqual(5000);
+    });
+  });
+
+  describe('admin auth', () => {
+    const adminEmail = 'admin@mashia.com';
+    const adminPassword = 'CorrectHorseBattery1!';
+    const totpSecret = authenticator.generateSecret();
+
+    const adminUserNoTotp: User = {
+      ...mockUser,
+      role: UserRole.ADMIN,
+      email: adminEmail,
+    } as User;
+
+    const adminUserWithTotp: User = {
+      ...adminUserNoTotp,
+      totpEnabled: true,
+      totpSecret,
+    } as User;
+
+    describe('adminLogin', () => {
+      it('returns tokens directly when TOTP is not enabled', async () => {
+        const passwordHash = await bcrypt.hash(adminPassword, 10);
+        usersService.findAdminByEmail.mockResolvedValue({
+          ...adminUserNoTotp,
+          passwordHash,
+        } as User);
+        jwtService.sign
+          .mockReturnValueOnce('access-token')
+          .mockReturnValueOnce('refresh-token');
+
+        const result = await authService.adminLogin(adminEmail, adminPassword);
+
+        expect('accessToken' in result).toBe(true);
+        if ('accessToken' in result) {
+          expect(result.accessToken).toBe('access-token');
+          expect(result.user.role).toBe(UserRole.ADMIN);
+        }
+        expect(mockRedis.set).not.toHaveBeenCalled();
+      });
+
+      it('returns a ticket when TOTP is enabled', async () => {
+        const passwordHash = await bcrypt.hash(adminPassword, 10);
+        usersService.findAdminByEmail.mockResolvedValue({
+          ...adminUserWithTotp,
+          passwordHash,
+        } as User);
+
+        const result = await authService.adminLogin(adminEmail, adminPassword);
+
+        expect(result).toHaveProperty('requiresTotp', true);
+        expect(result).toHaveProperty('ticket');
+        expect(mockRedis.set).toHaveBeenCalledWith(
+          expect.stringMatching(/^admin_totp_ticket:/),
+          adminUserWithTotp.id,
+          'EX',
+          expect.any(Number),
+        );
+      });
+
+      it('throws UnauthorizedException for wrong password', async () => {
+        const passwordHash = await bcrypt.hash(adminPassword, 10);
+        usersService.findAdminByEmail.mockResolvedValue({
+          ...adminUserNoTotp,
+          passwordHash,
+        } as User);
+
+        await expect(
+          authService.adminLogin(adminEmail, 'wrong-password'),
+        ).rejects.toThrow(UnauthorizedException);
+      });
+
+      it('throws UnauthorizedException when admin not found', async () => {
+        usersService.findAdminByEmail.mockResolvedValue(null);
+
+        await expect(
+          authService.adminLogin('nobody@nowhere.com', adminPassword),
+        ).rejects.toThrow(UnauthorizedException);
+      });
+    });
+
+    describe('verifyAdminTotp', () => {
+      it('exchanges valid ticket + code for tokens', async () => {
+        mockRedis.get.mockResolvedValue(adminUserWithTotp.id);
+        usersService.findById.mockResolvedValue(adminUserWithTotp);
+        const code = authenticator.generate(totpSecret);
+        jwtService.sign
+          .mockReturnValueOnce('access-token')
+          .mockReturnValueOnce('refresh-token');
+
+        const result = await authService.verifyAdminTotp('valid-ticket', code);
+
+        expect(result.accessToken).toBe('access-token');
+        expect(mockRedis.del).toHaveBeenCalledWith(
+          'admin_totp_ticket:valid-ticket',
+        );
+      });
+
+      it('throws UnauthorizedException for expired ticket', async () => {
+        mockRedis.get.mockResolvedValue(null);
+
+        await expect(
+          authService.verifyAdminTotp('expired', '000000'),
+        ).rejects.toThrow(UnauthorizedException);
+      });
+
+      it('throws UnauthorizedException for wrong TOTP code', async () => {
+        mockRedis.get.mockResolvedValue(adminUserWithTotp.id);
+        usersService.findById.mockResolvedValue(adminUserWithTotp);
+
+        await expect(
+          authService.verifyAdminTotp('valid-ticket', '000000'),
+        ).rejects.toThrow(UnauthorizedException);
+        expect(mockRedis.del).not.toHaveBeenCalled();
+      });
+
+      it('throws when user no longer has TOTP enabled', async () => {
+        mockRedis.get.mockResolvedValue(adminUserNoTotp.id);
+        usersService.findById.mockResolvedValue(adminUserNoTotp);
+
+        await expect(
+          authService.verifyAdminTotp('valid-ticket', '123456'),
+        ).rejects.toThrow(UnauthorizedException);
+      });
+    });
+
+    describe('setupAdminTotp', () => {
+      it('generates a secret, persists it, and returns otpauth URL', async () => {
+        const result = await authService.setupAdminTotp(adminUserNoTotp);
+
+        expect(result.secret).toEqual(expect.any(String));
+        expect(result.otpauthUrl).toContain('otpauth://totp/');
+        expect(result.otpauthUrl).toContain(encodeURIComponent('Mashia Admin'));
+        expect(usersService.updateAuthFields).toHaveBeenCalledWith(
+          adminUserNoTotp.id,
+          { totpSecret: result.secret, totpEnabled: false },
+        );
+      });
+    });
+
+    describe('enableAdminTotp', () => {
+      it('flips totpEnabled when code is valid', async () => {
+        const code = authenticator.generate(totpSecret);
+        const userWithSecret = { ...adminUserNoTotp, totpSecret } as User;
+
+        const result = await authService.enableAdminTotp(userWithSecret, code);
+
+        expect(result).toEqual({ enabled: true });
+        expect(usersService.updateAuthFields).toHaveBeenCalledWith(
+          userWithSecret.id,
+          { totpEnabled: true },
+        );
+      });
+
+      it('throws BadRequestException when no secret on file', async () => {
+        await expect(
+          authService.enableAdminTotp(adminUserNoTotp, '123456'),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('throws UnauthorizedException for invalid code', async () => {
+        const userWithSecret = { ...adminUserNoTotp, totpSecret } as User;
+
+        await expect(
+          authService.enableAdminTotp(userWithSecret, '000000'),
+        ).rejects.toThrow(UnauthorizedException);
+        expect(usersService.updateAuthFields).not.toHaveBeenCalled();
+      });
     });
   });
 });

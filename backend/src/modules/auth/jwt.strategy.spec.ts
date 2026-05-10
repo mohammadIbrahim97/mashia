@@ -21,6 +21,9 @@ describe('JwtStrategy', () => {
     kycStatus: KycStatus.PENDING,
     kycDocuments: null,
     preferredLanguage: PreferredLanguage.AR,
+    passwordHash: null,
+    totpSecret: null,
+    totpEnabled: false,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

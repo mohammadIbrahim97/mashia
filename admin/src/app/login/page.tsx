@@ -4,27 +4,91 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Overline } from '@/components/ui/Overline';
+import {
+  authService,
+  isLoginSuccess,
+  LoginSuccess,
+} from '@/services/auth.service';
+import { errorMessage } from '@/services/api';
 
-type Step = 'phone' | 'otp';
+type Step = 'credentials' | 'totp';
+
+function persistSession(s: LoginSuccess) {
+  // Foundation: drop the access token in a non-HttpOnly cookie so middleware
+  // can see it. Production should switch to an HttpOnly cookie set by a
+  // server action / Route Handler that owns the API call.
+  document.cookie = `access_token=${s.accessToken}; path=/; max-age=86400`;
+}
 
 export default function LoginPage() {
   const router = useRouter();
-  const [step, setStep] = useState<Step>('phone');
-  const [phone, setPhone] = useState('+966 50 123 4567');
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const inputs = useRef<(HTMLInputElement | null)[]>([]);
 
-  const handleOtpChange = (i: number, v: string) => {
-    if (!/^\d?$/.test(v)) return;
-    const next = [...otp];
-    next[i] = v;
-    setOtp(next);
-    if (v && i < 5) inputs.current[i + 1]?.focus();
+  const [step, setStep] = useState<Step>('credentials');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const [ticket, setTicket] = useState<string | null>(null);
+  const [code, setCode] = useState(['', '', '', '', '', '']);
+  const codeRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const onCredentialsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await authService.login(email, password);
+      if (isLoginSuccess(res)) {
+        persistSession(res);
+        router.push('/dashboard');
+      } else {
+        setTicket(res.ticket);
+        setStep('totp');
+        setTimeout(() => codeRefs.current[0]?.focus(), 0);
+      }
+    } catch (err) {
+      setError(errorMessage(err, 'Sign-in failed.'));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const onSignIn = () => {
-    document.cookie = 'access_token=mock-foundation; path=/; max-age=86400';
-    router.push('/dashboard');
+  const handleCodeChange = (i: number, v: string) => {
+    if (!/^\d?$/.test(v)) return;
+    const next = [...code];
+    next[i] = v;
+    setCode(next);
+    if (v && i < 5) codeRefs.current[i + 1]?.focus();
+  };
+
+  const onTotpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ticket) return;
+    const fullCode = code.join('');
+    if (fullCode.length !== 6) {
+      setError('Enter all 6 digits.');
+      return;
+    }
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await authService.verifyTotp(ticket, fullCode);
+      persistSession(res);
+      router.push('/dashboard');
+    } catch (err) {
+      setError(errorMessage(err, 'Invalid code.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onBackToCredentials = () => {
+    setStep('credentials');
+    setTicket(null);
+    setCode(['', '', '', '', '', '']);
+    setError(null);
   };
 
   return (
@@ -47,56 +111,82 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-7">
-          {step === 'phone' ? (
-            <>
-              <Overline>Phone number</Overline>
+          {step === 'credentials' ? (
+            <form onSubmit={onCredentialsSubmit}>
+              <Overline>Email</Overline>
               <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="mt-1.5 w-full px-3.5 py-3 font-mono text-sm bg-parchment border border-hairline rounded outline-none focus:border-mashia-600"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="layla@mashia.com"
+                className="mt-1.5 w-full px-3.5 py-3 font-body text-sm bg-parchment border border-hairline rounded outline-none focus:border-mashia-600 placeholder:text-muted"
               />
-              <div className="text-xs text-muted mt-2.5">
-                We&apos;ll text you a 6-digit code.
-              </div>
               <div className="mt-4">
-                <Button onClick={() => setStep('otp')} className="w-full">
-                  Send code →
+                <Overline>Password</Overline>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="mt-1.5 w-full px-3.5 py-3 font-body text-sm bg-parchment border border-hairline rounded outline-none focus:border-mashia-600"
+                />
+              </div>
+              {error && (
+                <div className="mt-3 text-xs text-flagged">{error}</div>
+              )}
+              <div className="mt-5">
+                <Button type="submit" className="w-full" disabled={busy}>
+                  {busy ? 'Signing in…' : 'Sign in →'}
                 </Button>
               </div>
-            </>
+            </form>
           ) : (
-            <>
-              <Overline>Verification code</Overline>
+            <form onSubmit={onTotpSubmit}>
+              <Overline>Authenticator code</Overline>
               <div className="flex gap-2 mt-2">
-                {otp.map((digit, i) => (
+                {code.map((digit, i) => (
                   <input
                     key={i}
                     ref={(el) => {
-                      inputs.current[i] = el;
+                      codeRefs.current[i] = el;
                     }}
                     maxLength={1}
                     inputMode="numeric"
+                    autoComplete="one-time-code"
                     value={digit}
-                    onChange={(e) => handleOtpChange(i, e.target.value)}
+                    onChange={(e) => handleCodeChange(i, e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Backspace' && !digit && i > 0)
-                        inputs.current[i - 1]?.focus();
+                        codeRefs.current[i - 1]?.focus();
                     }}
-                    className="w-11 h-13 text-center font-display text-[22px] bg-parchment border border-hairline rounded outline-none focus:border-mashia-600"
+                    className="w-11 text-center font-display text-[22px] bg-parchment border border-hairline rounded outline-none focus:border-mashia-600"
                     style={{ height: 52 }}
                   />
                 ))}
               </div>
               <div className="text-xs text-muted mt-2.5">
-                Sent to {phone.replace(/(\d{3})\d{4}$/, '••• $1').slice(-12)} · resend in 24s
+                Open your authenticator app and enter the 6-digit code.
               </div>
-              <div className="mt-4 flex justify-between">
-                <Button kind="ghost" onClick={() => setStep('phone')}>
+              {error && (
+                <div className="mt-3 text-xs text-flagged">{error}</div>
+              )}
+              <div className="mt-5 flex justify-between">
+                <Button
+                  type="button"
+                  kind="ghost"
+                  onClick={onBackToCredentials}
+                  disabled={busy}
+                >
                   ← Back
                 </Button>
-                <Button onClick={onSignIn}>Sign in →</Button>
+                <Button type="submit" disabled={busy}>
+                  {busy ? 'Verifying…' : 'Verify →'}
+                </Button>
               </div>
-            </>
+            </form>
           )}
         </div>
 

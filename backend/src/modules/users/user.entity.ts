@@ -49,6 +49,15 @@ export class User {
   })
   preferredLanguage: PreferredLanguage;
 
+  @Column({ type: 'varchar', nullable: true, name: 'password_hash' })
+  passwordHash: string | null;
+
+  @Column({ type: 'varchar', nullable: true, name: 'totp_secret' })
+  totpSecret: string | null;
+
+  @Column({ type: 'boolean', default: false, name: 'totp_enabled' })
+  totpEnabled: boolean;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

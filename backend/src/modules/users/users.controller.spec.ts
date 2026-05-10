@@ -20,6 +20,9 @@ describe('UsersController', () => {
     kycStatus: KycStatus.PENDING,
     kycDocuments: null,
     preferredLanguage: PreferredLanguage.AR,
+    passwordHash: null,
+    totpSecret: null,
+    totpEnabled: false,
     createdAt: new Date('2026-04-12T00:00:00Z'),
     updatedAt: new Date('2026-04-12T00:00:00Z'),
   };

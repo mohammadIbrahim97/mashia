@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
-import { KycStatus } from '@shared/enums';
+import { KycStatus, UserRole } from '@shared/enums';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
@@ -23,6 +23,21 @@ export class UsersService {
 
   async findById(id: string): Promise<User | null> {
     return this.usersRepository.findOne({ where: { id } });
+  }
+
+  async findAdminByEmail(email: string): Promise<User | null> {
+    return this.usersRepository.findOne({
+      where: { email, role: UserRole.ADMIN },
+    });
+  }
+
+  async updateAuthFields(
+    userId: string,
+    fields: Partial<
+      Pick<User, 'passwordHash' | 'totpSecret' | 'totpEnabled'>
+    >,
+  ): Promise<void> {
+    await this.usersRepository.update(userId, fields);
   }
 
   async updateKycDocuments(
