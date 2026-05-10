@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api, unwrap } from './api';
 
 export type AdminUser = {
   id: string;
@@ -23,12 +23,12 @@ export type LoginResponse = LoginSuccess | LoginRequiresTotp;
 export const authService = {
   async login(email: string, password: string): Promise<LoginResponse> {
     const res = await api.post('/auth/admin/login', { email, password });
-    return res.data as LoginResponse;
+    return unwrap<LoginResponse>(res);
   },
 
   async verifyTotp(ticket: string, code: string): Promise<LoginSuccess> {
     const res = await api.post('/auth/admin/totp/verify', { ticket, code });
-    return res.data as LoginSuccess;
+    return unwrap<LoginSuccess>(res);
   },
 };
 
