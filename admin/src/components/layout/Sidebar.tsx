@@ -12,6 +12,7 @@ import {
   LogOut,
   ChevronDown,
 } from 'lucide-react';
+import { session } from '@/services/session';
 
 type Item = {
   href: string;
@@ -36,7 +37,7 @@ export function Sidebar() {
   const router = useRouter();
 
   const onSignOut = () => {
-    document.cookie = 'access_token=; path=/; max-age=0';
+    session.clear();
     router.push('/login');
   };
   return (
