@@ -10,14 +10,12 @@ import {
   LoginSuccess,
 } from '@/services/auth.service';
 import { errorMessage } from '@/services/api';
+import { session } from '@/services/session';
 
 type Step = 'credentials' | 'totp';
 
 function persistSession(s: LoginSuccess) {
-  // Foundation: drop the access token in a non-HttpOnly cookie so middleware
-  // can see it. Production should switch to an HttpOnly cookie set by a
-  // server action / Route Handler that owns the API call.
-  document.cookie = `access_token=${s.accessToken}; path=/; max-age=86400`;
+  session.set(s.accessToken, s.refreshToken);
 }
 
 export default function LoginPage() {

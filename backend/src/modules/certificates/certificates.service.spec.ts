@@ -38,6 +38,7 @@ describe('CertificatesService', () => {
       create: jest.fn(),
       save: jest.fn(),
       findOne: jest.fn(),
+      createQueryBuilder: jest.fn(),
     };
     const listingRepo = {
       findOne: jest.fn(),
@@ -215,6 +216,100 @@ describe('CertificatesService', () => {
       await expect(
         service.verify(adminId, 'missing', { status: CertificateStatus.VERIFIED }),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('findForAdmin', () => {
+    function makeQb(rows: Certificate[], total: number) {
+      const qb = {
+        leftJoin: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn().mockResolvedValue([rows, total]),
+      };
+      certificates.createQueryBuilder.mockReturnValue(qb as never);
+      return qb;
+    }
+
+    it('returns paginated items with seller + listing info flattened', async () => {
+      const row = {
+        id: 'cert-1',
+        type: CertificateType.HEALTH,
+        issuingAuthority: 'SVA',
+        issueDate: '2026-01-01',
+        expiryDate: '2027-01-01',
+        status: CertificateStatus.PENDING,
+        fileUrl: 'https://s3.example.com/c.png',
+        sellerId,
+        listingId,
+        createdAt: new Date('2026-04-01'),
+        seller: { fullName: 'Ahmad Ali' },
+        listing: { title: 'Awassi flock' },
+      } as unknown as Certificate;
+      makeQb([row], 1);
+
+      const result = await service.findForAdmin({});
+
+      expect(result.total).toBe(1);
+      expect(result.page).toBe(1);
+      expect(result.pageSize).toBe(20);
+      expect(result.items[0]).toMatchObject({
+        id: 'cert-1',
+        sellerName: 'Ahmad Ali',
+        listingTitle: 'Awassi flock',
+      });
+    });
+
+    it('filters by status when provided (and not "all")', async () => {
+      const qb = makeQb([], 0);
+
+      await service.findForAdmin({ status: CertificateStatus.PENDING });
+
+      expect(qb.where).toHaveBeenCalledWith('cert.status = :status', {
+        status: CertificateStatus.PENDING,
+      });
+    });
+
+    it('does not filter when status is "all"', async () => {
+      const qb = makeQb([], 0);
+
+      await service.findForAdmin({ status: 'all' });
+
+      expect(qb.where).not.toHaveBeenCalled();
+    });
+
+    it('caps pageSize at 100', async () => {
+      const qb = makeQb([], 0);
+
+      await service.findForAdmin({ page: 1, pageSize: 500 });
+
+      expect(qb.take).toHaveBeenCalledWith(100);
+    });
+
+    it('handles missing seller/listing relations as null', async () => {
+      const row = {
+        id: 'cert-1',
+        type: CertificateType.HEALTH,
+        issuingAuthority: 'SVA',
+        issueDate: '2026-01-01',
+        expiryDate: '2027-01-01',
+        status: CertificateStatus.PENDING,
+        fileUrl: 'https://s3.example.com/c.png',
+        sellerId,
+        listingId: null,
+        createdAt: new Date(),
+        seller: null,
+        listing: null,
+      } as unknown as Certificate;
+      makeQb([row], 1);
+
+      const result = await service.findForAdmin({});
+
+      expect(result.items[0].sellerName).toBeNull();
+      expect(result.items[0].listingTitle).toBeNull();
     });
   });
 });
