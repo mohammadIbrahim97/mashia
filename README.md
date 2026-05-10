@@ -9,9 +9,9 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 
 | Layer | Stack | Status |
 |---|---|---|
-| Backend API | NestJS, PostgreSQL, Redis, Socket.io, S3 | **API done · AWS infra pending** |
-| Mobile App | React Native 0.73, TypeScript, Zustand | **Phases A–C done · Phase D in progress** |
-| Admin Dashboard | Next.js 14, Tailwind CSS | Not started |
+| Backend API | NestJS, PostgreSQL, Redis, Socket.io, S3 | **8 of 9 modules done · admin module pending · AWS infra pending** |
+| Mobile App | React Native 0.73, TypeScript, Zustand | **Phases A–E done** |
+| Admin Dashboard | Next.js 14, Tailwind CSS | **Foundation done — auth + dashboard live; 5 sections placeholder** |
 
 ---
 
@@ -19,18 +19,21 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 
 ### Backend (Goal 1) — API Complete / Infrastructure Pending
 
-**API code — done.** All 8 modules fully implemented, tested, CI passing on `develop`.
+**API code — 8 of 9 modules done**, tested, CI passing on `develop`. The admin module is an empty `@Module({})` stub — see *What's Next* below for the ~12 endpoints needed.
 
 | Module | Endpoints |
 |---|---|
-| Auth | POST /auth/otp/send, /auth/register, /auth/login, /auth/refresh |
-| Users | GET/PATCH /users/me, POST /users/me/kyc |
+| Auth (trader) | POST /auth/otp/send, /auth/otp/verify, /auth/register, /auth/login, /auth/refresh |
+| Auth (admin) | POST /auth/admin/login, /auth/admin/totp/verify, /auth/admin/totp/setup, /auth/admin/totp/enable |
+| Users | GET/PATCH /users/me |
+| KYC | POST /kyc/submit, GET /kyc/status |
+| Uploads | POST /uploads/presigned-url |
 | Listings | CRUD /listings, GET /listings/mine (seller's own) |
 | Orders | POST /orders, GET /orders, GET /orders/:id, PATCH /orders/:id/status |
-| Payments | POST /payments/initiate, /payments/release, GET /payments/order/:id |
-| Certificates | POST /certificates, GET /certificates/:id, PATCH /certificates/:id/verify |
+| Payments | POST /payments/initiate, POST /payments/:id/release, POST /payments/:id/refund (admin), GET /payments/by-order/:id, GET /payments/:id |
+| Certificates | POST /certificates, GET /certificates/:id, PATCH /certificates/:id/verify (admin) |
 | Messaging | REST + Socket.io /chat namespace (send, markRead, broadcast) |
-| Admin | GET /admin/dashboard, /admin/users, /admin/orders, PATCH kyc/suspend/flag |
+| Admin | **(empty stub — no endpoints yet)** |
 
 **AWS Infrastructure — not provisioned** (issues #82, #86–93, #239–246):
 - [ ] RDS PostgreSQL Multi-AZ in me-south-1 (#88 / #239)
@@ -46,10 +49,10 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 - [ ] Payment gateway real integration (#132) — **deferred, labeled `After Beta phase`** until business registration. MVP uses manual bank-transfer flow handled by admin.
 - [ ] Certificate expiry auto-flag scheduler (#61)
 
-**Recent backend changes (on `claude/mashia-status-review-CU7VU`, not yet on `develop`):**
-- `certificates/` — module fully implemented (was empty stubs): entity, DTOs, service, controller, migration `1777600000000-CreateCertificates`, FK `listings.certificate_id` (Phase E, #143–146)
-- Service auto-syncs `listing.healthStatus` → PENDING on upload, CERTIFIED on verify, UNCHECKED on reject
-- 16 new tests; full backend suite 303/303 green
+**Recent merges to `develop`:**
+- **Phase E — Certificates module** (was empty stubs): entity, enums, DTOs, service, controller, migration `1777600000000-CreateCertificates` with `listings.certificate_id` FK. Service auto-syncs `listing.healthStatus` → PENDING on upload, CERTIFIED on verify, UNCHECKED on reject (#143–146)
+- **Admin auth** — email + password + optional TOTP. New endpoints under `/auth/admin/*`, `password_hash`/`totp_secret`/`totp_enabled` columns on `users` (migration `1777700000000-AdminAuth`), partial unique index on `email WHERE role='admin'`, bootstrap script `scripts/create-admin.js`
+- Full backend suite **315 tests passing across 30 files**
 
 ### Mobile — Phases A–E Complete
 
@@ -80,35 +83,78 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 - [x] Bug fix: mobile↔backend message field mismatch (`body` → `content`); text send/receive was silently failing DTO validation in Phase C
 - [ ] Payment gateway — **deferred to `After Beta phase`** (#132)
 
-**Phase E — Certificates** (on branch `claude/mashia-status-review-CU7VU`, awaiting merge to develop)
+**Phase E — Certificates** (merged to develop)
 - [x] Backend certificates module built from empty stubs: entity, enums (`CertificateType`, `CertificateStatus`), DTOs, service, controller, migration with FKs (#143)
 - [x] `UploadCertificateScreen` — type picker (vaccination/health/origin), authority, issue/expiry dates, S3 presigned photo upload (#144)
 - [x] `CertificateDetailScreen` — image preview, status chip, dates, rejection reason (#146)
 - [x] `ListingDetailScreen` — "View certificate" if linked or "Upload certificate" for owner if missing (#145)
 - [x] Wired into HomeStack and ProfileStack with composite navigation typing
 
+### Admin Dashboard — Foundation Complete
+
+**Foundation** (Goal 3, merged to develop on branch `claude/admin-foundation`)
+- [x] Next.js 14 App Router scaffold under `admin/`, dev on port 3001
+- [x] Design system tokens (Tailwind theme + globals): full Mashia palette, Fraunces / Manrope / Reem Kufi self-hosted variable fonts in `public/fonts`
+- [x] Atom components: `Button`, `Overline`, `Badge`, `Card`, `KpiCard`, `ComingSoon`
+- [x] Layout: basalt `Sidebar` with all 6 G3 sections + sign-out wired; `Header` ready for detail pages
+- [x] Login (G3-US01): email + password, with optional TOTP second-step (basalt design)
+- [x] Dashboard (G3-US02): 8 KPI tiles, attention queues, recent activity feed, commission sparkline (mock data)
+- [x] Placeholder pages for `/users`, `/listings`, `/certificates`, `/orders`, `/payments`
+- [x] not-found page; middleware-based route guard via `access_token` cookie
+
 ---
 
 ## What's Next
 
-### Mobile — Remaining Work
-
 Payment gateway #132 is the only outstanding item from Phases D–E. Deferred until beta.
 
-**Phase F — Polish** (phase-08, #152–163)
-- [ ] i18n/RTL: set up react-i18next, add ar/tr/en translation files (#153)
-- [ ] RTL layout switching via I18nManager.forceRTL() for Arabic (#154)
-- [ ] Translate all screens to Arabic (#155) and Turkish (#156)
-- [ ] Language switcher in SettingsScreen (currently UI-only) (#150)
-- [ ] Push notifications: integrate FCM for iOS and Android (#159–163)
-  - New message notification
-  - Order status change notification
-  - KYC approval/rejection notification
-  - Notification tap → deep link to correct screen
+### Admin Dashboard — Section pages still to wire
 
-### Admin Dashboard — Not Started (Goal 3, phase-09)
-Next.js 14 + Tailwind. All issues #173–226 open.
-Order to build: Login → Dashboard KPIs → Users/KYC → Listings → Orders → Certificates → Payments → i18n → Deploy
+The foundation is live. The five placeholder pages need real content + matching backend endpoints. Build order should be:
+
+**1. Backend admin module** (`backend/src/modules/admin/`, currently empty stub)
+
+Build all of these in one branch, then frontend pages can land against real APIs in a second branch.
+
+| # | Endpoint | Purpose | G3 |
+|---|---|---|---|
+| 1 | `GET /admin/dashboard` | KPI aggregates (counts + revenue) | US02 |
+| 2 | `GET /admin/users` | List + filter (role, kyc status, search) | US03 |
+| 3 | `GET /admin/users/:id` | Profile + KYC docs (presigned URLs) | US03 |
+| 4 | `PATCH /admin/users/:id/kyc` | Approve / reject with reason | US03 |
+| 5 | `PATCH /admin/users/:id/suspend` + `/unsuspend` | Suspend bad actors | US03 |
+| 6 | `GET /admin/listings` | Index across all statuses incl. flagged | US04 |
+| 7 | `PATCH /admin/listings/:id/flag` | Set FLAGGED status (enum exists, no endpoint) | US04 |
+| 8 | `DELETE /admin/listings/:id` | Force-remove | US04 |
+| 9 | `GET /admin/certificates` | Pending-default queue with filters | US05 |
+| 10 | `GET /admin/orders` | Index of all orders (today's `GET /orders` is user-scoped) | US06 |
+| 11 | `POST /admin/payments/:id/release` | Force-release in dispute resolution | US06 |
+| 12 | `GET /admin/payments` + `GET /admin/revenue` | Payment ledger + commission summary | US07 |
+
+Plus a migration: `users.suspended` boolean, `users.kyc_rejection_reason`, `users.kyc_reviewed_at`, `users.kyc_reviewed_by_id`.
+
+**2. Admin frontend — wire each section to its endpoints**
+
+In order of value: **Certificates** first (the only section with a working backend already; it just needs the `GET /admin/certificates` index) → **Users** (KYC review unblocks ops the most) → **Orders** (dispute resolution) → **Listings** → **Payments**.
+
+Each section reuses the foundation's atoms. Detail pages should mirror the `screens-detail.jsx` layout from the polished design bundle (re-fetch from Claude Design when needed; the prototype JSX is the source of truth for visuals).
+
+**3. Loose ends on the foundation itself**
+- [ ] Settings page with TOTP enable UI (`/auth/admin/totp/setup` + `/enable` exist already, no caller)
+- [ ] Real i18n: language switcher in the sidebar is UI-only. Wire `next-intl` for ar / tr / en + RTL via `dir="rtl"` and Tailwind logical properties
+- [ ] Auth hardening: move `access_token` from a regular cookie set by client JS to an HttpOnly cookie set by a Server Action. Refresh token rotation on the admin client.
+- [ ] Replace the static SVG sparkline with real Recharts (deps already declared in `package.json`)
+- [ ] Audit log endpoint + page (referenced by "Open audit log →" link on dashboard)
+- [ ] Production: `admin/Dockerfile` exists; needs ECS Fargate service + custom domain (G3-US09)
+
+### Mobile — Phase F (Polish)
+
+Not started. Issues #150, #152–163.
+- [ ] i18n/RTL: react-i18next, ar / tr / en files (#153)
+- [ ] RTL via `I18nManager.forceRTL()` for Arabic (#154)
+- [ ] Translate all screens to Arabic (#155) and Turkish (#156)
+- [ ] Language switcher in `SettingsScreen` (currently UI-only) (#150)
+- [ ] Push notifications (FCM iOS + Android, #159–163): new message, order status, KYC outcome, deep links
 
 ---
 
@@ -132,7 +178,25 @@ npm install
 npm run start:dev      # http://localhost:3000
 ```
 
-### 3. Run Mobile (Android)
+### 3. Run Admin Dashboard (web)
+```bash
+cd admin
+npm install
+npm run dev          # http://localhost:3001
+```
+
+To create the first admin (registration via `/auth/register` blocks the ADMIN role):
+```bash
+cd backend
+node scripts/create-admin.js
+# prompts for email, password, country, city, optional TOTP
+# answer "n" to "Set up TOTP now?" if you don't want to scan a QR right now —
+# you can enable TOTP later via POST /auth/admin/totp/setup + /enable
+```
+
+Sign in at `localhost:3001/login` with the email + password you set.
+
+### 4. Run Mobile (Android)
 ```bash
 cd mobile
 npm install
@@ -174,9 +238,9 @@ node scripts/seed-demo-users.js
 
 ```
 mashia/
-├── backend/          NestJS API — 8 modules, fully implemented
+├── backend/          NestJS API — 8 of 9 modules done; admin module pending
 ├── mobile/           React Native 0.73 — Phases A–E done
-├── admin/            Next.js — not started
+├── admin/            Next.js 14 — foundation done; section pages placeholder
 ├── docs/             Specs, requirements, implementation plans
 ├── docker-compose.yml
 ├── FILE_MAP.md       Detailed file-by-file reference
@@ -194,32 +258,34 @@ mashia/
 | `mobile/src/config.ts` | `API_BASE_URL` and other constants |
 | `mobile/src/store/auth.store.ts` | Auth state: user, tokens, isAuthenticated |
 | `backend/src/modules/messaging/messaging.gateway.ts` | Socket.io /chat namespace — joinConversation, sendMessage, markRead |
+| `backend/src/shared/interceptors/transform.interceptor.ts` | Wraps every response in `{ success, data }` — clients must `unwrap()` |
+| `backend/scripts/create-admin.js` | Bootstrap admin user (since `/auth/register` blocks ADMIN role) |
+| `admin/src/app/(admin)/layout.tsx` | Sidebar + main pane wrapper for all authenticated admin pages |
+| `admin/src/services/api.ts` | Axios instance for admin (talks to `:3000/api/v1`); exports `unwrap()` |
+| `admin/tailwind.config.js` | Mashia design tokens — colors, fonts, radii, shadows |
 
 ---
 
 ## Active Branch
 
-Working branch: `claude/mashia-status-review-CU7VU` (Phase E — certificates backend + mobile)
+No outstanding feature branch — `develop` is at the latest merged work (admin foundation, commit `7df038b`).
 
-Merge flow (always do this to trigger CI):
+Standard merge flow (use this on every feature branch to trigger CI):
 ```bash
 git checkout develop
 git pull origin develop
-git merge --no-ff origin/claude/mashia-status-review-CU7VU
+git merge --no-ff origin/<your-branch>
 git push origin develop
 ```
 
-CI triggers automatically on push to `develop` when `backend/**` or `mobile/**` files change.
-
-Phase E issues #143–#146 are already closed on GitHub; no `Closes #...` footer needed.
+CI triggers automatically on push to `develop` when `backend/**`, `mobile/**`, or `admin/**` files change.
 
 ---
 
 ## GitHub Issues State
 
 - **Closed (done)**: #94–128, #130–131, #133–134, #136–142, #143–146, #148–149, #151
-- **Done on branch, awaiting merge to `develop`**: Phase E (#143–146) — see `claude/mashia-status-review-CU7VU`
 - **Deferred — `After Beta phase` label** (until business registration + manual bank-transfer flow proven): #129, #132, #210–214
-- **Open — mobile remaining**: #150, #152–163
-- **Open — admin dashboard**: #173–209, #215–226 (excl. deferred)
+- **Open — mobile Phase F**: #150, #152–163
+- **Open — admin dashboard**: #173–209, #215–226 (excl. deferred). Foundation work isn't tied to a single issue; the next concrete tickets are the backend admin endpoints listed in *What's Next*.
 - **Open — infra/deployment**: #82, #86–93, #239–246
