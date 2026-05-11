@@ -23,6 +23,10 @@ describe('UsersController', () => {
     passwordHash: null,
     totpSecret: null,
     totpEnabled: false,
+    suspended: false,
+    kycRejectionReason: null,
+    kycReviewedAt: null,
+    kycReviewedById: null,
     createdAt: new Date('2026-04-12T00:00:00Z'),
     updatedAt: new Date('2026-04-12T00:00:00Z'),
   };
