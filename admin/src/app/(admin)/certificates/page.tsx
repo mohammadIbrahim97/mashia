@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Badge, BadgeKind } from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/Badge';
 import { Overline } from '@/components/ui/Overline';
 import {
   AdminCertificateList,
-  CertificateStatus,
   certificatesService,
 } from '@/services/certificates.service';
 import { errorMessage } from '@/services/api';
+import { fmtDate, reviewKind, reviewLabel } from '@/lib/format';
 
 type Tab = 'pending' | 'verified' | 'rejected' | 'all';
 const TABS: { id: Tab; label: string }[] = [
@@ -24,22 +24,6 @@ const TYPE_LABEL: Record<string, string> = {
   health: 'Health',
   origin: 'Origin',
 };
-
-function statusKind(s: CertificateStatus): BadgeKind {
-  if (s === 'verified') return 'verified';
-  if (s === 'pending') return 'pending';
-  return 'flagged';
-}
-
-function fmt(date: string): string {
-  const d = new Date(date);
-  if (Number.isNaN(d.getTime())) return date;
-  return d.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
 
 export default function AdminCertificatesPage() {
   const [tab, setTab] = useState<Tab>('pending');
@@ -151,12 +135,10 @@ export default function AdminCertificatesPage() {
               </div>
               <div className="text-muted truncate pr-3">{c.sellerName ?? '—'}</div>
               <div>
-                <Badge kind={statusKind(c.status)}>
-                  {c.status[0].toUpperCase() + c.status.slice(1)}
-                </Badge>
+                <Badge kind={reviewKind(c.status)}>{reviewLabel(c.status)}</Badge>
               </div>
               <div className="font-mono text-[11px] text-muted">
-                {fmt(c.createdAt)}
+                {fmtDate(c.createdAt)}
               </div>
             </Link>
           ))

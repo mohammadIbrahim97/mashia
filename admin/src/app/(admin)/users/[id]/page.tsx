@@ -3,18 +3,18 @@
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Badge, BadgeKind } from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Overline } from '@/components/ui/Overline';
 import {
   AdminUserDetail,
-  KycStatus,
   Role,
   usersService,
 } from '@/services/users.service';
 import { errorMessage } from '@/services/api';
+import { fmtDate, reviewKind, reviewLabel } from '@/lib/format';
 
 const ROLE_LABEL: Record<Role, string> = {
   seller: 'Seller',
@@ -29,22 +29,7 @@ const DOC_LABEL: Record<string, string> = {
   businessLicense: 'Business License',
 };
 
-function kycKind(s: KycStatus): BadgeKind {
-  if (s === 'verified') return 'verified';
-  if (s === 'pending') return 'pending';
-  return 'flagged';
-}
-
-function fmt(date: string | null): string {
-  if (!date) return '—';
-  const d = new Date(date);
-  if (Number.isNaN(d.getTime())) return date;
-  return d.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
+type Dialog = 'approve' | 'reject' | 'suspend' | 'unsuspend' | null;
 
 export default function AdminUserDetailPage({
   params,
@@ -57,11 +42,7 @@ export default function AdminUserDetailPage({
   const [user, setUser] = useState<AdminUserDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const [showApprove, setShowApprove] = useState(false);
-  const [showReject, setShowReject] = useState(false);
-  const [showSuspend, setShowSuspend] = useState(false);
-  const [showUnsuspend, setShowUnsuspend] = useState(false);
+  const [dialog, setDialog] = useState<Dialog>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -84,63 +65,18 @@ export default function AdminUserDetailPage({
     };
   }, [id]);
 
-  const onApprove = async () => {
+  const run = async (
+    action: () => Promise<AdminUserDetail>,
+    errMsg: string,
+  ) => {
     setBusy(true);
     try {
-      const updated = await usersService.reviewKyc(id, { decision: 'verified' });
-      setUser(updated);
-      setShowApprove(false);
+      setUser(await action());
     } catch (err) {
-      setError(errorMessage(err, 'Approval failed.'));
-      setShowApprove(false);
+      setError(errorMessage(err, errMsg));
     } finally {
       setBusy(false);
-    }
-  };
-
-  const onReject = async (reason?: string) => {
-    if (!reason) return;
-    setBusy(true);
-    try {
-      const updated = await usersService.reviewKyc(id, {
-        decision: 'rejected',
-        rejectionReason: reason,
-      });
-      setUser(updated);
-      setShowReject(false);
-    } catch (err) {
-      setError(errorMessage(err, 'Rejection failed.'));
-      setShowReject(false);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const onSuspend = async () => {
-    setBusy(true);
-    try {
-      const updated = await usersService.suspend(id);
-      setUser(updated);
-      setShowSuspend(false);
-    } catch (err) {
-      setError(errorMessage(err, 'Suspend failed.'));
-      setShowSuspend(false);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const onUnsuspend = async () => {
-    setBusy(true);
-    try {
-      const updated = await usersService.unsuspend(id);
-      setUser(updated);
-      setShowUnsuspend(false);
-    } catch (err) {
-      setError(errorMessage(err, 'Unsuspend failed.'));
-      setShowUnsuspend(false);
-    } finally {
-      setBusy(false);
+      setDialog(null);
     }
   };
 
@@ -187,8 +123,8 @@ export default function AdminUserDetailPage({
           <Overline>● G3-US03 · USER</Overline>
           <h1 className="font-display text-[28px] font-medium tracking-tight mt-1 text-ink flex items-center gap-3">
             {user.fullName}
-            <Badge kind={kycKind(user.kycStatus)}>
-              KYC {user.kycStatus[0].toUpperCase() + user.kycStatus.slice(1)}
+            <Badge kind={reviewKind(user.kycStatus)}>
+              KYC {reviewLabel(user.kycStatus)}
             </Badge>
             {user.suspended && <Badge kind="flagged">Suspended</Badge>}
           </h1>
@@ -197,18 +133,18 @@ export default function AdminUserDetailPage({
         <div className="flex gap-2">
           {isPendingKyc && (
             <>
-              <Button kind="danger" onClick={() => setShowReject(true)}>
+              <Button kind="danger" onClick={() => setDialog('reject')}>
                 Reject KYC
               </Button>
-              <Button onClick={() => setShowApprove(true)}>Approve KYC →</Button>
+              <Button onClick={() => setDialog('approve')}>Approve KYC →</Button>
             </>
           )}
           {user.suspended ? (
-            <Button kind="secondary" onClick={() => setShowUnsuspend(true)}>
+            <Button kind="secondary" onClick={() => setDialog('unsuspend')}>
               Unsuspend
             </Button>
           ) : (
-            <Button kind="secondary" onClick={() => setShowSuspend(true)}>
+            <Button kind="secondary" onClick={() => setDialog('suspend')}>
               Suspend
             </Button>
           )}
@@ -268,7 +204,7 @@ export default function AdminUserDetailPage({
               </dd>
 
               <dt className="text-muted">Joined</dt>
-              <dd className="text-ink font-mono">{fmt(user.createdAt)}</dd>
+              <dd className="text-ink font-mono">{fmtDate(user.createdAt)}</dd>
             </dl>
           </Card>
 
@@ -276,8 +212,8 @@ export default function AdminUserDetailPage({
             <dl className="grid grid-cols-[120px_1fr] gap-x-4 gap-y-2.5 text-[13px]">
               <dt className="text-muted">Status</dt>
               <dd>
-                <Badge kind={kycKind(user.kycStatus)}>
-                  {user.kycStatus[0].toUpperCase() + user.kycStatus.slice(1)}
+                <Badge kind={reviewKind(user.kycStatus)}>
+                  {reviewLabel(user.kycStatus)}
                 </Badge>
               </dd>
 
@@ -285,7 +221,7 @@ export default function AdminUserDetailPage({
                 <>
                   <dt className="text-muted">Reviewed</dt>
                   <dd className="text-ink font-mono">
-                    {fmt(user.kycReviewedAt)}
+                    {fmtDate(user.kycReviewedAt)}
                   </dd>
                 </>
               )}
@@ -304,46 +240,63 @@ export default function AdminUserDetailPage({
       </div>
 
       <ConfirmDialog
-        open={showApprove}
+        open={dialog === 'approve'}
         title="Approve this user's KYC?"
         body="The trader will gain full marketplace access (place orders, post listings)."
         confirmLabel="Approve KYC"
         busy={busy}
-        onClose={() => setShowApprove(false)}
-        onConfirm={() => onApprove()}
+        onClose={() => setDialog(null)}
+        onConfirm={() =>
+          run(
+            () => usersService.reviewKyc(id, { decision: 'verified' }),
+            'Approval failed.',
+          )
+        }
       />
 
       <ConfirmDialog
-        open={showReject}
+        open={dialog === 'reject'}
         title="Reject this user's KYC?"
         body="The trader will see your reason and can re-submit their documents."
         confirmLabel="Reject"
         danger
         requireReason
         busy={busy}
-        onClose={() => setShowReject(false)}
-        onConfirm={(reason) => onReject(reason)}
+        onClose={() => setDialog(null)}
+        onConfirm={(reason) => {
+          if (!reason) return;
+          return run(
+            () =>
+              usersService.reviewKyc(id, {
+                decision: 'rejected',
+                rejectionReason: reason,
+              }),
+            'Rejection failed.',
+          );
+        }}
       />
 
       <ConfirmDialog
-        open={showSuspend}
+        open={dialog === 'suspend'}
         title="Suspend this user?"
         body="They will be signed out immediately and unable to sign in until unsuspended."
         confirmLabel="Suspend"
         danger
         busy={busy}
-        onClose={() => setShowSuspend(false)}
-        onConfirm={() => onSuspend()}
+        onClose={() => setDialog(null)}
+        onConfirm={() => run(() => usersService.suspend(id), 'Suspend failed.')}
       />
 
       <ConfirmDialog
-        open={showUnsuspend}
+        open={dialog === 'unsuspend'}
         title="Unsuspend this user?"
         body="They will be able to sign in again."
         confirmLabel="Unsuspend"
         busy={busy}
-        onClose={() => setShowUnsuspend(false)}
-        onConfirm={() => onUnsuspend()}
+        onClose={() => setDialog(null)}
+        onConfirm={() =>
+          run(() => usersService.unsuspend(id), 'Unsuspend failed.')
+        }
       />
     </div>
   );

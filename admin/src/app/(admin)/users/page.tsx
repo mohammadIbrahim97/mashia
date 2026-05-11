@@ -2,15 +2,17 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Badge, BadgeKind } from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { Overline } from '@/components/ui/Overline';
 import {
   AdminUserList,
-  KycStatus,
+  AdminUserListItem,
   Role,
   usersService,
 } from '@/services/users.service';
 import { errorMessage } from '@/services/api';
+import { fmtDate, reviewKind, reviewLabel } from '@/lib/format';
 
 type Tab = 'pending' | 'verified' | 'rejected' | 'all';
 const TABS: { id: Tab; label: string }[] = [
@@ -27,38 +29,47 @@ const ROLE_LABEL: Record<Role, string> = {
   admin: 'Admin',
 };
 
-function kycKind(s: KycStatus): BadgeKind {
-  if (s === 'verified') return 'verified';
-  if (s === 'pending') return 'pending';
-  return 'flagged';
-}
+const PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 300;
+const COL_TEMPLATE =
+  'grid grid-cols-[1.5fr_160px_100px_120px_120px_100px_120px]';
 
-function fmt(date: string): string {
-  const d = new Date(date);
-  if (Number.isNaN(d.getTime())) return date;
-  return d.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+function useDebounced<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
 }
 
 export default function AdminUsersPage() {
   const [tab, setTab] = useState<Tab>('pending');
   const [role, setRole] = useState<Role | 'all'>('all');
   const [q, setQ] = useState('');
+  const debouncedQ = useDebounced(q, SEARCH_DEBOUNCE_MS);
+  const [page, setPage] = useState(1);
+
   const [data, setData] = useState<AdminUserList | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Reset to page 1 whenever any filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [tab, role, debouncedQ]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    const query: Parameters<typeof usersService.list>[0] = {};
+    const query: Parameters<typeof usersService.list>[0] = {
+      page,
+      pageSize: PAGE_SIZE,
+    };
     if (tab !== 'all') query.kycStatus = tab;
     if (role !== 'all') query.role = role;
-    if (q.trim()) query.q = q.trim();
+    if (debouncedQ.trim()) query.q = debouncedQ.trim();
     usersService
       .list(query)
       .then((res) => {
@@ -73,7 +84,9 @@ export default function AdminUsersPage() {
     return () => {
       cancelled = true;
     };
-  }, [tab, role, q]);
+  }, [tab, role, debouncedQ, page]);
+
+  const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
 
   return (
     <div className="p-8">
@@ -87,7 +100,6 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex border-b border-hairline mb-4">
         {TABS.map((t) => {
           const active = tab === t.id;
@@ -112,7 +124,6 @@ export default function AdminUsersPage() {
         })}
       </div>
 
-      {/* Filter bar */}
       <div className="flex gap-2 mb-4 flex-wrap">
         <input
           value={q}
@@ -132,9 +143,10 @@ export default function AdminUsersPage() {
         </select>
       </div>
 
-      {/* Table */}
       <div className="bg-paper border border-hairline rounded-md overflow-hidden">
-        <div className="grid grid-cols-[1.5fr_160px_100px_120px_120px_100px_120px] px-5 py-3 border-b border-hairline bg-parchment">
+        <div
+          className={`${COL_TEMPLATE} px-5 py-3 border-b border-hairline bg-parchment`}
+        >
           {['Name', 'Phone', 'Role', 'Country', 'KYC', 'Status', 'Joined'].map(
             (h) => (
               <div
@@ -146,57 +158,110 @@ export default function AdminUsersPage() {
             ),
           )}
         </div>
-        {loading ? (
-          <div className="px-5 py-12 text-center text-muted text-[13px]">
-            Loading…
-          </div>
-        ) : error ? (
-          <div className="px-5 py-12 text-center text-flagged text-[13px]">
-            {error}
-          </div>
-        ) : !data || data.items.length === 0 ? (
-          <div className="px-5 py-12 text-center text-muted text-[13px]">
-            No users in this queue.
-          </div>
-        ) : (
-          data.items.map((u, i) => (
-            <Link
-              key={u.id}
-              href={`/users/${u.id}`}
-              className={`grid grid-cols-[1.5fr_160px_100px_120px_120px_100px_120px] px-5 py-3.5 items-center text-[13px] cursor-pointer hover:bg-parchment/70 ${
-                i ? 'border-t border-hairline' : ''
-              }`}
-            >
-              <div className="text-ink font-medium truncate pr-3">
-                {u.fullName}
-                {u.email && (
-                  <div className="text-muted text-[11px] font-normal truncate">
-                    {u.email}
-                  </div>
-                )}
-              </div>
-              <div className="text-muted font-mono text-[12px]">{u.phone}</div>
-              <div className="text-muted">{ROLE_LABEL[u.role]}</div>
-              <div className="text-muted font-mono text-[12px]">{u.country}</div>
-              <div>
-                <Badge kind={kycKind(u.kycStatus)}>
-                  {u.kycStatus[0].toUpperCase() + u.kycStatus.slice(1)}
-                </Badge>
-              </div>
-              <div>
-                {u.suspended ? (
-                  <Badge kind="flagged">Suspended</Badge>
-                ) : (
-                  <span className="text-muted text-[12px]">—</span>
-                )}
-              </div>
-              <div className="font-mono text-[11px] text-muted">
-                {fmt(u.createdAt)}
-              </div>
-            </Link>
-          ))
-        )}
+        <UsersTableBody
+          loading={loading}
+          error={error}
+          items={data?.items ?? []}
+        />
       </div>
+
+      {data && data.total > PAGE_SIZE && (
+        <div className="flex items-center justify-between mt-4 font-mono text-[11px] text-muted">
+          <span>
+            Page {page} of {totalPages} · {data.total} users
+          </span>
+          <div className="flex gap-2">
+            <Button
+              kind="secondary"
+              size="sm"
+              disabled={page <= 1 || loading}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              ← Prev
+            </Button>
+            <Button
+              kind="secondary"
+              size="sm"
+              disabled={page >= totalPages || loading}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Next →
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function UsersTableBody({
+  loading,
+  error,
+  items,
+}: {
+  loading: boolean;
+  error: string | null;
+  items: AdminUserListItem[];
+}) {
+  if (loading) {
+    return (
+      <div className="px-5 py-12 text-center text-muted text-[13px]">
+        Loading…
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="px-5 py-12 text-center text-flagged text-[13px]">
+        {error}
+      </div>
+    );
+  }
+  if (items.length === 0) {
+    return (
+      <div className="px-5 py-12 text-center text-muted text-[13px]">
+        No users in this queue.
+      </div>
+    );
+  }
+  return (
+    <>
+      {items.map((u, i) => (
+        <Link
+          key={u.id}
+          href={`/users/${u.id}`}
+          className={`${COL_TEMPLATE} px-5 py-3.5 items-center text-[13px] cursor-pointer hover:bg-parchment/70 ${
+            i ? 'border-t border-hairline' : ''
+          }`}
+        >
+          <div className="text-ink font-medium truncate pr-3">
+            {u.fullName}
+            {u.email && (
+              <div className="text-muted text-[11px] font-normal truncate">
+                {u.email}
+              </div>
+            )}
+          </div>
+          <div className="text-muted font-mono text-[12px]">{u.phone}</div>
+          <div className="text-muted">{ROLE_LABEL[u.role]}</div>
+          <div className="text-muted font-mono text-[12px]">{u.country}</div>
+          <div>
+            <Badge kind={reviewKind(u.kycStatus)}>
+              {reviewLabel(u.kycStatus)}
+            </Badge>
+          </div>
+          <div>
+            {u.suspended ? (
+              <Badge kind="flagged">Suspended</Badge>
+            ) : (
+              <span className="text-muted text-[12px]">—</span>
+            )}
+          </div>
+          <div className="font-mono text-[11px] text-muted">
+            {fmtDate(u.createdAt)}
+          </div>
+        </Link>
+      ))}
+    </>
   );
 }

@@ -54,12 +54,10 @@ export class AdminController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AdminKycDecisionDto,
   ) {
-    return this.usersService.reviewKyc(
-      admin.id,
-      id,
-      dto.decision,
-      dto.rejectionReason,
-    );
+    return this.usersService.reviewKyc(admin.id, id, {
+      decision: dto.decision,
+      rejectionReason: dto.rejectionReason,
+    });
   }
 
   @Patch('users/:id/suspend')

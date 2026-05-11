@@ -23,12 +23,12 @@ export class AdminUserReview1777800000000 implements MigrationInterface {
       `CREATE INDEX "idx_users_kyc_status" ON "users" ("kyc_status")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "idx_users_suspended" ON "users" ("suspended")`,
+      `CREATE INDEX "idx_users_suspended_true" ON "users" ("id") WHERE "suspended" = true`,
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX IF EXISTS "public"."idx_users_suspended"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."idx_users_suspended_true"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "public"."idx_users_kyc_status"`);
     await queryRunner.query(
       `ALTER TABLE "users" DROP CONSTRAINT IF EXISTS "FK_users_kyc_reviewed_by_id"`,

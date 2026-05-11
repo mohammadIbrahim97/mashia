@@ -322,12 +322,9 @@ describe('UsersService', () => {
       } as User);
       repository.save.mockImplementation(async (u) => u as User);
 
-      const result = await service.reviewKyc(
-        'admin-1',
-        mockUser.id!,
-        KycStatus.VERIFIED,
-        undefined,
-      );
+      const result = await service.reviewKyc('admin-1', mockUser.id!, {
+        decision: KycStatus.VERIFIED,
+      });
 
       expect(result.kycStatus).toBe(KycStatus.VERIFIED);
       expect(result.kycReviewedById).toBe('admin-1');
@@ -342,12 +339,10 @@ describe('UsersService', () => {
       } as User);
       repository.save.mockImplementation(async (u) => u as User);
 
-      const result = await service.reviewKyc(
-        'admin-1',
-        mockUser.id!,
-        KycStatus.REJECTED,
-        'illegible scan',
-      );
+      const result = await service.reviewKyc('admin-1', mockUser.id!, {
+        decision: KycStatus.REJECTED,
+        rejectionReason: 'illegible scan',
+      });
 
       expect(result.kycStatus).toBe(KycStatus.REJECTED);
       expect(result.kycRejectionReason).toBe('illegible scan');
@@ -355,13 +350,17 @@ describe('UsersService', () => {
 
     it('rejects transition to pending', async () => {
       await expect(
-        service.reviewKyc('admin-1', mockUser.id!, KycStatus.PENDING, undefined),
+        service.reviewKyc('admin-1', mockUser.id!, {
+          decision: KycStatus.PENDING,
+        }),
       ).rejects.toThrow();
     });
 
     it('rejects rejection without a reason', async () => {
       await expect(
-        service.reviewKyc('admin-1', mockUser.id!, KycStatus.REJECTED, undefined),
+        service.reviewKyc('admin-1', mockUser.id!, {
+          decision: KycStatus.REJECTED,
+        }),
       ).rejects.toThrow();
     });
 
@@ -369,7 +368,9 @@ describe('UsersService', () => {
       repository.findOne.mockResolvedValue(null);
 
       await expect(
-        service.reviewKyc('admin-1', 'missing', KycStatus.VERIFIED, undefined),
+        service.reviewKyc('admin-1', 'missing', {
+          decision: KycStatus.VERIFIED,
+        }),
       ).rejects.toThrow(NotFoundException);
     });
   });

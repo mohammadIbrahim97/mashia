@@ -137,12 +137,10 @@ describe('AdminController', () => {
         decision: KycStatus.VERIFIED,
       });
 
-      expect(usersService.reviewKyc).toHaveBeenCalledWith(
-        'admin-1',
-        'user-1',
-        KycStatus.VERIFIED,
-        undefined,
-      );
+      expect(usersService.reviewKyc).toHaveBeenCalledWith('admin-1', 'user-1', {
+        decision: KycStatus.VERIFIED,
+        rejectionReason: undefined,
+      });
     });
 
     it('passes rejectionReason through for rejected decision', async () => {
@@ -154,12 +152,10 @@ describe('AdminController', () => {
         rejectionReason: 'illegible scan',
       });
 
-      expect(usersService.reviewKyc).toHaveBeenCalledWith(
-        'admin-1',
-        'user-1',
-        KycStatus.REJECTED,
-        'illegible scan',
-      );
+      expect(usersService.reviewKyc).toHaveBeenCalledWith('admin-1', 'user-1', {
+        decision: KycStatus.REJECTED,
+        rejectionReason: 'illegible scan',
+      });
     });
   });
 

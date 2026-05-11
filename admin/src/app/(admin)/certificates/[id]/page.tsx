@@ -3,40 +3,23 @@
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Badge, BadgeKind } from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Overline } from '@/components/ui/Overline';
 import {
   Certificate,
-  CertificateStatus,
   certificatesService,
 } from '@/services/certificates.service';
 import { errorMessage } from '@/services/api';
+import { fmtDate, reviewKind, reviewLabel } from '@/lib/format';
 
 const TYPE_LABEL: Record<string, string> = {
   vaccination: 'Vaccination',
   health: 'Health',
   origin: 'Origin',
 };
-
-function statusKind(s: CertificateStatus): BadgeKind {
-  if (s === 'verified') return 'verified';
-  if (s === 'pending') return 'pending';
-  return 'flagged';
-}
-
-function fmt(date: string | null): string {
-  if (!date) return '—';
-  const d = new Date(date);
-  if (Number.isNaN(d.getTime())) return date;
-  return d.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
 
 export default function AdminCertificateDetailPage({
   params,
@@ -146,9 +129,7 @@ export default function AdminCertificateDetailPage({
           <Overline>● G3-US05 · CERTIFICATE</Overline>
           <h1 className="font-display text-[28px] font-medium tracking-tight mt-1 text-ink flex items-center gap-3">
             {TYPE_LABEL[cert.type] ?? cert.type} certificate
-            <Badge kind={statusKind(cert.status)}>
-              {cert.status[0].toUpperCase() + cert.status.slice(1)}
-            </Badge>
+            <Badge kind={reviewKind(cert.status)}>{reviewLabel(cert.status)}</Badge>
           </h1>
           <div className="text-[13px] text-muted mt-1 font-mono">
             {cert.id}
@@ -202,18 +183,18 @@ export default function AdminCertificateDetailPage({
               <dd className="text-ink">{TYPE_LABEL[cert.type] ?? cert.type}</dd>
 
               <dt className="text-muted">Issued</dt>
-              <dd className="text-ink font-mono">{fmt(cert.issueDate)}</dd>
+              <dd className="text-ink font-mono">{fmtDate(cert.issueDate)}</dd>
 
               <dt className="text-muted">Expires</dt>
-              <dd className="text-ink font-mono">{fmt(cert.expiryDate)}</dd>
+              <dd className="text-ink font-mono">{fmtDate(cert.expiryDate)}</dd>
 
               <dt className="text-muted">Submitted</dt>
-              <dd className="text-ink font-mono">{fmt(cert.createdAt)}</dd>
+              <dd className="text-ink font-mono">{fmtDate(cert.createdAt)}</dd>
 
               {cert.verifiedAt && (
                 <>
                   <dt className="text-muted">Reviewed</dt>
-                  <dd className="text-ink font-mono">{fmt(cert.verifiedAt)}</dd>
+                  <dd className="text-ink font-mono">{fmtDate(cert.verifiedAt)}</dd>
                 </>
               )}
             </dl>

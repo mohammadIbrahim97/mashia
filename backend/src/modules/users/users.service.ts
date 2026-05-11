@@ -34,11 +34,16 @@ export type AdminUserListItem = {
 };
 
 export type AdminUserDetail = AdminUserListItem & {
-  kycDocuments: Record<string, string> | null;
+  kycDocumentUrls: Record<string, string> | null;
   kycRejectionReason: string | null;
   kycReviewedAt: Date | null;
   kycReviewedById: string | null;
   updatedAt: Date;
+};
+
+export type ReviewKycInput = {
+  decision: KycStatus;
+  rejectionReason?: string;
 };
 
 @Injectable()
@@ -143,9 +148,7 @@ export class UsersService {
     return { items, total, page, pageSize };
   }
 
-  async findByIdForAdmin(
-    id: string,
-  ): Promise<AdminUserDetail & { kycDocumentUrls: Record<string, string> | null }> {
+  async findByIdForAdmin(id: string): Promise<AdminUserDetail> {
     const user = await this.usersRepository.findOne({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
 
@@ -171,7 +174,6 @@ export class UsersService {
       city: user.city,
       kycStatus: user.kycStatus,
       suspended: user.suspended,
-      kycDocuments: user.kycDocuments,
       kycRejectionReason: user.kycRejectionReason,
       kycReviewedAt: user.kycReviewedAt,
       kycReviewedById: user.kycReviewedById,
@@ -184,9 +186,9 @@ export class UsersService {
   async reviewKyc(
     adminId: string,
     userId: string,
-    decision: KycStatus,
-    rejectionReason: string | undefined,
+    input: ReviewKycInput,
   ): Promise<User> {
+    const { decision, rejectionReason } = input;
     if (decision === KycStatus.PENDING) {
       throw new BadRequestException('Cannot transition KYC to pending');
     }
