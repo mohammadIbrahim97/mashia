@@ -58,6 +58,18 @@ export class User {
   @Column({ type: 'boolean', default: false, name: 'totp_enabled' })
   totpEnabled: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  suspended: boolean;
+
+  @Column({ type: 'text', nullable: true, name: 'kyc_rejection_reason' })
+  kycRejectionReason: string | null;
+
+  @Column({ type: 'timestamp with time zone', nullable: true, name: 'kyc_reviewed_at' })
+  kycReviewedAt: Date | null;
+
+  @Column({ type: 'uuid', nullable: true, name: 'kyc_reviewed_by_id' })
+  kycReviewedById: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

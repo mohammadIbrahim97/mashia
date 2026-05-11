@@ -31,6 +31,10 @@ describe('ListingsController', () => {
     passwordHash: null,
     totpSecret: null,
     totpEnabled: false,
+    suspended: false,
+    kycRejectionReason: null,
+    kycReviewedAt: null,
+    kycReviewedById: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   } as User;
