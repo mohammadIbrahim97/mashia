@@ -75,6 +75,25 @@ const ESCROW_STATUS_LABEL: Record<EscrowStatus, string> = {
 export const escrowStatusKind = (s: EscrowStatus) => ESCROW_STATUS_KIND[s];
 export const escrowStatusLabel = (s: EscrowStatus) => ESCROW_STATUS_LABEL[s];
 
+export type ListingStatus = 'active' | 'sold' | 'expired' | 'flagged';
+
+const LISTING_STATUS_KIND: Record<ListingStatus, BadgeKind> = {
+  active: 'verified',
+  sold: 'neutral',
+  expired: 'neutral',
+  flagged: 'flagged',
+};
+
+const LISTING_STATUS_LABEL: Record<ListingStatus, string> = {
+  active: 'Active',
+  sold: 'Sold',
+  expired: 'Expired',
+  flagged: 'Flagged',
+};
+
+export const listingStatusKind = (s: ListingStatus) => LISTING_STATUS_KIND[s];
+export const listingStatusLabel = (s: ListingStatus) => LISTING_STATUS_LABEL[s];
+
 export function fmtMoney(amount: number, currency: string): string {
   const formatted = new Intl.NumberFormat(undefined, {
     minimumFractionDigits: 0,

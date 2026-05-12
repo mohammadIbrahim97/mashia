@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -19,10 +20,12 @@ import { CertificatesService } from '../certificates/certificates.service';
 import { UsersService } from '../users/users.service';
 import { OrdersService } from '../orders/orders.service';
 import { PaymentsService } from '../payments/payments.service';
+import { ListingsService } from '../listings/listings.service';
 import { AdminCertificatesQueryDto } from './dto/admin-certificates-query.dto';
 import { AdminUsersQueryDto } from './dto/admin-users-query.dto';
 import { AdminKycDecisionDto } from './dto/admin-kyc-decision.dto';
 import { AdminOrdersQueryDto } from './dto/admin-orders-query.dto';
+import { AdminListingsQueryDto } from './dto/admin-listings-query.dto';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -33,6 +36,7 @@ export class AdminController {
     private readonly usersService: UsersService,
     private readonly ordersService: OrdersService,
     private readonly paymentsService: PaymentsService,
+    private readonly listingsService: ListingsService,
   ) {}
 
   // ----- Certificates -----
@@ -104,5 +108,32 @@ export class AdminController {
     const payment = await this.paymentsService.refundByOrder(id);
     const order = await this.ordersService.findOneForAdmin(id);
     return { order, payment };
+  }
+
+  // ----- Listings (G3-US04) -----
+
+  @Get('listings')
+  async listListings(@Query() query: AdminListingsQueryDto) {
+    return this.listingsService.findForAdmin(query);
+  }
+
+  @Get('listings/:id')
+  async getListing(@Param('id', ParseUUIDPipe) id: string) {
+    return this.listingsService.findByIdForAdmin(id);
+  }
+
+  @Patch('listings/:id/flag')
+  async flagListing(@Param('id', ParseUUIDPipe) id: string) {
+    return this.listingsService.setFlag(id, true);
+  }
+
+  @Patch('listings/:id/unflag')
+  async unflagListing(@Param('id', ParseUUIDPipe) id: string) {
+    return this.listingsService.setFlag(id, false);
+  }
+
+  @Delete('listings/:id')
+  async removeListing(@Param('id', ParseUUIDPipe) id: string) {
+    return this.listingsService.removeByAdmin(id);
   }
 }
