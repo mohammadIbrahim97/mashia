@@ -16,7 +16,7 @@ import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { PaymentHeldEvent } from '@shared/events/payment-held.event';
 import { PaymentReleasedEvent } from '@shared/events/payment-released.event';
 import { PaymentRefundedEvent } from '@shared/events/payment-refunded.event';
-import { EscrowStatus, OrderStatus, UserRole } from '@shared/enums';
+import { EscrowStatus, OrderStatus, PaymentMethod, UserRole } from '@shared/enums';
 
 @Injectable()
 export class PaymentsService {
@@ -330,5 +330,158 @@ export class PaymentsService {
       throw new NotFoundException('Payment not found for this order');
     }
     return payment;
+  }
+
+  // ----- Admin-only views -----
+
+  async findForAdmin(query: {
+    escrowStatus?: EscrowStatus | 'all';
+    method?: PaymentMethod;
+    from?: string;
+    to?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<{
+    items: Array<{
+      id: string;
+      orderId: string;
+      amount: number;
+      commissionAmount: number;
+      sellerAmount: number;
+      currency: string;
+      method: PaymentMethod;
+      escrowStatus: EscrowStatus;
+      payerId: string;
+      payerName: string | null;
+      sellerId: string | null;
+      sellerName: string | null;
+      releasedAt: Date | null;
+      refundedAt: Date | null;
+      createdAt: Date;
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    const page = query.page ?? 1;
+    const pageSize = Math.min(query.pageSize ?? 20, 100);
+
+    const qb = this.paymentsRepository
+      .createQueryBuilder('payment')
+      .leftJoinAndSelect('payment.payer', 'payer')
+      .leftJoinAndSelect('payment.order', 'order')
+      .leftJoinAndSelect('order.seller', 'seller')
+      .orderBy('payment.createdAt', 'DESC')
+      .skip((page - 1) * pageSize)
+      .take(pageSize);
+
+    if (query.escrowStatus && query.escrowStatus !== 'all') {
+      qb.andWhere('payment.escrowStatus = :escrow', {
+        escrow: query.escrowStatus,
+      });
+    }
+    if (query.method) {
+      qb.andWhere('payment.method = :method', { method: query.method });
+    }
+    if (query.from) {
+      qb.andWhere('payment.createdAt >= :from', { from: query.from });
+    }
+    if (query.to) {
+      qb.andWhere('payment.createdAt < :to', { to: query.to });
+    }
+
+    const [rows, total] = await qb.getManyAndCount();
+
+    const items = rows.map((p) => ({
+      id: p.id,
+      orderId: p.orderId,
+      amount: Number(p.amount),
+      commissionAmount: Number(p.commissionAmount),
+      sellerAmount: Number(p.sellerAmount),
+      currency: p.currency,
+      method: p.method,
+      escrowStatus: p.escrowStatus,
+      payerId: p.payerId,
+      payerName: p.payer?.fullName ?? null,
+      sellerId: p.order?.sellerId ?? null,
+      sellerName: p.order?.seller?.fullName ?? null,
+      releasedAt: p.releasedAt,
+      refundedAt: p.refundedAt,
+      createdAt: p.createdAt,
+    }));
+
+    return { items, total, page, pageSize };
+  }
+
+  async getRevenueSummary(query: {
+    from?: string;
+    to?: string;
+  }): Promise<{
+    from: string | null;
+    to: string | null;
+    byCurrency: Array<{
+      currency: string;
+      held: { count: number; commission: number };
+      released: { count: number; commission: number };
+      refunded: { count: number; commission: number };
+    }>;
+  }> {
+    const qb = this.paymentsRepository
+      .createQueryBuilder('payment')
+      .select('payment.currency', 'currency')
+      .addSelect('payment.escrow_status', 'escrow_status')
+      .addSelect('COUNT(*)', 'count')
+      .addSelect('SUM(payment.commission_amount)', 'commission')
+      .groupBy('payment.currency')
+      .addGroupBy('payment.escrow_status');
+
+    if (query.from) qb.andWhere('payment.createdAt >= :from', { from: query.from });
+    if (query.to) qb.andWhere('payment.createdAt < :to', { to: query.to });
+
+    const rows = (await qb.getRawMany()) as Array<{
+      currency: string;
+      escrow_status: EscrowStatus;
+      count: string;
+      commission: string | null;
+    }>;
+
+    const empty = () => ({ count: 0, commission: 0 });
+    const byCurrencyMap = new Map<
+      string,
+      {
+        currency: string;
+        held: { count: number; commission: number };
+        released: { count: number; commission: number };
+        refunded: { count: number; commission: number };
+      }
+    >();
+    for (const row of rows) {
+      let entry = byCurrencyMap.get(row.currency);
+      if (!entry) {
+        entry = {
+          currency: row.currency,
+          held: empty(),
+          released: empty(),
+          refunded: empty(),
+        };
+        byCurrencyMap.set(row.currency, entry);
+      }
+      const bucket =
+        row.escrow_status === EscrowStatus.HELD
+          ? entry.held
+          : row.escrow_status === EscrowStatus.RELEASED
+            ? entry.released
+            : entry.refunded;
+      bucket.count = Number(row.count);
+      bucket.commission = Number(row.commission ?? 0);
+    }
+
+    return {
+      from: query.from ?? null,
+      to: query.to ?? null,
+      byCurrency: [...byCurrencyMap.values()].sort((a, b) =>
+        a.currency.localeCompare(b.currency),
+      ),
+    };
   }
 }

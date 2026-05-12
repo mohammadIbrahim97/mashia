@@ -483,4 +483,166 @@ describe('PaymentsService', () => {
       );
     });
   });
+
+  describe('findForAdmin', () => {
+    function makeQb(rows: Partial<Payment>[], total: number) {
+      const qb = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn().mockResolvedValue([rows, total]),
+      };
+      paymentsRepo.createQueryBuilder.mockReturnValue(qb as never);
+      return qb;
+    }
+
+    it('returns paginated items with payer + seller flattened', async () => {
+      const row = {
+        id: 'pay-1',
+        orderId: 'order-1',
+        amount: 1000,
+        commissionAmount: 50,
+        sellerAmount: 950,
+        currency: Currency.SAR,
+        escrowStatus: EscrowStatus.HELD,
+        payerId: 'buyer-1',
+        payer: { fullName: 'Khalid' },
+        order: { sellerId: 'seller-1', seller: { fullName: 'Tarek' } },
+        releasedAt: null,
+        refundedAt: null,
+        createdAt: new Date(),
+      } as unknown as Payment;
+      makeQb([row], 1);
+
+      const result = await service.findForAdmin({});
+
+      expect(result.items[0]).toMatchObject({
+        id: 'pay-1',
+        payerName: 'Khalid',
+        sellerName: 'Tarek',
+        sellerId: 'seller-1',
+      });
+      expect(result.total).toBe(1);
+    });
+
+    it('filters by escrowStatus, method, and date range', async () => {
+      const qb = makeQb([], 0);
+      await service.findForAdmin({
+        escrowStatus: EscrowStatus.HELD,
+        from: '2026-01-01',
+        to: '2026-02-01',
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'payment.escrowStatus = :escrow',
+        { escrow: EscrowStatus.HELD },
+      );
+      expect(qb.andWhere).toHaveBeenCalledWith('payment.createdAt >= :from', {
+        from: '2026-01-01',
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith('payment.createdAt < :to', {
+        to: '2026-02-01',
+      });
+    });
+
+    it('skips escrow filter when "all"', async () => {
+      const qb = makeQb([], 0);
+      await service.findForAdmin({ escrowStatus: 'all' });
+      expect(qb.andWhere).not.toHaveBeenCalledWith(
+        'payment.escrowStatus = :escrow',
+        expect.anything(),
+      );
+    });
+
+    it('caps pageSize at 100', async () => {
+      const qb = makeQb([], 0);
+      await service.findForAdmin({ pageSize: 500 });
+      expect(qb.take).toHaveBeenCalledWith(100);
+    });
+  });
+
+  describe('getRevenueSummary', () => {
+    function makeRawQb(
+      rows: Array<{
+        currency: string;
+        escrow_status: EscrowStatus;
+        count: string;
+        commission: string | null;
+      }>,
+    ) {
+      const qb = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        addGroupBy: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue(rows),
+      };
+      paymentsRepo.createQueryBuilder.mockReturnValue(qb as never);
+      return qb;
+    }
+
+    it('aggregates commission by currency × escrow status', async () => {
+      makeRawQb([
+        {
+          currency: 'SAR',
+          escrow_status: EscrowStatus.HELD,
+          count: '12',
+          commission: '6420',
+        },
+        {
+          currency: 'SAR',
+          escrow_status: EscrowStatus.RELEASED,
+          count: '8',
+          commission: '3200',
+        },
+        {
+          currency: 'AED',
+          escrow_status: EscrowStatus.HELD,
+          count: '3',
+          commission: '900',
+        },
+      ]);
+
+      const result = await service.getRevenueSummary({});
+
+      expect(result.byCurrency).toHaveLength(2);
+      const sar = result.byCurrency.find((c) => c.currency === 'SAR')!;
+      expect(sar.held).toEqual({ count: 12, commission: 6420 });
+      expect(sar.released).toEqual({ count: 8, commission: 3200 });
+      expect(sar.refunded).toEqual({ count: 0, commission: 0 });
+      const aed = result.byCurrency.find((c) => c.currency === 'AED')!;
+      expect(aed.held).toEqual({ count: 3, commission: 900 });
+    });
+
+    it('treats null commission sum as 0', async () => {
+      makeRawQb([
+        {
+          currency: 'SAR',
+          escrow_status: EscrowStatus.HELD,
+          count: '0',
+          commission: null,
+        },
+      ]);
+
+      const result = await service.getRevenueSummary({});
+
+      expect(result.byCurrency[0].held).toEqual({ count: 0, commission: 0 });
+    });
+
+    it('applies date range filters when provided', async () => {
+      const qb = makeRawQb([]);
+      await service.getRevenueSummary({
+        from: '2026-01-01',
+        to: '2026-02-01',
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith('payment.createdAt >= :from', {
+        from: '2026-01-01',
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith('payment.createdAt < :to', {
+        to: '2026-02-01',
+      });
+    });
+  });
 });

@@ -48,6 +48,8 @@ describe('AdminController', () => {
       findByOrderForAdmin: jest.fn(),
       forceReleaseByOrder: jest.fn(),
       refundByOrder: jest.fn(),
+      findForAdmin: jest.fn(),
+      getRevenueSummary: jest.fn(),
     } as unknown as jest.Mocked<PaymentsService>;
 
     listingsService = {
@@ -320,6 +322,32 @@ describe('AdminController', () => {
       listingsService.removeByAdmin.mockResolvedValue({ message: 'Listing removed' });
       await controller.removeListing('listing-1');
       expect(listingsService.removeByAdmin).toHaveBeenCalledWith('listing-1');
+    });
+  });
+
+  describe('listPayments', () => {
+    it('delegates to paymentsService.findForAdmin with the query', async () => {
+      const stub = { items: [], total: 0, page: 1, pageSize: 20 };
+      paymentsService.findForAdmin.mockResolvedValue(stub as never);
+
+      const result = await controller.listPayments({ method: undefined });
+
+      expect(paymentsService.findForAdmin).toHaveBeenCalledWith({
+        method: undefined,
+      });
+      expect(result).toBe(stub);
+    });
+  });
+
+  describe('getRevenue', () => {
+    it('delegates to paymentsService.getRevenueSummary with the query', async () => {
+      const stub = { from: null, to: null, byCurrency: [] };
+      paymentsService.getRevenueSummary.mockResolvedValue(stub);
+
+      const result = await controller.getRevenue({});
+
+      expect(paymentsService.getRevenueSummary).toHaveBeenCalledWith({});
+      expect(result).toBe(stub);
     });
   });
 });
