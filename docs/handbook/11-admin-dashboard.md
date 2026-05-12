@@ -148,7 +148,47 @@ Two pages: the list and the detail.
 - **Reject** button: opens `ConfirmDialog` with a required-reason textarea; calls `verify(id, { status: 'rejected', rejectionReason })`.
 - If already rejected, shows the rejection reason as a banner.
 
-This is the prototype for every other moderation section — copy the structure when you build Users-KYC review and Listings-flag.
+This moderation pattern is now used across multiple live sections (users, listings, certificates, orders). Continue reusing it for new admin workflows.
+
+## Single source-of-truth status (backend + admin web)
+
+**Last verified date:** 2026-05-12  
+**Verified against paths:** `README.md`, `FILE_MAP.md`, `backend/src/modules/admin/admin.controller.ts`, `admin/src/app/(admin)/**`, `admin/src/services/*.ts`
+
+### 1) Admin endpoints
+
+| Area | Endpoints | Status | Notes |
+|---|---|---|---|
+| Users | `GET /admin/users`, `GET /admin/users/:id`, `PATCH /admin/users/:id/kyc`, `PATCH /admin/users/:id/suspend`, `PATCH /admin/users/:id/unsuspend` | implemented | Controller + service clients are wired. |
+| Listings moderation | `GET /admin/listings`, `GET /admin/listings/:id`, `PATCH /admin/listings/:id/flag`, `PATCH /admin/listings/:id/unflag`, `DELETE /admin/listings/:id` | implemented | Includes explicit unflag endpoint. |
+| Certificates queue | `GET /admin/certificates` | implemented | Review action is currently via shared certificates endpoint (`PATCH /certificates/:id/verify`). |
+| Orders & disputes | `GET /admin/orders`, `GET /admin/orders/:id`, `POST /admin/orders/:id/release`, `POST /admin/orders/:id/refund` | implemented | Dispute actions are order-scoped. |
+| Payments & revenue | `GET /admin/payments`, `GET /admin/revenue` | implemented | Wired in `payments.service.ts`. |
+| Dashboard aggregate API | `GET /admin/dashboard` | not implemented | Still referenced in docs/UX plans but absent from `AdminController`. |
+
+### 2) Admin dashboard pages
+
+| Route group | Status | Notes |
+|---|---|---|
+| `/dashboard` | implemented (partial data) | Page exists, currently mock-driven KPI/activity data. |
+| `/users`, `/users/[id]` | implemented | Connected to admin users endpoints. |
+| `/listings`, `/listings/[id]` | implemented | Connected to admin listings moderation endpoints. |
+| `/certificates`, `/certificates/[id]` | implemented | Queue + detail moderation flow live. |
+| `/orders`, `/orders/[id]` | implemented | Includes release/refund controls in detail flow. |
+| `/payments` | implemented | Uses `/admin/payments` + `/admin/revenue`. |
+| `/settings` | not implemented | Still an open foundation item (needed for admin TOTP setup/enable UX). |
+
+### 3) Foundation loose ends (still open)
+
+| Item | Status |
+|---|---|
+| Settings page for admin TOTP setup/enable | not implemented |
+| Move admin cookies to HttpOnly server-managed flow | not implemented |
+| Real i18n + RTL wiring (`next-intl`) | not implemented |
+| `@nestjs/throttler` on `/auth/admin/login` + `/auth/otp/send` | not implemented |
+| Dashboard sparkline migration from static SVG to live chart data | partial |
+| Audit log endpoint + dashboard link target | not implemented |
+| Production hosting hardening (ECS service + domain rollout) | partial |
 
 ## API coverage status
 

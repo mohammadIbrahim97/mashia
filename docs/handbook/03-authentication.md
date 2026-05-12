@@ -12,6 +12,9 @@ Mashia has **two completely separate auth flows** that converge on the same JWT 
 
 Files: `backend/src/modules/auth/`.
 
+**Last verified date:** 2026-05-12  
+**Verified against paths:** `backend/src/modules/auth/*`, `backend/src/modules/admin/admin.controller.ts`, `admin/src/services/auth.service.ts`, `admin/src/services/session.ts`, `admin/src/app/login/page.tsx`
+
 ## Token model (shared)
 
 Both flows finish by minting a pair from `AuthService.generateTokens(user)`:
@@ -154,7 +157,7 @@ Two-step (so the admin proves the secret made it into the authenticator app befo
 1. `POST /auth/admin/totp/setup` (`JwtAuthGuard + Roles(ADMIN)`)
    - generates a base32 secret with `authenticator.generateSecret()`
    - stores it on the user (`totp_secret`), keeps `totp_enabled = false`
-   - returns `{ secret, otpauthUrl }` — the URL is rendered as a QR by the admin UI (TODO: still no UI for this)
+   - returns `{ secret, otpauthUrl }` — backend flow is implemented, but a dedicated `/settings` admin UI for setup/enable is still open.
 2. `POST /auth/admin/totp/enable { code }` (same guards)
    - verifies the code against the stored secret
    - flips `totp_enabled = true`
