@@ -9,6 +9,9 @@ Ship the Sheep Marketplace MVP to production on AWS Bahrain and publish on App S
 
 ## Document Index
 
+### Developer Handbook
+- [Handbook index](handbook/README.md) — Engineering onboarding guide: architecture, auth, user / buyer / seller flows, listings, orders & escrow, certificates, messaging, admin, database schema, API reference, mobile app, testing & deployment, glossary. Start here if you've just joined the team.
+
 ### Goals
 - [Project Goals](project-goals.md) — Ultimate goal + 3 main goals with completion criteria
 
