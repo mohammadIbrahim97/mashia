@@ -7,11 +7,7 @@ export type PresignedUrlResponse = {
   key: string;
 };
 
-export type UploadPurpose =
-  | 'listing_image'
-  | 'listing_video'
-  | 'chat_image'
-  | 'certificate';
+export type UploadPurpose = 'listing' | 'chat_image' | 'certificate';
 
 export const uploadsService = {
   async getPresignedUrl(

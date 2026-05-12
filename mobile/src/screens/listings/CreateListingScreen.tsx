@@ -113,7 +113,7 @@ export function CreateListingScreen({ navigation, route }: Props) {
       const uploadedUrls: string[] = [];
       for (const img of images) {
         const { uploadUrl, fileUrl } = await uploadsService.getPresignedUrl(
-          'listing_image',
+          'listing',
           img.type,
           img.fileName,
         );
