@@ -121,22 +121,29 @@ Ack errors are one of `invalid_payload \| unauthorized \| not_found \| forbidden
 
 All under `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles(ADMIN)`.
 
-| Method | Path | Body / query | Status |
+**Last verified date:** 2026-05-12  
+**Verified against paths:** `backend/src/modules/admin/admin.controller.ts`, `admin/src/services/*.ts`, `admin/src/app/(admin)/**`
+
+| Method | Path | Body / query | Implementation status |
 |---|---|---|---|
-| `GET` | `/admin/certificates?status=&page=&pageSize=` | — | **shipped** |
-| `GET` | `/admin/users?role=&kycStatus=&q=&page=&pageSize=` | — | shipped |
-| `GET` | `/admin/users/:id` | — | shipped — includes signed KYC URLs |
-| `PATCH` | `/admin/users/:id/kyc` | `{ decision: 'verified' \| 'rejected', rejectionReason? }` | shipped |
-| `PATCH` | `/admin/users/:id/suspend` | — | shipped |
-| `PATCH` | `/admin/users/:id/unsuspend` | — | shipped |
-| `GET` | `/admin/dashboard` | — | TODO |
-| `GET` | `/admin/listings` | — | TODO |
-| `PATCH` | `/admin/listings/:id/flag` | — | TODO |
-| `DELETE` | `/admin/listings/:id` | — | TODO |
-| `GET` | `/admin/orders` | — | TODO |
-| `POST` | `/admin/payments/:id/release` | — | TODO (different from buyer's release — admin-driven dispute resolution) |
-| `GET` | `/admin/payments` | — | TODO |
-| `GET` | `/admin/revenue` | — | TODO |
+| `GET` | `/admin/certificates?status=&page=&pageSize=` | — | implemented |
+| `GET` | `/admin/users?role=&kycStatus=&q=&page=&pageSize=` | — | implemented |
+| `GET` | `/admin/users/:id` | — | implemented (includes signed KYC URLs) |
+| `PATCH` | `/admin/users/:id/kyc` | `{ decision: 'verified' \| 'rejected', rejectionReason? }` | implemented |
+| `PATCH` | `/admin/users/:id/suspend` | — | implemented |
+| `PATCH` | `/admin/users/:id/unsuspend` | — | implemented |
+| `GET` | `/admin/orders` | — | implemented |
+| `GET` | `/admin/orders/:id` | — | implemented |
+| `POST` | `/admin/orders/:id/release` | — | implemented |
+| `POST` | `/admin/orders/:id/refund` | — | implemented |
+| `GET` | `/admin/listings` | — | implemented |
+| `GET` | `/admin/listings/:id` | — | implemented |
+| `PATCH` | `/admin/listings/:id/flag` | — | implemented |
+| `PATCH` | `/admin/listings/:id/unflag` | — | implemented |
+| `DELETE` | `/admin/listings/:id` | — | implemented |
+| `GET` | `/admin/payments` | — | implemented |
+| `GET` | `/admin/revenue` | — | implemented |
+| `GET` | `/admin/dashboard` | — | not implemented in `AdminController` |
 
 ## Response shapes
 
