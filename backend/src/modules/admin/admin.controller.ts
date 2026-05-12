@@ -26,6 +26,10 @@ import { AdminUsersQueryDto } from './dto/admin-users-query.dto';
 import { AdminKycDecisionDto } from './dto/admin-kyc-decision.dto';
 import { AdminOrdersQueryDto } from './dto/admin-orders-query.dto';
 import { AdminListingsQueryDto } from './dto/admin-listings-query.dto';
+import {
+  AdminPaymentsQueryDto,
+  AdminRevenueQueryDto,
+} from './dto/admin-payments-query.dto';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -135,5 +139,17 @@ export class AdminController {
   @Delete('listings/:id')
   async removeListing(@Param('id', ParseUUIDPipe) id: string) {
     return this.listingsService.removeByAdmin(id);
+  }
+
+  // ----- Payments + revenue (G3-US07) -----
+
+  @Get('payments')
+  async listPayments(@Query() query: AdminPaymentsQueryDto) {
+    return this.paymentsService.findForAdmin(query);
+  }
+
+  @Get('revenue')
+  async getRevenue(@Query() query: AdminRevenueQueryDto) {
+    return this.paymentsService.getRevenueSummary(query);
   }
 }
