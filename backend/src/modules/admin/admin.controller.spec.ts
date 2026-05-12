@@ -1,4 +1,3 @@
-import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AdminController } from './admin.controller';
 import { CertificatesService } from '../certificates/certificates.service';
@@ -43,8 +42,8 @@ describe('AdminController', () => {
 
     paymentsService = {
       findByOrderForAdmin: jest.fn(),
-      forceReleaseByAdmin: jest.fn(),
-      refund: jest.fn(),
+      forceReleaseByOrder: jest.fn(),
+      refundByOrder: jest.fn(),
     } as unknown as jest.Mocked<PaymentsService>;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -220,7 +219,7 @@ describe('AdminController', () => {
   });
 
   describe('getOrder', () => {
-    it('returns order + linked payment (or null)', async () => {
+    it('returns order + linked payment (or null) and parallelizes both lookups', async () => {
       const order = { id: 'order-1' } as never;
       const payment = { id: 'pay-1' } as Payment;
       ordersService.findOneForAdmin.mockResolvedValue(order);
@@ -233,43 +232,32 @@ describe('AdminController', () => {
   });
 
   describe('forceRelease', () => {
-    it('looks up the payment by orderId and force-releases it', async () => {
+    it('delegates to forceReleaseByOrder and returns refreshed order + payment', async () => {
+      const order = { id: 'order-1' } as never;
       const payment = { id: 'pay-1' } as Payment;
-      paymentsService.findByOrderForAdmin.mockResolvedValue(payment);
-      paymentsService.forceReleaseByAdmin.mockResolvedValue(payment);
+      paymentsService.forceReleaseByOrder.mockResolvedValue(payment);
+      ordersService.findOneForAdmin.mockResolvedValue(order);
 
-      await controller.forceRelease('order-1');
+      const result = await controller.forceRelease('order-1');
 
-      expect(paymentsService.forceReleaseByAdmin).toHaveBeenCalledWith('pay-1');
-    });
-
-    it('throws NotFoundException when no payment exists for the order', async () => {
-      paymentsService.findByOrderForAdmin.mockResolvedValue(null);
-
-      await expect(controller.forceRelease('order-1')).rejects.toThrow(
-        NotFoundException,
+      expect(paymentsService.forceReleaseByOrder).toHaveBeenCalledWith(
+        'order-1',
       );
-      expect(paymentsService.forceReleaseByAdmin).not.toHaveBeenCalled();
+      expect(result).toEqual({ order, payment });
     });
   });
 
   describe('refund', () => {
-    it('looks up the payment by orderId and refunds it', async () => {
+    it('delegates to refundByOrder and returns refreshed order + payment', async () => {
+      const order = { id: 'order-1' } as never;
       const payment = { id: 'pay-1' } as Payment;
-      paymentsService.findByOrderForAdmin.mockResolvedValue(payment);
-      paymentsService.refund.mockResolvedValue(payment);
+      paymentsService.refundByOrder.mockResolvedValue(payment);
+      ordersService.findOneForAdmin.mockResolvedValue(order);
 
-      await controller.refund('order-1');
+      const result = await controller.refund('order-1');
 
-      expect(paymentsService.refund).toHaveBeenCalledWith('pay-1');
-    });
-
-    it('throws NotFoundException when no payment exists for the order', async () => {
-      paymentsService.findByOrderForAdmin.mockResolvedValue(null);
-
-      await expect(controller.refund('order-1')).rejects.toThrow(
-        NotFoundException,
-      );
+      expect(paymentsService.refundByOrder).toHaveBeenCalledWith('order-1');
+      expect(result).toEqual({ order, payment });
     });
   });
 });

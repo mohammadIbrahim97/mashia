@@ -39,9 +39,11 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const onTabClick = (t: Tab) => {
+    if (t === tab) return;
+    setTab(t);
     setPage(1);
-  }, [tab]);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -90,7 +92,7 @@ export default function AdminOrdersPage() {
           return (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => onTabClick(t.id)}
               className={`px-4 py-2.5 font-body text-[13px] -mb-px border-b-2 transition-colors ${
                 active
                   ? 'text-ink font-semibold border-mashia-600'

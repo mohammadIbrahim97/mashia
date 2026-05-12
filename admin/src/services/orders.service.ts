@@ -90,13 +90,13 @@ export const ordersService = {
     return unwrap<AdminOrderDetail>(res);
   },
 
-  async release(id: string): Promise<AdminOrderDetail['payment']> {
+  async release(id: string): Promise<AdminOrderDetail> {
     const res = await api.post(`/admin/orders/${id}/release`, {});
-    return unwrap<AdminOrderDetail['payment']>(res);
+    return unwrap<AdminOrderDetail>(res);
   },
 
-  async refund(id: string): Promise<AdminOrderDetail['payment']> {
+  async refund(id: string): Promise<AdminOrderDetail> {
     const res = await api.post(`/admin/orders/${id}/refund`, {});
-    return unwrap<AdminOrderDetail['payment']>(res);
+    return unwrap<AdminOrderDetail>(res);
   },
 };

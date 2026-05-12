@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  NotFoundException,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -86,26 +85,24 @@ export class AdminController {
 
   @Get('orders/:id')
   async getOrder(@Param('id', ParseUUIDPipe) id: string) {
-    const order = await this.ordersService.findOneForAdmin(id);
-    const payment = await this.paymentsService.findByOrderForAdmin(id);
+    const [order, payment] = await Promise.all([
+      this.ordersService.findOneForAdmin(id),
+      this.paymentsService.findByOrderForAdmin(id),
+    ]);
     return { order, payment };
   }
 
   @Post('orders/:id/release')
   async forceRelease(@Param('id', ParseUUIDPipe) id: string) {
-    const payment = await this.paymentsService.findByOrderForAdmin(id);
-    if (!payment) {
-      throw new NotFoundException('No payment for this order');
-    }
-    return this.paymentsService.forceReleaseByAdmin(payment.id);
+    const payment = await this.paymentsService.forceReleaseByOrder(id);
+    const order = await this.ordersService.findOneForAdmin(id);
+    return { order, payment };
   }
 
   @Post('orders/:id/refund')
   async refund(@Param('id', ParseUUIDPipe) id: string) {
-    const payment = await this.paymentsService.findByOrderForAdmin(id);
-    if (!payment) {
-      throw new NotFoundException('No payment for this order');
-    }
-    return this.paymentsService.refund(payment.id);
+    const payment = await this.paymentsService.refundByOrder(id);
+    const order = await this.ordersService.findOneForAdmin(id);
+    return { order, payment };
   }
 }

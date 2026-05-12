@@ -14,6 +14,8 @@ import {
 } from '@/services/orders.service';
 import { errorMessage } from '@/services/api';
 import {
+  escrowStatusKind,
+  escrowStatusLabel,
   fmtDate,
   fmtMoney,
   orderStatusKind,
@@ -29,12 +31,6 @@ const STEPS: { status: OrderStatus; label: string }[] = [
   { status: 'completed', label: 'Completed (payment released)' },
 ];
 
-const ESCROW_KIND = {
-  held: 'pending',
-  released: 'verified',
-  refunded: 'neutral',
-} as const;
-
 type Dialog = 'release' | 'refund' | null;
 
 export default function AdminOrderDetailPage({
@@ -47,21 +43,22 @@ export default function AdminOrderDetailPage({
 
   const [detail, setDetail] = useState<AdminOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    setError(null);
+    setLoadError(null);
     ordersService
       .getById(id)
       .then((d) => {
         if (!cancelled) setDetail(d);
       })
       .catch((err) => {
-        if (!cancelled) setError(errorMessage(err, 'Could not load order.'));
+        if (!cancelled) setLoadError(errorMessage(err, 'Could not load order.'));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -71,39 +68,19 @@ export default function AdminOrderDetailPage({
     };
   }, [id]);
 
-  const reload = async () => {
-    try {
-      setDetail(await ordersService.getById(id));
-    } catch (err) {
-      setError(errorMessage(err, 'Could not reload order.'));
-    }
-  };
-
-  const runRelease = async () => {
+  const run = async (
+    action: () => Promise<AdminOrderDetail>,
+    errMsg: string,
+  ) => {
     setBusy(true);
+    setActionError(null);
     try {
-      await ordersService.release(id);
-      await reload();
-      setDialog(null);
+      setDetail(await action());
     } catch (err) {
-      setError(errorMessage(err, 'Release failed.'));
-      setDialog(null);
+      setActionError(errorMessage(err, errMsg));
     } finally {
       setBusy(false);
-    }
-  };
-
-  const runRefund = async () => {
-    setBusy(true);
-    try {
-      await ordersService.refund(id);
-      await reload();
       setDialog(null);
-    } catch (err) {
-      setError(errorMessage(err, 'Refund failed.'));
-      setDialog(null);
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -115,7 +92,7 @@ export default function AdminOrderDetailPage({
     );
   }
 
-  if (error || !detail) {
+  if (loadError || !detail) {
     return (
       <div className="p-8">
         <button
@@ -125,7 +102,7 @@ export default function AdminOrderDetailPage({
           ← Back to orders
         </button>
         <div className="text-flagged text-[13px]">
-          {error ?? 'Order not found.'}
+          {loadError ?? 'Order not found.'}
         </div>
       </div>
     );
@@ -133,8 +110,7 @@ export default function AdminOrderDetailPage({
 
   const { order, payment } = detail;
   const isDisputed = order.status === 'disputed';
-  const canRelease = isDisputed && payment?.escrowStatus === 'held';
-  const canRefund = isDisputed && payment?.escrowStatus === 'held';
+  const canResolve = isDisputed && payment?.escrowStatus === 'held';
 
   const reachedIndex = STEPS.findIndex((s) => s.status === order.status);
   const isCancelledOrDisputed =
@@ -160,21 +136,23 @@ export default function AdminOrderDetailPage({
           </h1>
           <div className="text-[13px] text-muted mt-1 font-mono">{order.id}</div>
         </div>
-        {(canRelease || canRefund) && (
+        {canResolve && (
           <div className="flex gap-2">
-            {canRefund && (
-              <Button kind="danger" onClick={() => setDialog('refund')}>
-                Refund buyer
-              </Button>
-            )}
-            {canRelease && (
-              <Button onClick={() => setDialog('release')}>
-                Release to seller →
-              </Button>
-            )}
+            <Button kind="danger" onClick={() => setDialog('refund')}>
+              Refund buyer
+            </Button>
+            <Button onClick={() => setDialog('release')}>
+              Release to seller →
+            </Button>
           </div>
         )}
       </div>
+
+      {actionError && (
+        <div className="mb-5 px-4 py-3 bg-[#F8E5E5] border border-[#EBC0C0] rounded-md text-[13px] text-[#8A2828]">
+          {actionError}
+        </div>
+      )}
 
       {isDisputed && (
         <div className="mb-5 px-4 py-3 bg-[#F8E5E5] border border-[#EBC0C0] rounded-md">
@@ -191,10 +169,8 @@ export default function AdminOrderDetailPage({
           <Card kicker="● TIMELINE" title="Order progression">
             <ol className="list-none m-0 p-0 flex flex-col gap-3">
               {STEPS.map((s, i) => {
-                const done =
-                  !isCancelledOrDisputed && i < reachedIndex;
-                const current =
-                  !isCancelledOrDisputed && i === reachedIndex;
+                const done = !isCancelledOrDisputed && i < reachedIndex;
+                const current = !isCancelledOrDisputed && i === reachedIndex;
                 return (
                   <li
                     key={s.status}
@@ -276,9 +252,8 @@ export default function AdminOrderDetailPage({
             {payment ? (
               <>
                 <div className="flex items-center justify-between">
-                  <Badge kind={ESCROW_KIND[payment.escrowStatus]}>
-                    {payment.escrowStatus[0].toUpperCase() +
-                      payment.escrowStatus.slice(1)}
+                  <Badge kind={escrowStatusKind(payment.escrowStatus)}>
+                    {escrowStatusLabel(payment.escrowStatus)}
                   </Badge>
                   <span className="font-mono text-[11px] text-muted uppercase">
                     {payment.method}
@@ -363,7 +338,9 @@ export default function AdminOrderDetailPage({
         confirmLabel="Release to seller"
         busy={busy}
         onClose={() => setDialog(null)}
-        onConfirm={() => runRelease()}
+        onConfirm={() =>
+          run(() => ordersService.release(id), 'Release failed.')
+        }
       />
 
       <ConfirmDialog
@@ -374,7 +351,9 @@ export default function AdminOrderDetailPage({
         danger
         busy={busy}
         onClose={() => setDialog(null)}
-        onConfirm={() => runRefund()}
+        onConfirm={() =>
+          run(() => ordersService.refund(id), 'Refund failed.')
+        }
       />
     </div>
   );

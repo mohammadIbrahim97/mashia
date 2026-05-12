@@ -58,6 +58,23 @@ const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
 export const orderStatusKind = (s: OrderStatus) => ORDER_STATUS_KIND[s];
 export const orderStatusLabel = (s: OrderStatus) => ORDER_STATUS_LABEL[s];
 
+export type EscrowStatus = 'held' | 'released' | 'refunded';
+
+const ESCROW_STATUS_KIND: Record<EscrowStatus, BadgeKind> = {
+  held: 'pending',
+  released: 'verified',
+  refunded: 'neutral',
+};
+
+const ESCROW_STATUS_LABEL: Record<EscrowStatus, string> = {
+  held: 'Held',
+  released: 'Released',
+  refunded: 'Refunded',
+};
+
+export const escrowStatusKind = (s: EscrowStatus) => ESCROW_STATUS_KIND[s];
+export const escrowStatusLabel = (s: EscrowStatus) => ESCROW_STATUS_LABEL[s];
+
 export function fmtMoney(amount: number, currency: string): string {
   const formatted = new Intl.NumberFormat(undefined, {
     minimumFractionDigits: 0,
