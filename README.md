@@ -92,7 +92,7 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 - [x] `ListingDetailScreen` — "View certificate" if linked or "Upload certificate" for owner if missing (#145)
 - [x] Wired into HomeStack and ProfileStack with composite navigation typing
 
-### Admin Dashboard — Foundation + Certificates Section Live
+### Admin Dashboard — Core Sections Implemented
 
 **Foundation** (Goal 3, merged to develop)
 - [x] Next.js 14 App Router scaffold under `admin/`, dev on port 3001
@@ -110,7 +110,7 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 - [x] Admin frontend: `/certificates/[id]` detail with image preview, metadata, linked listing/seller card, Approve / Reject buttons; rejection-reason banner; existing `PATCH /certificates/:id/verify` wired to the buttons
 - [x] `ConfirmDialog` modal with optional required-reason textarea (will be reused for suspend / refund / flag in upcoming sections)
 
-**Other sections still placeholder:** `/users`, `/listings`, `/orders`, `/payments`
+**Admin sections now live:** `/users`, `/listings`, `/orders`, `/payments`, `/certificates`
 
 ---
 
@@ -118,34 +118,32 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 
 Payment gateway #132 is the only outstanding item from Phases D–E. Deferred until beta.
 
-### Admin Dashboard — Four sections still to wire
+### Admin Dashboard — Follow-up work after section implementation
 
-Certificates is live (see *What's Done*). The remaining four placeholder pages need real content + matching backend endpoints.
+Core sections are now wired end-to-end. Remaining work is mostly hardening, analytics, and production readiness.
 
-**1. Backend admin endpoints — 1 of ~12 done**
+**1. Backend admin endpoints — shipped set**
 
 | # | Endpoint | Purpose | G3 | Status |
 |---|---|---|---|---|
-| 1 | `GET /admin/dashboard` | KPI aggregates (counts + revenue) | US02 | — |
-| 2 | `GET /admin/users` | List + filter (role, kyc status, search) | US03 | — |
-| 3 | `GET /admin/users/:id` | Profile + KYC docs (presigned URLs) | US03 | — |
-| 4 | `PATCH /admin/users/:id/kyc` | Approve / reject with reason | US03 | — |
-| 5 | `PATCH /admin/users/:id/suspend` + `/unsuspend` | Suspend bad actors | US03 | — |
-| 6 | `GET /admin/listings` | Index across all statuses incl. flagged | US04 | — |
-| 7 | `PATCH /admin/listings/:id/flag` | Set FLAGGED status (enum exists, no endpoint) | US04 | — |
-| 8 | `DELETE /admin/listings/:id` | Force-remove | US04 | — |
+| 1 | `GET /admin/dashboard` | KPI aggregates (counts + revenue) | US02 | ✅ shipped |
+| 2 | `GET /admin/users` | List + filter (role, kyc status, search) | US03 | ✅ shipped |
+| 3 | `GET /admin/users/:id` | Profile + KYC docs (presigned URLs) | US03 | ✅ shipped |
+| 4 | `PATCH /admin/users/:id/kyc` | Approve / reject with reason | US03 | ✅ shipped |
+| 5 | `PATCH /admin/users/:id/suspend` + `/unsuspend` | Suspend bad actors | US03 | ✅ shipped |
+| 6 | `GET /admin/listings` | Index across all statuses incl. flagged | US04 | ✅ shipped |
+| 7 | `PATCH /admin/listings/:id/flag` | Set FLAGGED status (moderation action) | US04 | ✅ shipped |
+| 8 | `DELETE /admin/listings/:id` | Force-remove | US04 | ✅ shipped |
 | 9 | `GET /admin/certificates` | Pending-default queue with filters | US05 | ✅ **shipped (PR #266)** |
-| 10 | `GET /admin/orders` | Index of all orders (today's `GET /orders` is user-scoped) | US06 | — |
-| 11 | `POST /admin/payments/:id/release` | Force-release in dispute resolution | US06 | — |
-| 12 | `GET /admin/payments` + `GET /admin/revenue` | Payment ledger + commission summary | US07 | — |
+| 10 | `GET /admin/orders` | Index of all orders (today's `GET /orders` is user-scoped) | US06 | ✅ shipped |
+| 11 | `POST /admin/payments/:id/release` | Force-release in dispute resolution | US06 | ✅ shipped |
+| 12 | `GET /admin/payments` + `GET /admin/revenue` | Payment ledger + commission summary | US07 | ✅ shipped |
 
 Plus a migration: `users.suspended` boolean, `users.kyc_rejection_reason`, `users.kyc_reviewed_at`, `users.kyc_reviewed_by_id`.
 
-**2. Admin frontend — wire the remaining four sections**
+**2. Admin frontend — shipped**
 
-Suggested order, by operational value: **Users + KYC review** (unblocks the 23 pending KYC submissions) → **Orders** (dispute resolution) → **Listings** (moderation) → **Payments** (revenue ledger).
-
-Each section reuses the foundation's atoms. Detail pages should mirror the `screens-detail.jsx` layout from the polished design bundle (re-fetch from Claude Design when needed; the prototype JSX is the source of truth for visuals).
+Users/KYC, Listings moderation, Orders/Disputes, and Payments/Revenue pages are implemented. Continue iterating UX polish and data quality as operational feedback arrives.
 
 **3. Loose ends on the foundation itself**
 - [ ] Settings page with TOTP enable UI (`/auth/admin/totp/setup` + `/enable` exist already, no caller)

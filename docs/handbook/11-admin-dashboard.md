@@ -2,7 +2,7 @@
 
 The admin dashboard is a separate Next.js 14 web app under `admin/`. It runs on port **3001** in development, talks to the same backend at `:3000/api/v1`, and shares the same JWT pair as the mobile app (but stored in cookies, not Keychain).
 
-It is the operational nerve centre: KYC review, listing moderation, dispute resolution, certificate verification, and revenue ledger. The foundation (login + sidebar + dashboard) plus the **Certificates** section are shipped; the other four sections (Users, Listings, Orders, Payments) exist as placeholder pages and need backend endpoints plus frontend wiring.
+It is the operational nerve centre: KYC review, listing moderation, dispute resolution, certificate verification, and revenue ledger. All core sections are implemented: Users/KYC, Listings moderation, Certificates, Orders/Disputes, and Payments/Revenue.
 
 ## Stack
 
@@ -28,10 +28,10 @@ admin/
 │   └── (admin)/                    ← route group with shared layout
 │       ├── layout.tsx              ← <Sidebar/> + <main>
 │       ├── dashboard/page.tsx      ← G3-US02 (KPIs, queues, sparkline — mock data)
-│       ├── users/{page.tsx,[id]/page.tsx}        ← placeholder
-│       ├── listings/page.tsx                     ← placeholder
-│       ├── orders/page.tsx                       ← placeholder
-│       ├── payments/page.tsx                     ← placeholder
+│       ├── users/{page.tsx,[id]/page.tsx}        ← live
+│       ├── listings/{page.tsx,[id]/page.tsx}     ← live
+│       ├── orders/{page.tsx,[id]/page.tsx}       ← live
+│       ├── payments/page.tsx                     ← live
 │       └── certificates/{page.tsx,[id]/page.tsx} ← live (PR #266)
 ├── src/components/
 │   ├── layout/{Sidebar,Header,Breadcrumbs}.tsx
@@ -150,26 +150,26 @@ Two pages: the list and the detail.
 
 This is the prototype for every other moderation section — copy the structure when you build Users-KYC review and Listings-flag.
 
-## What's still to build (per root README)
+## API coverage status
 
-Twelve admin endpoints — only one shipped:
+Admin endpoint set (implemented):
 
 | # | Endpoint | Purpose | Status |
 |---|---|---|---|
-| 1 | `GET /admin/dashboard` | KPI aggregates | TODO |
+| 1 | `GET /admin/dashboard` | KPI aggregates | shipped |
 | 2 | `GET /admin/users` | List + filter | **shipped (service ready, controller wired)** |
 | 3 | `GET /admin/users/:id` | Profile + KYC docs | shipped |
 | 4 | `PATCH /admin/users/:id/kyc` | Approve / reject | shipped |
 | 5 | `PATCH /admin/users/:id/suspend` / `/unsuspend` | Suspend | shipped |
-| 6 | `GET /admin/listings` | Index incl. flagged | TODO |
-| 7 | `PATCH /admin/listings/:id/flag` | Set FLAGGED | TODO |
-| 8 | `DELETE /admin/listings/:id` | Force-remove | TODO |
+| 6 | `GET /admin/listings` | Index incl. flagged | shipped |
+| 7 | `PATCH /admin/listings/:id/flag` | Set FLAGGED | shipped |
+| 8 | `DELETE /admin/listings/:id` | Force-remove | shipped |
 | 9 | `GET /admin/certificates` | Queue with filters | **shipped** |
-| 10 | `GET /admin/orders` | Index across users | TODO |
-| 11 | `POST /admin/payments/:id/release` | Force-release for disputes | TODO |
-| 12 | `GET /admin/payments` + `GET /admin/revenue` | Ledger + commissions | TODO |
+| 10 | `GET /admin/orders` | Index across users | shipped |
+| 11 | `POST /admin/payments/:id/release` | Force-release for disputes | shipped |
+| 12 | `GET /admin/payments` + `GET /admin/revenue` | Ledger + commissions | shipped |
 
-The user-facing endpoints (#2–#5) exist on the backend but **the admin frontend Users section is still a placeholder**. The next high-value piece of work is wiring those endpoints to a Users list + detail mirroring the Certificates section, so admins can clear the KYC queue from the UI instead of via curl.
+Frontend sections consuming these endpoints are now live. Next work focuses on hardening and production-readiness (auth cookie model, throttling, audit logs, and live KPI quality).
 
 ## Component patterns to follow
 
