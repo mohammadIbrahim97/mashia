@@ -22,3 +22,46 @@ export function fmtDate(date: string | null | undefined): string {
     day: 'numeric',
   });
 }
+
+export type OrderStatus =
+  | 'pending'
+  | 'accepted'
+  | 'paid'
+  | 'in_transit'
+  | 'delivered'
+  | 'completed'
+  | 'disputed'
+  | 'cancelled';
+
+const ORDER_STATUS_KIND: Record<OrderStatus, BadgeKind> = {
+  pending: 'pending',
+  accepted: 'info',
+  paid: 'info',
+  in_transit: 'info',
+  delivered: 'info',
+  completed: 'verified',
+  disputed: 'flagged',
+  cancelled: 'neutral',
+};
+
+const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
+  pending: 'Pending',
+  accepted: 'Accepted',
+  paid: 'Paid',
+  in_transit: 'In transit',
+  delivered: 'Delivered',
+  completed: 'Completed',
+  disputed: 'Disputed',
+  cancelled: 'Cancelled',
+};
+
+export const orderStatusKind = (s: OrderStatus) => ORDER_STATUS_KIND[s];
+export const orderStatusLabel = (s: OrderStatus) => ORDER_STATUS_LABEL[s];
+
+export function fmtMoney(amount: number, currency: string): string {
+  const formatted = new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+  return `${currency} ${formatted}`;
+}

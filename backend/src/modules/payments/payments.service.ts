@@ -121,6 +121,29 @@ export class PaymentsService {
     return this._doRelease(payment, order.sellerId);
   }
 
+  async forceReleaseByAdmin(paymentId: string): Promise<Payment> {
+    const payment = await this.paymentsRepository.findOne({
+      where: { id: paymentId },
+    });
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+    if (payment.escrowStatus !== EscrowStatus.HELD) {
+      throw new BadRequestException(
+        `Payment must be HELD to force-release (current: ${payment.escrowStatus})`,
+      );
+    }
+    const order = await this.ordersRepository.findOne({
+      where: { id: payment.orderId },
+    });
+    if (!order || order.status !== OrderStatus.DISPUTED) {
+      throw new BadRequestException(
+        `Order must be DISPUTED to force-release (current: ${order?.status ?? 'missing'})`,
+      );
+    }
+    return this._doRelease(payment, order.sellerId);
+  }
+
   async refund(paymentId: string): Promise<Payment> {
     const payment = await this.paymentsRepository.findOne({
       where: { id: paymentId },
@@ -258,6 +281,10 @@ export class PaymentsService {
       throw new NotFoundException('Payment not found');
     }
     return payment;
+  }
+
+  async findByOrderForAdmin(orderId: string): Promise<Payment | null> {
+    return this.paymentsRepository.findOne({ where: { orderId } });
   }
 
   async findByOrder(userId: string, orderId: string): Promise<Payment> {
