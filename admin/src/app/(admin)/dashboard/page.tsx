@@ -1,270 +1,153 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Overline } from '@/components/ui/Overline';
-import { Badge, BadgeKind } from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { KpiCard } from '@/components/ui/KpiCard';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { adminService, DashboardActivityItem, DashboardKpis } from '@/services/admin.service';
+import { errorMessage } from '@/services/api';
 
-type Activity = {
-  t: string;
-  tag: string;
-  text: React.ReactNode;
-  kind: BadgeKind;
-  href?: string;
-};
-
-const ACTIVITY: Activity[] = [
-  {
-    t: '14:02',
-    tag: 'DISPUTE',
-    text: (
-      <>
-        Buyer <b>#34</b> disputed order <b>ORD-2K7M-9F</b>
-      </>
-    ),
-    kind: 'flagged',
-    href: '/orders',
-  },
-  {
-    t: '13:55',
-    tag: 'CERT',
-    text: (
-      <>
-        Seller <b>#12</b> uploaded health certificate (pending)
-      </>
-    ),
-    kind: 'pending',
-    href: '/certificates',
-  },
-  {
-    t: '13:40',
-    tag: 'KYC',
-    text: (
-      <>
-        KYC submitted by <b>+966 50 ••• 4221</b>
-      </>
-    ),
-    kind: 'pending',
-    href: '/users',
-  },
-  {
-    t: '13:18',
-    tag: 'ORDER',
-    text: (
-      <>
-        Escrow released — <b>ORD-2K7L-3A</b> · 8,800 USD
-      </>
-    ),
-    kind: 'verified',
-  },
-  {
-    t: '12:44',
-    tag: 'LISTING',
-    text: (
-      <>
-        Auto-flag · <b>SHP-DM-018</b> · vet cert expired
-      </>
-    ),
-    kind: 'flagged',
-    href: '/listings',
-  },
-  {
-    t: '12:02',
-    tag: 'KYC',
-    text: <>Approved · Tarek Haddad · Damascus</>,
-    kind: 'verified',
-  },
-  {
-    t: '11:30',
-    tag: 'PAYMENT',
-    text: (
-      <>
-        Refund issued · 4,200 AED · ORD-2K7H-2D
-      </>
-    ),
-    kind: 'info',
-  },
-];
-
-const QUEUES: { label: string; count: number; tone: 'warn' | 'danger'; href: string }[] = [
-  { label: 'KYC review', count: 23, tone: 'warn', href: '/users' },
-  { label: 'Vet certs', count: 7, tone: 'warn', href: '/certificates' },
-  { label: 'Flagged listings', count: 4, tone: 'danger', href: '/listings' },
-  { label: 'Disputed orders', count: 2, tone: 'danger', href: '/orders' },
-];
+function formatTime(ts: string): string {
+  const dt = new Date(ts);
+  return Number.isNaN(dt.getTime())
+    ? '—'
+    : new Intl.DateTimeFormat(undefined, {
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(dt);
+}
 
 export default function DashboardPage() {
+  const [kpis, setKpis] = useState<DashboardKpis | null>(null);
+  const [activity, setActivity] = useState<DashboardActivityItem[]>([]);
+  const [loadingKpis, setLoadingKpis] = useState(true);
+  const [loadingActivity, setLoadingActivity] = useState(true);
+  const [kpisError, setKpisError] = useState<string | null>(null);
+  const [activityError, setActivityError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const load = async () => {
+      try {
+        setLoadingKpis(true);
+        setKpisError(null);
+        const data = await adminService.getDashboard();
+        if (!mounted) return;
+        setKpis(data.kpis);
+        setActivity(data.activity ?? []);
+      } catch (err) {
+        if (!mounted) return;
+        setKpisError(errorMessage(err, 'Could not load dashboard KPIs.'));
+      } finally {
+        if (mounted) setLoadingKpis(false);
+      }
+
+      try {
+        setLoadingActivity(true);
+        setActivityError(null);
+        const recent = await adminService.getRecentActivity(10);
+        if (!mounted) return;
+        setActivity(recent);
+      } catch (err) {
+        if (!mounted) return;
+        setActivityError(errorMessage(err, 'Could not load recent activity.'));
+      } finally {
+        if (mounted) setLoadingActivity(false);
+      }
+    };
+
+    void load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const runtimeStamp = useMemo(
+    () =>
+      new Intl.DateTimeFormat(undefined, {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZoneName: 'short',
+      }).format(new Date()),
+    [],
+  );
+
   return (
     <div className="p-8">
-      {/* Header */}
       <div className="flex justify-between items-baseline mb-5">
         <div>
           <Overline>● OVERVIEW · LIVE</Overline>
-          <h1 className="font-display text-[28px] font-medium tracking-tight mt-1 text-ink">
-            Mashia at a glance
-          </h1>
-          <div className="text-[13px] text-muted mt-1">
-            Auto-refreshes every 60 s · me-south-1 · Wed 10 May 2026, 14:02 AST
-          </div>
+          <h1 className="font-display text-[28px] font-medium tracking-tight mt-1 text-ink">Mashia at a glance</h1>
+          <div className="text-[13px] text-muted mt-1">Auto-refreshes every 60 s · runtime locale · {runtimeStamp}</div>
         </div>
         <div className="flex gap-2">
-          <Button kind="secondary" size="sm">
-            Export report
-          </Button>
+          <Button kind="secondary" size="sm">Export report</Button>
           <Button size="sm">Custom range</Button>
         </div>
       </div>
 
-      {/* 4-up accent KPIs */}
       <div className="grid grid-cols-4 gap-3.5 mb-3.5">
-        <KpiCard label="Total users" value="1,247" hint="+38 this week" tone="accent" />
-        <KpiCard
-          label="Active listings"
-          value="384"
-          hint="of 1,284 lifetime"
-          tone="accent"
-        />
-        <KpiCard
-          label="Active orders"
-          value="92"
-          hint="142 in escrow"
-          tone="accent"
-        />
-        <KpiCard
-          label="Revenue · MTD"
-          value="12,840"
-          unit="SAR"
-          hint="commission held"
-          tone="accent"
-        />
+        <KpiCard label="Total users" value={loadingKpis ? '—' : (kpis?.totalUsers ?? 0).toLocaleString()} hint={loadingKpis ? 'Loading…' : undefined} tone="accent" />
+        <KpiCard label="Active listings" value={loadingKpis ? '—' : (kpis?.activeListings ?? 0).toLocaleString()} hint={loadingKpis ? 'Loading…' : undefined} tone="accent" />
+        <KpiCard label="Active orders" value={loadingKpis ? '—' : (kpis?.activeOrders ?? 0).toLocaleString()} hint={loadingKpis ? 'Loading…' : undefined} tone="accent" />
+        <KpiCard label="Revenue · MTD" value={loadingKpis ? '—' : (kpis?.revenueMtd ?? 0).toLocaleString()} unit={kpis?.revenueCurrency ?? 'SAR'} hint={loadingKpis ? 'Loading…' : 'commission held'} tone="accent" />
       </div>
 
-      {/* 4-up attention KPIs */}
       <div className="grid grid-cols-4 gap-3.5 mb-6">
-        <Link href="/users" className="contents">
-          <KpiCard
-            label="KYC pending"
-            value="23"
-            hint="oldest: 3d ago"
-            tone="warn"
-            onClick={() => {}}
-          />
-        </Link>
-        <Link href="/certificates" className="contents">
-          <KpiCard
-            label="Certs pending"
-            value="7"
-            hint="oldest: 2d ago"
-            tone="warn"
-            onClick={() => {}}
-          />
-        </Link>
-        <Link href="/orders" className="contents">
-          <KpiCard
-            label="Open disputes"
-            value="2"
-            hint="needs admin action"
-            tone="danger"
-            onClick={() => {}}
-          />
-        </Link>
-        <KpiCard
-          label="Avg. release"
-          value="5.4"
-          unit="DAYS"
-          hint="auto at 7d"
-          tone="neutral"
-        />
+        <Link href="/users" className="contents"><KpiCard label="KYC pending" value={loadingKpis ? '—' : kpis?.usersPendingKyc ?? 0} hint={kpisError ?? undefined} tone="warn" onClick={() => {}} /></Link>
+        <Link href="/certificates" className="contents"><KpiCard label="Certs pending" value={loadingKpis ? '—' : kpis?.certsPending ?? 0} hint={kpisError ?? undefined} tone="warn" onClick={() => {}} /></Link>
+        <Link href="/orders" className="contents"><KpiCard label="Open disputes" value={loadingKpis ? '—' : kpis?.disputedOrders ?? 0} hint={kpisError ?? undefined} tone="danger" onClick={() => {}} /></Link>
+        <KpiCard label="Avg. release" value={loadingKpis ? '—' : kpis?.avgReleaseDays ?? 0} unit="DAYS" hint={kpisError ?? undefined} tone="neutral" />
       </div>
 
       <div className="grid grid-cols-[1.6fr_1fr] gap-4">
-        {/* Recent activity */}
-        <Card
-          kicker="● RECENT ACTIVITY"
-          title="Last 24 hours"
-          action={
-            <Button kind="ghost" size="sm">
-              Open audit log →
-            </Button>
-          }
-          padding={0}
-        >
-          {ACTIVITY.map((r, i) => {
+        <Card kicker="● RECENT ACTIVITY" title="Last 24 hours" action={<Button kind="ghost" size="sm">Open audit log →</Button>} padding={0}>
+          {loadingActivity && <div className="px-5 py-4"><LoadingState label="Loading activity…" /></div>}
+          {!loadingActivity && activityError && <div className="px-5 py-4 text-sm text-flagged">{activityError}</div>}
+          {!loadingActivity && !activityError && activity.length === 0 && <div className="px-5 py-4 text-sm text-muted">No recent activity.</div>}
+          {!loadingActivity && !activityError && activity.map((r, i) => {
             const inner = (
-              <div
-                className={`grid grid-cols-[64px_90px_1fr_auto] gap-x-4 px-5 py-3 items-center text-[13px] ${
-                  i ? 'border-t border-hairline' : ''
-                } ${r.href ? 'cursor-pointer hover:bg-parchment' : ''}`}
-              >
-                <div className="font-mono text-[11px] text-muted">{r.t}</div>
-                <div>
-                  <Badge kind={r.kind}>{r.tag}</Badge>
-                </div>
+              <div className={`grid grid-cols-[64px_90px_1fr_auto] gap-x-4 px-5 py-3 items-center text-[13px] ${i ? 'border-t border-hairline' : ''} ${r.href ? 'cursor-pointer hover:bg-parchment' : ''}`}>
+                <div className="font-mono text-[11px] text-muted">{formatTime(r.timestamp)}</div>
+                <div><Badge kind={r.kind}>{r.tag}</Badge></div>
                 <div>{r.text}</div>
                 {r.href && <span className="text-muted text-sm">→</span>}
               </div>
             );
-            return r.href ? (
-              <Link key={i} href={r.href} className="block">
-                {inner}
-              </Link>
-            ) : (
-              <div key={i}>{inner}</div>
-            );
+            return r.href ? <Link key={r.id} href={r.href} className="block">{inner}</Link> : <div key={r.id}>{inner}</div>;
           })}
         </Card>
 
-        {/* Right rail */}
         <div className="flex flex-col gap-4">
           <Card kicker="● ATTENTION QUEUES" title="What needs you" padding={0}>
-            {QUEUES.map((q, i) => (
-              <Link key={q.label} href={q.href} className="block">
-                <div
-                  className={`flex items-center justify-between px-5 py-3.5 cursor-pointer hover:bg-parchment ${
-                    i ? 'border-t border-hairline' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        q.tone === 'danger' ? 'bg-flagged' : 'bg-gold'
-                      }`}
-                    />
-                    <span className="text-[13px] font-medium text-ink">
-                      {q.label}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <span className="font-display text-[22px] font-medium text-ink">
-                      {q.count}
-                    </span>
-                    <span className="text-muted">→</span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </Card>
-
-          <Card
-            kicker="● COMMISSION · 30D"
-            title="91,420 SAR"
-            action={<Badge kind="verified">+12%</Badge>}
-          >
-            <svg viewBox="0 0 320 80" width="100%" height="80" preserveAspectRatio="none">
-              <path
-                d="M0,60 L20,52 L40,58 L60,46 L80,50 L100,38 L120,42 L140,30 L160,34 L180,22 L200,28 L220,18 L240,22 L260,12 L280,16 L300,8 L320,12"
-                fill="none"
-                stroke="#007339"
-                strokeWidth="1.5"
-              />
-            </svg>
-            <div className="flex justify-between font-mono text-[10px] text-muted mt-1">
-              <span>Apr 10</span>
-              <span>Apr 25</span>
-              <span>May 10</span>
-            </div>
+            {loadingKpis && <div className="px-5 py-4"><LoadingState label="Loading queues…" /></div>}
+            {!loadingKpis && kpisError && <div className="px-5 py-4 text-sm text-flagged">{kpisError}</div>}
+            {!loadingKpis && !kpisError && (
+              <>
+                {[
+                  { label: 'KYC review', count: kpis?.usersPendingKyc ?? 0, tone: 'warn', href: '/users' },
+                  { label: 'Vet certs', count: kpis?.certsPending ?? 0, tone: 'warn', href: '/certificates' },
+                  { label: 'Flagged listings', count: kpis?.flaggedListings ?? 0, tone: 'danger', href: '/listings' },
+                  { label: 'Disputed orders', count: kpis?.disputedOrders ?? 0, tone: 'danger', href: '/orders' },
+                ].map((q, i) => (
+                  <Link key={q.label} href={q.href} className="block">
+                    <div className={`flex items-center justify-between px-5 py-3.5 cursor-pointer hover:bg-parchment ${i ? 'border-t border-hairline' : ''}`}>
+                      <div className="flex items-center gap-2.5"><span className={`w-1.5 h-1.5 rounded-full ${q.tone === 'danger' ? 'bg-flagged' : 'bg-gold'}`} /><span className="text-[13px] font-medium text-ink">{q.label}</span></div>
+                      <div className="flex items-center gap-2.5"><span className="font-display text-[22px] font-medium text-ink">{q.count}</span><span className="text-muted">→</span></div>
+                    </div>
+                  </Link>
+                ))}
+              </>
+            )}
           </Card>
         </div>
       </div>
