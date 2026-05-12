@@ -2,18 +2,24 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AdminController } from './admin.controller';
 import { CertificatesService } from '../certificates/certificates.service';
 import { UsersService } from '../users/users.service';
+import { OrdersService } from '../orders/orders.service';
+import { PaymentsService } from '../payments/payments.service';
 import {
   CertificateStatus,
   CertificateType,
   KycStatus,
+  OrderStatus,
   UserRole,
 } from '@shared/enums';
 import { User } from '../users/user.entity';
+import { Payment } from '../payments/payment.entity';
 
 describe('AdminController', () => {
   let controller: AdminController;
   let certificatesService: jest.Mocked<CertificatesService>;
   let usersService: jest.Mocked<UsersService>;
+  let ordersService: jest.Mocked<OrdersService>;
+  let paymentsService: jest.Mocked<PaymentsService>;
 
   const adminUser = { id: 'admin-1', role: UserRole.ADMIN } as User;
 
@@ -29,11 +35,24 @@ describe('AdminController', () => {
       setSuspended: jest.fn(),
     } as unknown as jest.Mocked<UsersService>;
 
+    ordersService = {
+      findForAdmin: jest.fn(),
+      findOneForAdmin: jest.fn(),
+    } as unknown as jest.Mocked<OrdersService>;
+
+    paymentsService = {
+      findByOrderForAdmin: jest.fn(),
+      forceReleaseByOrder: jest.fn(),
+      refundByOrder: jest.fn(),
+    } as unknown as jest.Mocked<PaymentsService>;
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AdminController],
       providers: [
         { provide: CertificatesService, useValue: certificatesService },
         { provide: UsersService, useValue: usersService },
+        { provide: OrdersService, useValue: ordersService },
+        { provide: PaymentsService, useValue: paymentsService },
       ],
     }).compile();
 
@@ -174,6 +193,71 @@ describe('AdminController', () => {
       await controller.unsuspend('user-1');
 
       expect(usersService.setSuspended).toHaveBeenCalledWith('user-1', false);
+    });
+  });
+
+  describe('listOrders', () => {
+    it('delegates to ordersService.findForAdmin with the query', async () => {
+      const stubResult = {
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
+        totalPages: 0,
+      };
+      ordersService.findForAdmin.mockResolvedValue(stubResult);
+
+      const result = await controller.listOrders({
+        status: [OrderStatus.DISPUTED],
+      });
+
+      expect(ordersService.findForAdmin).toHaveBeenCalledWith({
+        status: [OrderStatus.DISPUTED],
+      });
+      expect(result).toBe(stubResult);
+    });
+  });
+
+  describe('getOrder', () => {
+    it('returns order + linked payment (or null) and parallelizes both lookups', async () => {
+      const order = { id: 'order-1' } as never;
+      const payment = { id: 'pay-1' } as Payment;
+      ordersService.findOneForAdmin.mockResolvedValue(order);
+      paymentsService.findByOrderForAdmin.mockResolvedValue(payment);
+
+      const result = await controller.getOrder('order-1');
+
+      expect(result).toEqual({ order, payment });
+    });
+  });
+
+  describe('forceRelease', () => {
+    it('delegates to forceReleaseByOrder and returns refreshed order + payment', async () => {
+      const order = { id: 'order-1' } as never;
+      const payment = { id: 'pay-1' } as Payment;
+      paymentsService.forceReleaseByOrder.mockResolvedValue(payment);
+      ordersService.findOneForAdmin.mockResolvedValue(order);
+
+      const result = await controller.forceRelease('order-1');
+
+      expect(paymentsService.forceReleaseByOrder).toHaveBeenCalledWith(
+        'order-1',
+      );
+      expect(result).toEqual({ order, payment });
+    });
+  });
+
+  describe('refund', () => {
+    it('delegates to refundByOrder and returns refreshed order + payment', async () => {
+      const order = { id: 'order-1' } as never;
+      const payment = { id: 'pay-1' } as Payment;
+      paymentsService.refundByOrder.mockResolvedValue(payment);
+      ordersService.findOneForAdmin.mockResolvedValue(order);
+
+      const result = await controller.refund('order-1');
+
+      expect(paymentsService.refundByOrder).toHaveBeenCalledWith('order-1');
+      expect(result).toEqual({ order, payment });
     });
   });
 });

@@ -813,5 +813,101 @@ describe('OrdersService', () => {
         service.transitionFromPayment('order-1', OrderStatus.PAID),
       ).rejects.toThrow(/Invalid payment-driven transition/);
     });
+
+    it('moves DISPUTED → COMPLETED (admin force-release in dispute)', async () => {
+      const order = {
+        id: 'order-1',
+        status: OrderStatus.DISPUTED,
+      } as Order;
+      orderRepo.findOne.mockResolvedValue(order);
+      orderRepo.save.mockImplementation(async (o) => o as Order);
+
+      const result = await service.transitionFromPayment(
+        'order-1',
+        OrderStatus.COMPLETED,
+      );
+
+      expect(result.status).toBe(OrderStatus.COMPLETED);
+    });
+  });
+
+  describe('findForAdmin', () => {
+    function makeQb(rows: Partial<Order>[], total: number) {
+      const qb = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn().mockResolvedValue([rows, total]),
+      };
+      orderRepo.createQueryBuilder.mockReturnValue(qb as never);
+      return qb;
+    }
+
+    it('returns paginated items with seller + buyer + listing flattened', async () => {
+      const row = {
+        id: 'order-1',
+        buyerId: 'buyer-1',
+        sellerId: 'seller-1',
+        listingId: 'listing-1',
+        quantity: 50,
+        totalPrice: 12000,
+        currency: 'SAR',
+        status: OrderStatus.DISPUTED,
+        createdAt: new Date(),
+        buyer: { fullName: 'Khalid' },
+        seller: { fullName: 'Tarek' },
+        listing: { title: 'Awassi flock' },
+      } as unknown as Order;
+      makeQb([row], 1);
+
+      const result = await service.findForAdmin({});
+
+      expect(result.items[0]).toMatchObject({
+        id: 'order-1',
+        buyerName: 'Khalid',
+        sellerName: 'Tarek',
+        listingTitle: 'Awassi flock',
+      });
+      expect(result.totalPages).toBe(1);
+    });
+
+    it('filters by status array', async () => {
+      const qb = makeQb([], 0);
+
+      await service.findForAdmin({ status: [OrderStatus.DISPUTED] });
+
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'order.status IN (:...statuses)',
+        { statuses: [OrderStatus.DISPUTED] },
+      );
+    });
+
+    it('caps pageSize at 100', async () => {
+      const qb = makeQb([], 0);
+
+      await service.findForAdmin({ pageSize: 500 });
+
+      expect(qb.take).toHaveBeenCalledWith(100);
+    });
+  });
+
+  describe('findOneForAdmin', () => {
+    it('returns order without party-membership check', async () => {
+      const order = { id: 'order-1' } as Order;
+      orderRepo.findOne.mockResolvedValue(order);
+
+      const result = await service.findOneForAdmin('order-1');
+
+      expect(result).toBe(order);
+    });
+
+    it('throws NotFoundException when missing', async () => {
+      orderRepo.findOne.mockResolvedValue(null);
+      await expect(service.findOneForAdmin('missing')).rejects.toThrow(
+        'Order not found',
+      );
+    });
   });
 });

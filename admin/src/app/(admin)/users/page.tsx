@@ -54,10 +54,22 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset to page 1 whenever any filter changes
+  const onTabClick = (t: Tab) => {
+    if (t === tab) return;
+    setTab(t);
+    setPage(1);
+  };
+
+  const onRoleChange = (r: Role | 'all') => {
+    if (r === role) return;
+    setRole(r);
+    setPage(1);
+  };
+
+  // Reset to page 1 when the debounced search query changes (typing settles).
   useEffect(() => {
     setPage(1);
-  }, [tab, role, debouncedQ]);
+  }, [debouncedQ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,7 +118,7 @@ export default function AdminUsersPage() {
           return (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => onTabClick(t.id)}
               className={`px-4 py-2.5 font-body text-[13px] -mb-px border-b-2 transition-colors ${
                 active
                   ? 'text-ink font-semibold border-mashia-600'
@@ -133,7 +145,7 @@ export default function AdminUsersPage() {
         />
         <select
           value={role}
-          onChange={(e) => setRole(e.target.value as Role | 'all')}
+          onChange={(e) => onRoleChange(e.target.value as Role | 'all')}
           className="px-3 py-2 bg-paper border border-hairline rounded-md font-body text-[13px] outline-none focus:border-mashia-600"
         >
           <option value="all">All roles</option>

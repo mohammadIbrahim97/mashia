@@ -5,6 +5,7 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -16,9 +17,12 @@ import { UserRole } from '@shared/enums';
 import { User } from '../users/user.entity';
 import { CertificatesService } from '../certificates/certificates.service';
 import { UsersService } from '../users/users.service';
+import { OrdersService } from '../orders/orders.service';
+import { PaymentsService } from '../payments/payments.service';
 import { AdminCertificatesQueryDto } from './dto/admin-certificates-query.dto';
 import { AdminUsersQueryDto } from './dto/admin-users-query.dto';
 import { AdminKycDecisionDto } from './dto/admin-kyc-decision.dto';
+import { AdminOrdersQueryDto } from './dto/admin-orders-query.dto';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -27,6 +31,8 @@ export class AdminController {
   constructor(
     private readonly certificatesService: CertificatesService,
     private readonly usersService: UsersService,
+    private readonly ordersService: OrdersService,
+    private readonly paymentsService: PaymentsService,
   ) {}
 
   // ----- Certificates -----
@@ -68,5 +74,35 @@ export class AdminController {
   @Patch('users/:id/unsuspend')
   async unsuspend(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.setSuspended(id, false);
+  }
+
+  // ----- Orders (G3-US06) -----
+
+  @Get('orders')
+  async listOrders(@Query() query: AdminOrdersQueryDto) {
+    return this.ordersService.findForAdmin(query);
+  }
+
+  @Get('orders/:id')
+  async getOrder(@Param('id', ParseUUIDPipe) id: string) {
+    const [order, payment] = await Promise.all([
+      this.ordersService.findOneForAdmin(id),
+      this.paymentsService.findByOrderForAdmin(id),
+    ]);
+    return { order, payment };
+  }
+
+  @Post('orders/:id/release')
+  async forceRelease(@Param('id', ParseUUIDPipe) id: string) {
+    const payment = await this.paymentsService.forceReleaseByOrder(id);
+    const order = await this.ordersService.findOneForAdmin(id);
+    return { order, payment };
+  }
+
+  @Post('orders/:id/refund')
+  async refund(@Param('id', ParseUUIDPipe) id: string) {
+    const payment = await this.paymentsService.refundByOrder(id);
+    const order = await this.ordersService.findOneForAdmin(id);
+    return { order, payment };
   }
 }

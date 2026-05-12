@@ -105,20 +105,30 @@ export class PaymentsService {
     if (!payment || payment.payerId !== userId) {
       throw new NotFoundException('Payment not found');
     }
-    if (payment.escrowStatus !== EscrowStatus.HELD) {
-      throw new BadRequestException(
-        `Payment must be HELD to release (current: ${payment.escrowStatus})`,
-      );
-    }
-    const order = await this.ordersRepository.findOne({
-      where: { id: payment.orderId },
-    });
-    if (!order || order.status !== OrderStatus.DELIVERED) {
-      throw new BadRequestException(
-        `Order must be DELIVERED to release payment (current: ${order?.status ?? 'missing'})`,
-      );
-    }
+    const order = await this.assertHeldAndOrderStatus(
+      payment,
+      OrderStatus.DELIVERED,
+      'release',
+    );
     return this._doRelease(payment, order.sellerId);
+  }
+
+  async forceReleaseByOrder(orderId: string): Promise<Payment> {
+    const { payment, order } = await this.loadHeldByOrder(
+      orderId,
+      OrderStatus.DISPUTED,
+      'force-release',
+    );
+    return this._doRelease(payment, order.sellerId);
+  }
+
+  async refundByOrder(orderId: string): Promise<Payment> {
+    const { payment } = await this.loadHeldByOrder(
+      orderId,
+      OrderStatus.DISPUTED,
+      'refund',
+    );
+    return this._doRefund(payment);
   }
 
   async refund(paymentId: string): Promise<Payment> {
@@ -128,20 +138,55 @@ export class PaymentsService {
     if (!payment) {
       throw new NotFoundException('Payment not found');
     }
+    await this.assertHeldAndOrderStatus(
+      payment,
+      OrderStatus.DISPUTED,
+      'refund',
+    );
+    return this._doRefund(payment);
+  }
+
+  private async loadHeldByOrder(
+    orderId: string,
+    requiredOrderStatus: OrderStatus,
+    action: string,
+  ): Promise<{ payment: Payment; order: Order }> {
+    const payment = await this.paymentsRepository.findOne({
+      where: { orderId },
+    });
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+    const order = await this.assertHeldAndOrderStatus(
+      payment,
+      requiredOrderStatus,
+      action,
+    );
+    return { payment, order };
+  }
+
+  private async assertHeldAndOrderStatus(
+    payment: Payment,
+    requiredOrderStatus: OrderStatus,
+    action: string,
+  ): Promise<Order> {
     if (payment.escrowStatus !== EscrowStatus.HELD) {
       throw new BadRequestException(
-        `Payment must be HELD to refund (current: ${payment.escrowStatus})`,
+        `Payment must be HELD to ${action} (current: ${payment.escrowStatus})`,
       );
     }
     const order = await this.ordersRepository.findOne({
       where: { id: payment.orderId },
     });
-    if (!order || order.status !== OrderStatus.DISPUTED) {
+    if (!order || order.status !== requiredOrderStatus) {
       throw new BadRequestException(
-        `Order must be DISPUTED to refund payment (current: ${order?.status ?? 'missing'})`,
+        `Order must be ${requiredOrderStatus} to ${action} (current: ${order?.status ?? 'missing'})`,
       );
     }
+    return order;
+  }
 
+  private async _doRefund(payment: Payment): Promise<Payment> {
     await this.escrow.refundFunds(payment.transactionRef);
     payment.escrowStatus = EscrowStatus.REFUNDED;
     payment.refundedAt = new Date();
@@ -258,6 +303,10 @@ export class PaymentsService {
       throw new NotFoundException('Payment not found');
     }
     return payment;
+  }
+
+  async findByOrderForAdmin(orderId: string): Promise<Payment | null> {
+    return this.paymentsRepository.findOne({ where: { orderId } });
   }
 
   async findByOrder(userId: string, orderId: string): Promise<Payment> {

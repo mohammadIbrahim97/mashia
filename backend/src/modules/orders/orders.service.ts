@@ -166,6 +166,7 @@ export class OrdersService {
     const allowed =
       (order.status === OrderStatus.ACCEPTED && target === OrderStatus.PAID) ||
       (order.status === OrderStatus.DELIVERED && target === OrderStatus.COMPLETED) ||
+      (order.status === OrderStatus.DISPUTED && target === OrderStatus.COMPLETED) ||
       (order.status === OrderStatus.DISPUTED && target === OrderStatus.CANCELLED);
 
     if (!allowed) {
@@ -244,5 +245,80 @@ export class OrdersService {
     }
 
     return OrderDetailResponse.fromOrder(order, userId);
+  }
+
+  // ----- Admin-only views -----
+
+  async findForAdmin(query: ListOrdersQueryDto): Promise<{
+    items: Array<{
+      id: string;
+      buyerId: string;
+      buyerName: string | null;
+      sellerId: string;
+      sellerName: string | null;
+      listingId: string | null;
+      listingTitle: string | null;
+      quantity: number;
+      totalPrice: number;
+      currency: string;
+      status: OrderStatus;
+      createdAt: Date;
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }> {
+    const page = query.page ?? 1;
+    const pageSize = Math.min(query.pageSize ?? 20, 100);
+
+    const qb = this.ordersRepository
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.listing', 'listing')
+      .leftJoinAndSelect('order.buyer', 'buyer')
+      .leftJoinAndSelect('order.seller', 'seller')
+      .orderBy('order.createdAt', 'DESC')
+      .skip((page - 1) * pageSize)
+      .take(pageSize);
+
+    if (query.status && query.status.length > 0) {
+      qb.andWhere('order.status IN (:...statuses)', {
+        statuses: query.status,
+      });
+    }
+
+    const [orders, total] = await qb.getManyAndCount();
+
+    return {
+      items: orders.map((o) => ({
+        id: o.id,
+        buyerId: o.buyerId,
+        buyerName: o.buyer?.fullName ?? null,
+        sellerId: o.sellerId,
+        sellerName: o.seller?.fullName ?? null,
+        listingId: o.listingId,
+        listingTitle: o.listing?.title ?? null,
+        quantity: o.quantity,
+        totalPrice: Number(o.totalPrice),
+        currency: o.currency,
+        status: o.status,
+        createdAt: o.createdAt,
+      })),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  async findOneForAdmin(orderId: string): Promise<Order> {
+    const order = await this.ordersRepository.findOne({
+      where: { id: orderId },
+      relations: ['listing', 'buyer', 'seller'],
+    });
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    return order;
   }
 }
