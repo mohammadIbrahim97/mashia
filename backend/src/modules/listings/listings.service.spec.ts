@@ -308,4 +308,175 @@ describe('ListingsService', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
+
+  describe('findForAdmin', () => {
+    function makeQb(rows: Partial<Listing>[], total: number) {
+      const qb = {
+        leftJoin: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        withDeleted: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn().mockResolvedValue([rows, total]),
+      };
+      repository.createQueryBuilder.mockReturnValue(qb as never);
+      return qb;
+    }
+
+    it('returns paginated items with seller name flattened', async () => {
+      const row = {
+        ...mockListing,
+        seller: { fullName: 'Yusuf Haddad' },
+        deletedAt: null,
+      } as unknown as Listing;
+      makeQb([row], 1);
+
+      const result = await service.findForAdmin({});
+
+      expect(result.items[0]).toMatchObject({
+        id: mockListing.id,
+        sellerName: 'Yusuf Haddad',
+      });
+      expect(result.total).toBe(1);
+    });
+
+    it('filters by status (skips when "all")', async () => {
+      const qb = makeQb([], 0);
+
+      await service.findForAdmin({ status: ListingStatus.FLAGGED });
+      expect(qb.andWhere).toHaveBeenCalledWith('listing.status = :status', {
+        status: ListingStatus.FLAGGED,
+      });
+
+      qb.andWhere.mockClear();
+      await service.findForAdmin({ status: 'all' });
+      expect(qb.andWhere).not.toHaveBeenCalledWith(
+        'listing.status = :status',
+        expect.anything(),
+      );
+    });
+
+    it('applies free-text search across title and seller name', async () => {
+      const qb = makeQb([], 0);
+      await service.findForAdmin({ q: 'Awassi' });
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        '(listing.title ILIKE :q OR seller.fullName ILIKE :q)',
+        { q: '%Awassi%' },
+      );
+    });
+
+    it('opts into soft-deleted rows when includeDeleted=true', async () => {
+      const qb = makeQb([], 0);
+      await service.findForAdmin({ includeDeleted: true });
+      expect(qb.withDeleted).toHaveBeenCalled();
+    });
+
+    it('caps pageSize at 100', async () => {
+      const qb = makeQb([], 0);
+      await service.findForAdmin({ pageSize: 500 });
+      expect(qb.take).toHaveBeenCalledWith(100);
+    });
+  });
+
+  describe('findByIdForAdmin', () => {
+    it('returns listing including soft-deleted rows', async () => {
+      const listing = { ...mockListing } as Listing;
+      repository.findOne.mockResolvedValue(listing);
+
+      const result = await service.findByIdForAdmin('listing-uuid-1');
+
+      expect(repository.findOne).toHaveBeenCalledWith({
+        where: { id: 'listing-uuid-1' },
+        relations: ['seller'],
+        withDeleted: true,
+      });
+      expect(result).toBe(listing);
+    });
+
+    it('throws NotFoundException when missing', async () => {
+      repository.findOne.mockResolvedValue(null);
+      await expect(service.findByIdForAdmin('missing')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('setFlag', () => {
+    it('flags an active listing', async () => {
+      repository.findOne.mockResolvedValue({
+        ...mockListing,
+        status: ListingStatus.ACTIVE,
+      } as Listing);
+      repository.save.mockImplementation(async (l) => l as Listing);
+
+      const result = await service.setFlag('listing-uuid-1', true);
+
+      expect(result.status).toBe(ListingStatus.FLAGGED);
+    });
+
+    it('refuses to flag a sold listing', async () => {
+      repository.findOne.mockResolvedValue({
+        ...mockListing,
+        status: ListingStatus.SOLD,
+      } as Listing);
+
+      await expect(
+        service.setFlag('listing-uuid-1', true),
+      ).rejects.toThrow(/Cannot flag a sold/);
+    });
+
+    it('unflags a flagged listing back to active', async () => {
+      repository.findOne.mockResolvedValue({
+        ...mockListing,
+        status: ListingStatus.FLAGGED,
+      } as Listing);
+      repository.save.mockImplementation(async (l) => l as Listing);
+
+      const result = await service.setFlag('listing-uuid-1', false);
+
+      expect(result.status).toBe(ListingStatus.ACTIVE);
+    });
+
+    it('refuses to unflag a non-flagged listing', async () => {
+      repository.findOne.mockResolvedValue({
+        ...mockListing,
+        status: ListingStatus.ACTIVE,
+      } as Listing);
+
+      await expect(
+        service.setFlag('listing-uuid-1', false),
+      ).rejects.toThrow(/not flagged/);
+    });
+
+    it('throws NotFoundException when listing missing', async () => {
+      repository.findOne.mockResolvedValue(null);
+      await expect(service.setFlag('missing', true)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('removeByAdmin', () => {
+    it('soft-deletes regardless of seller', async () => {
+      repository.findOne.mockResolvedValue({
+        ...mockListing,
+        sellerId: 'someone-else',
+      } as Listing);
+      repository.softDelete.mockResolvedValue({ affected: 1 } as never);
+
+      const result = await service.removeByAdmin('listing-uuid-1');
+
+      expect(repository.softDelete).toHaveBeenCalledWith('listing-uuid-1');
+      expect(result).toEqual({ message: 'Listing removed' });
+    });
+
+    it('throws NotFoundException when listing missing', async () => {
+      repository.findOne.mockResolvedValue(null);
+      await expect(service.removeByAdmin('missing')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
 });

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
   ForbiddenException,
@@ -9,7 +10,33 @@ import { Listing } from './listing.entity';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { SearchListingsDto } from './dto/search-listings.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
-import { ListingStatus, HealthStatus } from '@shared/enums';
+import { Breed, ListingStatus, HealthStatus } from '@shared/enums';
+
+export type AdminListingsQuery = {
+  status?: ListingStatus | 'all';
+  breed?: Breed;
+  q?: string;
+  includeDeleted?: boolean;
+  page?: number;
+  pageSize?: number;
+};
+
+export type AdminListingListItem = {
+  id: string;
+  title: string;
+  breed: Breed;
+  quantity: number;
+  pricePerHead: number;
+  currency: string;
+  originCountry: string;
+  originCity: string;
+  status: ListingStatus;
+  healthStatus: HealthStatus;
+  sellerId: string;
+  sellerName: string | null;
+  createdAt: Date;
+  deletedAt: Date | null;
+};
 
 @Injectable()
 export class ListingsService {
@@ -129,5 +156,97 @@ export class ListingsService {
     }
     await this.listingsRepository.softDelete(id);
     return { message: 'Listing deleted' };
+  }
+
+  // ----- Admin-only views and actions -----
+
+  async findForAdmin(query: AdminListingsQuery): Promise<{
+    items: AdminListingListItem[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    const page = query.page ?? 1;
+    const pageSize = Math.min(query.pageSize ?? 20, 100);
+
+    const qb = this.listingsRepository
+      .createQueryBuilder('listing')
+      .leftJoin('listing.seller', 'seller')
+      .addSelect(['seller.fullName'])
+      .orderBy('listing.createdAt', 'DESC')
+      .skip((page - 1) * pageSize)
+      .take(pageSize);
+
+    if (query.includeDeleted) {
+      qb.withDeleted();
+    }
+    if (query.status && query.status !== 'all') {
+      qb.andWhere('listing.status = :status', { status: query.status });
+    }
+    if (query.breed) {
+      qb.andWhere('listing.breed = :breed', { breed: query.breed });
+    }
+    if (query.q && query.q.trim()) {
+      qb.andWhere(
+        '(listing.title ILIKE :q OR seller.fullName ILIKE :q)',
+        { q: `%${query.q.trim()}%` },
+      );
+    }
+
+    const [rows, total] = await qb.getManyAndCount();
+
+    const items: AdminListingListItem[] = rows.map((l) => ({
+      id: l.id,
+      title: l.title,
+      breed: l.breed,
+      quantity: l.quantity,
+      pricePerHead: Number(l.pricePerHead),
+      currency: l.currency,
+      originCountry: l.originCountry,
+      originCity: l.originCity,
+      status: l.status,
+      healthStatus: l.healthStatus,
+      sellerId: l.sellerId,
+      sellerName: l.seller?.fullName ?? null,
+      createdAt: l.createdAt,
+      deletedAt: l.deletedAt,
+    }));
+    return { items, total, page, pageSize };
+  }
+
+  async findByIdForAdmin(id: string): Promise<Listing> {
+    const listing = await this.listingsRepository.findOne({
+      where: { id },
+      relations: ['seller'],
+      withDeleted: true,
+    });
+    if (!listing) throw new NotFoundException('Listing not found');
+    return listing;
+  }
+
+  async setFlag(id: string, flagged: boolean): Promise<Listing> {
+    const listing = await this.listingsRepository.findOne({ where: { id } });
+    if (!listing) throw new NotFoundException('Listing not found');
+    if (flagged) {
+      if (listing.status === ListingStatus.SOLD) {
+        throw new BadRequestException('Cannot flag a sold listing');
+      }
+      listing.status = ListingStatus.FLAGGED;
+    } else {
+      if (listing.status !== ListingStatus.FLAGGED) {
+        throw new BadRequestException(
+          `Listing is not flagged (current: ${listing.status})`,
+        );
+      }
+      listing.status = ListingStatus.ACTIVE;
+    }
+    return this.listingsRepository.save(listing);
+  }
+
+  async removeByAdmin(id: string): Promise<{ message: string }> {
+    const listing = await this.listingsRepository.findOne({ where: { id } });
+    if (!listing) throw new NotFoundException('Listing not found');
+    await this.listingsRepository.softDelete(id);
+    return { message: 'Listing removed' };
   }
 }

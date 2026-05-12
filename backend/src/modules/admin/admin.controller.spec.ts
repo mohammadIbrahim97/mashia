@@ -4,15 +4,18 @@ import { CertificatesService } from '../certificates/certificates.service';
 import { UsersService } from '../users/users.service';
 import { OrdersService } from '../orders/orders.service';
 import { PaymentsService } from '../payments/payments.service';
+import { ListingsService } from '../listings/listings.service';
 import {
   CertificateStatus,
   CertificateType,
   KycStatus,
+  ListingStatus,
   OrderStatus,
   UserRole,
 } from '@shared/enums';
 import { User } from '../users/user.entity';
 import { Payment } from '../payments/payment.entity';
+import { Listing } from '../listings/listing.entity';
 
 describe('AdminController', () => {
   let controller: AdminController;
@@ -20,6 +23,7 @@ describe('AdminController', () => {
   let usersService: jest.Mocked<UsersService>;
   let ordersService: jest.Mocked<OrdersService>;
   let paymentsService: jest.Mocked<PaymentsService>;
+  let listingsService: jest.Mocked<ListingsService>;
 
   const adminUser = { id: 'admin-1', role: UserRole.ADMIN } as User;
 
@@ -46,6 +50,13 @@ describe('AdminController', () => {
       refundByOrder: jest.fn(),
     } as unknown as jest.Mocked<PaymentsService>;
 
+    listingsService = {
+      findForAdmin: jest.fn(),
+      findByIdForAdmin: jest.fn(),
+      setFlag: jest.fn(),
+      removeByAdmin: jest.fn(),
+    } as unknown as jest.Mocked<ListingsService>;
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AdminController],
       providers: [
@@ -53,6 +64,7 @@ describe('AdminController', () => {
         { provide: UsersService, useValue: usersService },
         { provide: OrdersService, useValue: ordersService },
         { provide: PaymentsService, useValue: paymentsService },
+        { provide: ListingsService, useValue: listingsService },
       ],
     }).compile();
 
@@ -258,6 +270,56 @@ describe('AdminController', () => {
 
       expect(paymentsService.refundByOrder).toHaveBeenCalledWith('order-1');
       expect(result).toEqual({ order, payment });
+    });
+  });
+
+  describe('listListings', () => {
+    it('delegates to listingsService.findForAdmin with the query', async () => {
+      const stub = { items: [], total: 0, page: 1, pageSize: 20 };
+      listingsService.findForAdmin.mockResolvedValue(stub as never);
+
+      const result = await controller.listListings({
+        status: ListingStatus.FLAGGED,
+      });
+
+      expect(listingsService.findForAdmin).toHaveBeenCalledWith({
+        status: ListingStatus.FLAGGED,
+      });
+      expect(result).toBe(stub);
+    });
+  });
+
+  describe('getListing', () => {
+    it('delegates to listingsService.findByIdForAdmin', async () => {
+      const stub = { id: 'listing-1' } as Listing;
+      listingsService.findByIdForAdmin.mockResolvedValue(stub);
+
+      const result = await controller.getListing('listing-1');
+
+      expect(listingsService.findByIdForAdmin).toHaveBeenCalledWith('listing-1');
+      expect(result).toBe(stub);
+    });
+  });
+
+  describe('flagListing / unflagListing', () => {
+    it('flag delegates to setFlag(id, true)', async () => {
+      listingsService.setFlag.mockResolvedValue({ id: 'listing-1' } as Listing);
+      await controller.flagListing('listing-1');
+      expect(listingsService.setFlag).toHaveBeenCalledWith('listing-1', true);
+    });
+
+    it('unflag delegates to setFlag(id, false)', async () => {
+      listingsService.setFlag.mockResolvedValue({ id: 'listing-1' } as Listing);
+      await controller.unflagListing('listing-1');
+      expect(listingsService.setFlag).toHaveBeenCalledWith('listing-1', false);
+    });
+  });
+
+  describe('removeListing', () => {
+    it('delegates to listingsService.removeByAdmin', async () => {
+      listingsService.removeByAdmin.mockResolvedValue({ message: 'Listing removed' });
+      await controller.removeListing('listing-1');
+      expect(listingsService.removeByAdmin).toHaveBeenCalledWith('listing-1');
     });
   });
 });
