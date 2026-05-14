@@ -90,9 +90,9 @@ describe('CertificatesController', () => {
 
   describe('findOne', () => {
     it('delegates to service.findById', async () => {
-      const result = await controller.findOne('cert-1');
+      const result = await controller.findOne(seller, 'cert-1');
 
-      expect(service.findById).toHaveBeenCalledWith('cert-1');
+      expect(service.findById).toHaveBeenCalledWith('cert-1', seller);
       expect(result).toEqual(mockCert);
     });
   });

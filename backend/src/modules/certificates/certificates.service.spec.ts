@@ -13,6 +13,7 @@ import {
   CertificateStatus,
   CertificateType,
   HealthStatus,
+  UserRole,
 } from '@shared/enums';
 import { UploadCertificateDto } from './dto/upload-certificate.dto';
 
@@ -125,10 +126,10 @@ describe('CertificatesService', () => {
 
   describe('findById', () => {
     it('returns certificate when found', async () => {
-      const stub = { id: 'cert-1' } as Certificate;
+      const stub = { id: 'cert-1', sellerId } as Certificate;
       certificates.findOne.mockResolvedValue(stub);
 
-      const result = await service.findById('cert-1');
+      const result = await service.findById('cert-1', { id: sellerId, role: UserRole.SELLER });
 
       expect(result).toBe(stub);
     });
@@ -136,7 +137,15 @@ describe('CertificatesService', () => {
     it('throws NotFoundException when not found', async () => {
       certificates.findOne.mockResolvedValue(null);
 
-      await expect(service.findById('missing')).rejects.toThrow(NotFoundException);
+      await expect(service.findById('missing', { id: sellerId, role: UserRole.SELLER })).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws ForbiddenException when requester is not admin or owner', async () => {
+      certificates.findOne.mockResolvedValue({ id: 'cert-1', sellerId } as Certificate);
+
+      await expect(
+        service.findById('cert-1', { id: 'other', role: UserRole.BUYER }),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 

@@ -37,9 +37,10 @@ export class CertificatesController {
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   async findOne(
+    @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<Certificate> {
-    return this.certificatesService.findById(id);
+    return this.certificatesService.findById(id, user);
   }
 
   @Patch(':id/verify')
