@@ -22,6 +22,12 @@ const ADMIN_TICKET_TTL_SECONDS = 5 * 60;
 const ADMIN_TOTP_MAX_ATTEMPTS = 5;
 const ADMIN_TOTP_VERIFY_LOCK_SECONDS = 5;
 const TOTP_ISSUER = 'Mashia Admin';
+const RELEASE_LOCK_SCRIPT = `
+  if redis.call("GET", KEYS[1]) == ARGV[1] then
+    return redis.call("DEL", KEYS[1])
+  end
+  return 0
+`;
 
 @Injectable()
 export class AuthService {
@@ -163,10 +169,11 @@ export class AuthService {
     const ticketKey = `admin_totp_ticket:${ticket}`;
     const attemptsKey = `admin_totp_ticket_attempts:${ticket}`;
     const lockKey = `admin_totp_ticket_lock:${ticket}`;
+    const lockToken = crypto.randomUUID();
 
     const lock = await this.redis.set(
       lockKey,
-      '1',
+      lockToken,
       'EX',
       ADMIN_TOTP_VERIFY_LOCK_SECONDS,
       'NX',
@@ -203,7 +210,7 @@ export class AuthService {
       const tokens = this.generateTokens(user);
       return { ...tokens, user };
     } finally {
-      await this.redis.del(lockKey);
+      await this.redis.eval(RELEASE_LOCK_SCRIPT, 1, lockKey, lockToken);
     }
   }
 

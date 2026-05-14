@@ -51,6 +51,7 @@ describe('AuthService', () => {
       get: jest.fn().mockResolvedValue(null),
       set: jest.fn().mockResolvedValue('OK'),
       del: jest.fn().mockResolvedValue(1),
+      eval: jest.fn().mockResolvedValue(1),
       incr: jest.fn().mockResolvedValue(1),
       expire: jest.fn().mockResolvedValue(1),
     };
@@ -481,9 +482,11 @@ describe('AuthService', () => {
           'admin_totp_ticket_attempts:valid-ticket',
           expect.any(Number),
         );
-        expect(mockRedis.del).toHaveBeenCalledTimes(1);
-        expect(mockRedis.del).toHaveBeenCalledWith(
+        expect(mockRedis.eval).toHaveBeenCalledWith(
+          expect.stringContaining('redis.call("GET", KEYS[1])'),
+          1,
           'admin_totp_ticket_lock:valid-ticket',
+          expect.any(String),
         );
       });
 
