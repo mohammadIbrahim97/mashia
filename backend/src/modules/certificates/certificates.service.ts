@@ -10,7 +10,7 @@ import { Certificate } from './certificate.entity';
 import { Listing } from '../listings/listing.entity';
 import { UploadCertificateDto } from './dto/upload-certificate.dto';
 import { VerifyCertificateDto } from './dto/verify-certificate.dto';
-import { CertificateStatus, HealthStatus } from '@shared/enums';
+import { CertificateStatus, HealthStatus, UserRole } from '@shared/enums';
 
 export type AdminCertificateListQuery = {
   status?: CertificateStatus | 'all';
@@ -71,13 +71,21 @@ export class CertificatesService {
     return saved;
   }
 
-  async findById(id: string): Promise<Certificate> {
+  async findById(id: string, requester: { id: string; role: UserRole }): Promise<Certificate> {
     const certificate = await this.certificatesRepository.findOne({
       where: { id },
     });
     if (!certificate) {
       throw new NotFoundException('Certificate not found');
     }
+
+    const canAccess =
+      requester.role === UserRole.ADMIN || certificate.sellerId === requester.id;
+
+    if (!canAccess) {
+      throw new ForbiddenException('Not authorized to access this certificate');
+    }
+
     return certificate;
   }
 
