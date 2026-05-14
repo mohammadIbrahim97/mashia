@@ -481,7 +481,10 @@ describe('AuthService', () => {
           'admin_totp_ticket_attempts:valid-ticket',
           expect.any(Number),
         );
-        expect(mockRedis.del).not.toHaveBeenCalled();
+        expect(mockRedis.del).toHaveBeenCalledTimes(1);
+        expect(mockRedis.del).toHaveBeenCalledWith(
+          'admin_totp_ticket_lock:valid-ticket',
+        );
       });
 
       it('invalidates ticket when max failed attempts are reached', async () => {
