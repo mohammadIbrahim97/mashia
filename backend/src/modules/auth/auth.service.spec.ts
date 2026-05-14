@@ -51,6 +51,8 @@ describe('AuthService', () => {
       get: jest.fn().mockResolvedValue(null),
       set: jest.fn().mockResolvedValue('OK'),
       del: jest.fn().mockResolvedValue(1),
+      incr: jest.fn().mockResolvedValue(1),
+      expire: jest.fn().mockResolvedValue(1),
     };
 
     otpService = {
@@ -452,6 +454,7 @@ describe('AuthService', () => {
         expect(result.accessToken).toBe('access-token');
         expect(mockRedis.del).toHaveBeenCalledWith(
           'admin_totp_ticket:valid-ticket',
+          'admin_totp_ticket_attempts:valid-ticket',
         );
       });
 
@@ -466,11 +469,33 @@ describe('AuthService', () => {
       it('throws UnauthorizedException for wrong TOTP code', async () => {
         mockRedis.get.mockResolvedValue(adminUserWithTotp.id);
         usersService.findById.mockResolvedValue(adminUserWithTotp);
+        mockRedis.incr.mockResolvedValue(1);
 
         await expect(
           authService.verifyAdminTotp('valid-ticket', '000000'),
         ).rejects.toThrow(UnauthorizedException);
+        expect(mockRedis.incr).toHaveBeenCalledWith(
+          'admin_totp_ticket_attempts:valid-ticket',
+        );
+        expect(mockRedis.expire).toHaveBeenCalledWith(
+          'admin_totp_ticket_attempts:valid-ticket',
+          expect.any(Number),
+        );
         expect(mockRedis.del).not.toHaveBeenCalled();
+      });
+
+      it('invalidates ticket when max failed attempts are reached', async () => {
+        mockRedis.get.mockResolvedValue(adminUserWithTotp.id);
+        usersService.findById.mockResolvedValue(adminUserWithTotp);
+        mockRedis.incr.mockResolvedValue(5);
+
+        await expect(
+          authService.verifyAdminTotp('valid-ticket', '000000'),
+        ).rejects.toThrow('Ticket expired or invalid');
+        expect(mockRedis.del).toHaveBeenCalledWith(
+          'admin_totp_ticket:valid-ticket',
+          'admin_totp_ticket_attempts:valid-ticket',
+        );
       });
 
       it('throws when user no longer has TOTP enabled', async () => {
