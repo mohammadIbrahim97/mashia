@@ -68,6 +68,13 @@ def enableProguardInReleaseBuilds = false
  * this variant is about 6MiB larger per architecture than default.
  */
 def jscFlavor = 'org.webkit:android-jsc:+'
+def releaseSigningProperties = [
+    'MYAPP_UPLOAD_STORE_FILE',
+    'MYAPP_UPLOAD_STORE_PASSWORD',
+    'MYAPP_UPLOAD_KEY_ALIAS',
+    'MYAPP_UPLOAD_KEY_PASSWORD',
+]
+def hasAllReleaseSigningProperties = releaseSigningProperties.every { project.hasProperty(it) }
 
 android {
     ndkVersion rootProject.ext.ndkVersion
@@ -90,7 +97,7 @@ android {
             keyPassword 'android'
         }
         release {
-            if (project.hasProperty('MYAPP_UPLOAD_STORE_FILE')) {
+            if (hasAllReleaseSigningProperties) {
                 storeFile file(MYAPP_UPLOAD_STORE_FILE)
                 storePassword MYAPP_UPLOAD_STORE_PASSWORD
                 keyAlias MYAPP_UPLOAD_KEY_ALIAS
@@ -112,8 +119,9 @@ android {
 
 tasks.matching { it.name == 'preReleaseBuild' }.configureEach {
     doFirst {
-        if (!project.hasProperty('MYAPP_UPLOAD_STORE_FILE')) {
-            throw new GradleException('Release signing config is required. Set MYAPP_UPLOAD_STORE_FILE, MYAPP_UPLOAD_STORE_PASSWORD, MYAPP_UPLOAD_KEY_ALIAS, and MYAPP_UPLOAD_KEY_PASSWORD.')
+        def missingReleaseSigningProperties = releaseSigningProperties.findAll { !project.hasProperty(it) }
+        if (!missingReleaseSigningProperties.isEmpty()) {
+            throw new GradleException("Release signing config is required. Missing properties: ${missingReleaseSigningProperties.join(', ')}.")
         }
     }
 }
