@@ -117,7 +117,7 @@ android {
     }
 }
 
-tasks.matching { it.name == 'preReleaseBuild' }.configureEach {
+tasks.matching { it.name ==~ /pre.*ReleaseBuild/ }.configureEach {
     doFirst {
         def missingReleaseSigningProperties = releaseSigningProperties.findAll { !project.hasProperty(it) }
         if (!missingReleaseSigningProperties.isEmpty()) {
