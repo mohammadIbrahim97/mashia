@@ -30,9 +30,16 @@ export class OtpService {
       );
     }
 
+    const codeKey = `otp:code:${phone}`;
+    const previousCode = await this.redis.get(codeKey);
+
+    if (previousCode) {
+      await this.redis.del(`otp:verify:attempts:${phone}:${previousCode}`);
+    }
+
     const code = randomInt(100000, 999999).toString();
 
-    await this.redis.set(`otp:code:${phone}`, code, 'EX', OtpService.OTP_TTL);
+    await this.redis.set(codeKey, code, 'EX', OtpService.OTP_TTL);
     await this.redis.incr(attemptsKey);
     await this.redis.expire(attemptsKey, OtpService.ATTEMPTS_TTL);
 
@@ -41,7 +48,6 @@ export class OtpService {
 
   async verify(phone: string, code: string): Promise<boolean> {
     const codeKey = `otp:code:${phone}`;
-    const verifyAttemptsKey = `otp:verify:attempts:${phone}`;
     const storedCode = await this.redis.get(codeKey);
 
     if (!storedCode) {
@@ -49,6 +55,7 @@ export class OtpService {
     }
 
     if (storedCode !== code) {
+      const verifyAttemptsKey = `otp:verify:attempts:${phone}:${storedCode}`;
       const attempts = await this.redis.incr(verifyAttemptsKey);
       const otpTtl = await this.redis.ttl(codeKey);
 
@@ -64,6 +71,7 @@ export class OtpService {
       throw new BadRequestException('Invalid OTP.');
     }
 
+    const verifyAttemptsKey = `otp:verify:attempts:${phone}:${storedCode}`;
     await this.redis.del(codeKey, verifyAttemptsKey);
     return true;
   }

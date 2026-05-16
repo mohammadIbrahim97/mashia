@@ -72,6 +72,16 @@ describe('OtpService', () => {
       );
     });
 
+    it('should clear previous OTP verify attempts when issuing a new OTP', async () => {
+      mockRedis.get.mockResolvedValueOnce(null).mockResolvedValueOnce('654321');
+
+      await service.generateAndSend('+966501234567');
+
+      expect(mockRedis.del).toHaveBeenCalledWith(
+        'otp:verify:attempts:+966501234567:654321',
+      );
+    });
+
     it('should throw TooManyRequestsException after 5 attempts', async () => {
       mockRedis.get.mockResolvedValue('5');
 
@@ -101,7 +111,7 @@ describe('OtpService', () => {
       expect(result).toBe(true);
       expect(mockRedis.del).toHaveBeenCalledWith(
         'otp:code:+966501234567',
-        'otp:verify:attempts:+966501234567',
+        'otp:verify:attempts:+966501234567:123456',
       );
     });
 
@@ -122,10 +132,10 @@ describe('OtpService', () => {
         BadRequestException,
       );
       expect(mockRedis.incr).toHaveBeenCalledWith(
-        'otp:verify:attempts:+966501234567',
+        'otp:verify:attempts:+966501234567:123456',
       );
       expect(mockRedis.expire).toHaveBeenCalledWith(
-        'otp:verify:attempts:+966501234567',
+        'otp:verify:attempts:+966501234567:123456',
         240,
       );
       expect(mockRedis.del).not.toHaveBeenCalled();
@@ -141,7 +151,7 @@ describe('OtpService', () => {
       );
       expect(mockRedis.del).toHaveBeenCalledWith(
         'otp:code:+966501234567',
-        'otp:verify:attempts:+966501234567',
+        'otp:verify:attempts:+966501234567:123456',
       );
     });
   });
