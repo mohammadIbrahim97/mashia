@@ -104,12 +104,30 @@ describe('OtpService', () => {
 
   describe('verify', () => {
     it('should return true for a valid OTP', async () => {
-      mockRedis.get.mockResolvedValue('123456');
+      mockRedis.get.mockResolvedValueOnce('123456').mockResolvedValueOnce('123456');
 
       const result = await service.verify('+966501234567', '123456');
 
       expect(result).toBe(true);
       expect(mockRedis.del).toHaveBeenCalledWith(
+        'otp:code:+966501234567',
+        'otp:verify:attempts:+966501234567:123456',
+      );
+    });
+
+
+    it('should not delete rotated OTP on successful verification race', async () => {
+      mockRedis.get
+        .mockResolvedValueOnce('123456')
+        .mockResolvedValueOnce('654321');
+
+      const result = await service.verify('+966501234567', '123456');
+
+      expect(result).toBe(true);
+      expect(mockRedis.del).toHaveBeenCalledWith(
+        'otp:verify:attempts:+966501234567:123456',
+      );
+      expect(mockRedis.del).not.toHaveBeenCalledWith(
         'otp:code:+966501234567',
         'otp:verify:attempts:+966501234567:123456',
       );
@@ -155,6 +173,26 @@ describe('OtpService', () => {
         expect.any(Number),
       );
       expect(mockRedis.del).toHaveBeenCalledWith(
+        'otp:verify:attempts:+966501234567:123456',
+      );
+    });
+
+
+    it('should not invalidate rotated OTP when max attempts reached for old code', async () => {
+      mockRedis.get
+        .mockResolvedValueOnce('123456')
+        .mockResolvedValueOnce('654321');
+      mockRedis.incr.mockResolvedValue(5);
+      mockRedis.ttl.mockResolvedValue(120);
+
+      await expect(service.verify('+966501234567', '999999')).rejects.toThrow(
+        new BadRequestException('OTP expired or not found.'),
+      );
+      expect(mockRedis.del).toHaveBeenCalledWith(
+        'otp:verify:attempts:+966501234567:123456',
+      );
+      expect(mockRedis.del).not.toHaveBeenCalledWith(
+        'otp:code:+966501234567',
         'otp:verify:attempts:+966501234567:123456',
       );
     });

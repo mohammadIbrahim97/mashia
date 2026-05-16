@@ -67,7 +67,14 @@ export class OtpService {
       }
 
       if (attempts >= OtpService.MAX_ATTEMPTS) {
-        await this.redis.del(codeKey, verifyAttemptsKey);
+        const currentCode = await this.redis.get(codeKey);
+
+        if (currentCode === storedCode) {
+          await this.redis.del(codeKey, verifyAttemptsKey);
+        } else {
+          await this.redis.del(verifyAttemptsKey);
+        }
+
         throw new BadRequestException('OTP expired or not found.');
       }
 
@@ -75,7 +82,14 @@ export class OtpService {
     }
 
     const verifyAttemptsKey = `otp:verify:attempts:${phone}:${storedCode}`;
-    await this.redis.del(codeKey, verifyAttemptsKey);
+    const currentCode = await this.redis.get(codeKey);
+
+    if (currentCode === storedCode) {
+      await this.redis.del(codeKey, verifyAttemptsKey);
+    } else {
+      await this.redis.del(verifyAttemptsKey);
+    }
+
     return true;
   }
 
