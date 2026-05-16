@@ -41,6 +41,7 @@ export class OtpService {
 
   async verify(phone: string, code: string): Promise<boolean> {
     const codeKey = `otp:code:${phone}`;
+    const verifyAttemptsKey = `otp:verify:attempts:${phone}`;
     const storedCode = await this.redis.get(codeKey);
 
     if (!storedCode) {
@@ -48,10 +49,18 @@ export class OtpService {
     }
 
     if (storedCode !== code) {
+      const attempts = await this.redis.incr(verifyAttemptsKey);
+      await this.redis.expire(verifyAttemptsKey, OtpService.OTP_TTL);
+
+      if (attempts >= OtpService.MAX_ATTEMPTS) {
+        await this.redis.del(codeKey, verifyAttemptsKey);
+        throw new BadRequestException('OTP expired or not found.');
+      }
+
       throw new BadRequestException('Invalid OTP.');
     }
 
-    await this.redis.del(codeKey);
+    await this.redis.del(codeKey, verifyAttemptsKey);
     return true;
   }
 
