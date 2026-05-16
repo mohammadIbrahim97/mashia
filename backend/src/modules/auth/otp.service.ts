@@ -30,9 +30,16 @@ export class OtpService {
       );
     }
 
+    const codeKey = `otp:code:${phone}`;
+    const previousCode = await this.redis.get(codeKey);
+
+    if (previousCode) {
+      await this.redis.del(`otp:verify:attempts:${phone}:${previousCode}`);
+    }
+
     const code = randomInt(100000, 999999).toString();
 
-    await this.redis.set(`otp:code:${phone}`, code, 'EX', OtpService.OTP_TTL);
+    await this.redis.set(codeKey, code, 'EX', OtpService.OTP_TTL);
     await this.redis.incr(attemptsKey);
     await this.redis.expire(attemptsKey, OtpService.ATTEMPTS_TTL);
 
@@ -48,10 +55,41 @@ export class OtpService {
     }
 
     if (storedCode !== code) {
+      const verifyAttemptsKey = `otp:verify:attempts:${phone}:${storedCode}`;
+      const attempts = await this.redis.incr(verifyAttemptsKey);
+      const otpTtl = await this.redis.ttl(codeKey);
+
+      if (otpTtl > 0) {
+        await this.redis.expire(verifyAttemptsKey, otpTtl);
+      } else {
+        await this.redis.del(verifyAttemptsKey);
+        throw new BadRequestException('OTP expired or not found.');
+      }
+
+      if (attempts >= OtpService.MAX_ATTEMPTS) {
+        const currentCode = await this.redis.get(codeKey);
+
+        if (currentCode === storedCode) {
+          await this.redis.del(codeKey, verifyAttemptsKey);
+        } else {
+          await this.redis.del(verifyAttemptsKey);
+        }
+
+        throw new BadRequestException('OTP expired or not found.');
+      }
+
       throw new BadRequestException('Invalid OTP.');
     }
 
-    await this.redis.del(codeKey);
+    const verifyAttemptsKey = `otp:verify:attempts:${phone}:${storedCode}`;
+    const currentCode = await this.redis.get(codeKey);
+
+    if (currentCode === storedCode) {
+      await this.redis.del(codeKey, verifyAttemptsKey);
+    } else {
+      await this.redis.del(verifyAttemptsKey);
+    }
+
     return true;
   }
 
