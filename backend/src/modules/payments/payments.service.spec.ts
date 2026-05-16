@@ -112,6 +112,19 @@ describe('PaymentsService', () => {
       );
     });
 
+
+    it('throws ServiceUnavailableException in production mode', async () => {
+      const prev = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+      try {
+        await expect(service.initiate(buyer, dto)).rejects.toThrow(
+          'Payment initiation is unavailable until escrow integration is configured',
+        );
+      } finally {
+        process.env.NODE_ENV = prev;
+      }
+    });
+
     it('throws NotFoundException when order missing', async () => {
       ordersRepo.findOne.mockResolvedValue(null);
       await expect(service.initiate(buyer, dto)).rejects.toThrow(
