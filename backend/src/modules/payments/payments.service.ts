@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -33,6 +34,11 @@ export class PaymentsService {
   ) {}
 
   async initiate(buyerId: string, dto: InitiatePaymentDto): Promise<Payment> {
+    if (process.env.NODE_ENV === 'production') {
+      throw new ServiceUnavailableException(
+        'Payment initiation is unavailable until escrow integration is configured',
+      );
+    }
     const order = await this.ordersRepository.findOne({
       where: { id: dto.orderId },
     });
