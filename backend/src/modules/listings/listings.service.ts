@@ -38,6 +38,13 @@ export type AdminListingListItem = {
   deletedAt: Date | null;
 };
 
+export type PublicListingDetail = Omit<Listing, 'seller'> & {
+  seller: {
+    id: string;
+    fullName: string;
+  };
+};
+
 @Injectable()
 export class ListingsService {
   constructor(
@@ -111,13 +118,20 @@ export class ListingsService {
     return { data, total, page, limit };
   }
 
-  async findById(id: string): Promise<Listing> {
+  async findById(id: string): Promise<PublicListingDetail> {
     const listing = await this.listingsRepository.findOne({
-      where: { id },
+      where: { id, status: ListingStatus.ACTIVE },
       relations: ['seller'],
     });
     if (!listing) throw new NotFoundException('Listing not found');
-    return listing;
+
+    return {
+      ...listing,
+      seller: {
+        id: listing.seller.id,
+        fullName: listing.seller.fullName,
+      },
+    };
   }
 
   async update(

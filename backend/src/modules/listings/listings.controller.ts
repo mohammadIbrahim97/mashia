@@ -15,7 +15,7 @@ import { RolesGuard } from '@shared/guards/roles.guard';
 import { KycVerifiedGuard } from '@shared/guards/kyc-verified.guard';
 import { Roles } from '@shared/decorators/roles.decorator';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
-import { ListingsService } from './listings.service';
+import { ListingsService, PublicListingDetail } from './listings.service';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { SearchListingsDto } from './dto/search-listings.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
@@ -57,7 +57,9 @@ export class ListingsController {
   }
 
   @Get(':id')
-  async findById(@Param('id', ParseUUIDPipe) id: string): Promise<Listing> {
+  async findById(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<PublicListingDetail> {
     return this.listingsService.findById(id);
   }
 

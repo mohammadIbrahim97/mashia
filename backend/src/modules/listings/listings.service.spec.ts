@@ -202,16 +202,27 @@ describe('ListingsService', () => {
   });
 
   describe('findById', () => {
-    it('returns listing with seller relation', async () => {
-      repository.findOne.mockResolvedValue(mockListing as Listing);
+    it('returns active listing with sanitized seller relation', async () => {
+      repository.findOne.mockResolvedValue({
+        ...mockListing,
+        seller: {
+          id: sellerId,
+          fullName: 'Seller Name',
+          phone: '+966500000000',
+        },
+      } as unknown as Listing);
 
       const result = await service.findById('listing-uuid-1');
 
       expect(repository.findOne).toHaveBeenCalledWith({
-        where: { id: 'listing-uuid-1' },
+        where: { id: 'listing-uuid-1', status: ListingStatus.ACTIVE },
         relations: ['seller'],
       });
-      expect(result).toEqual(mockListing);
+      expect(result.seller).toEqual({
+        id: sellerId,
+        fullName: 'Seller Name',
+      });
+      expect((result.seller as any).phone).toBeUndefined();
     });
 
     it('throws NotFoundException when listing not found', async () => {
