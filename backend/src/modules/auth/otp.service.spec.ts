@@ -17,6 +17,7 @@ describe('OtpService', () => {
       del: jest.fn().mockResolvedValue(1),
       incr: jest.fn().mockResolvedValue(1),
       expire: jest.fn().mockResolvedValue(1),
+      ttl: jest.fn().mockResolvedValue(300),
     };
 
     mockSmsService = {
@@ -98,7 +99,10 @@ describe('OtpService', () => {
       const result = await service.verify('+966501234567', '123456');
 
       expect(result).toBe(true);
-      expect(mockRedis.del).toHaveBeenCalledWith('otp:code:+966501234567');
+      expect(mockRedis.del).toHaveBeenCalledWith(
+        'otp:code:+966501234567',
+        'otp:verify:attempts:+966501234567',
+      );
     });
 
     it('should throw BadRequestException for expired or non-existent OTP', async () => {
@@ -111,11 +115,34 @@ describe('OtpService', () => {
 
     it('should throw BadRequestException for incorrect OTP', async () => {
       mockRedis.get.mockResolvedValue('123456');
+      mockRedis.incr.mockResolvedValue(1);
+      mockRedis.ttl.mockResolvedValue(240);
 
       await expect(service.verify('+966501234567', '999999')).rejects.toThrow(
         BadRequestException,
       );
+      expect(mockRedis.incr).toHaveBeenCalledWith(
+        'otp:verify:attempts:+966501234567',
+      );
+      expect(mockRedis.expire).toHaveBeenCalledWith(
+        'otp:verify:attempts:+966501234567',
+        240,
+      );
       expect(mockRedis.del).not.toHaveBeenCalled();
+    });
+
+    it('should invalidate OTP after max failed verification attempts', async () => {
+      mockRedis.get.mockResolvedValue('123456');
+      mockRedis.incr.mockResolvedValue(5);
+      mockRedis.ttl.mockResolvedValue(120);
+
+      await expect(service.verify('+966501234567', '999999')).rejects.toThrow(
+        new BadRequestException('OTP expired or not found.'),
+      );
+      expect(mockRedis.del).toHaveBeenCalledWith(
+        'otp:code:+966501234567',
+        'otp:verify:attempts:+966501234567',
+      );
     });
   });
 
