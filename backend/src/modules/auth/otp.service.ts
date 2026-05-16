@@ -61,6 +61,9 @@ export class OtpService {
 
       if (otpTtl > 0) {
         await this.redis.expire(verifyAttemptsKey, otpTtl);
+      } else {
+        await this.redis.del(verifyAttemptsKey);
+        throw new BadRequestException('OTP expired or not found.');
       }
 
       if (attempts >= OtpService.MAX_ATTEMPTS) {

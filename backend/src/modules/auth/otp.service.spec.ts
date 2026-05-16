@@ -141,6 +141,24 @@ describe('OtpService', () => {
       expect(mockRedis.del).not.toHaveBeenCalled();
     });
 
+
+    it('should clear verify attempts and fail closed when OTP TTL is non-positive', async () => {
+      mockRedis.get.mockResolvedValue('123456');
+      mockRedis.incr.mockResolvedValue(1);
+      mockRedis.ttl.mockResolvedValue(0);
+
+      await expect(service.verify('+966501234567', '999999')).rejects.toThrow(
+        new BadRequestException('OTP expired or not found.'),
+      );
+      expect(mockRedis.expire).not.toHaveBeenCalledWith(
+        'otp:verify:attempts:+966501234567:123456',
+        expect.any(Number),
+      );
+      expect(mockRedis.del).toHaveBeenCalledWith(
+        'otp:verify:attempts:+966501234567:123456',
+      );
+    });
+
     it('should invalidate OTP after max failed verification attempts', async () => {
       mockRedis.get.mockResolvedValue('123456');
       mockRedis.incr.mockResolvedValue(5);
