@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AdminController } from './admin.controller';
+import { AdminService } from './admin.service';
 import { CertificatesService } from '../certificates/certificates.service';
 import { UsersService } from '../users/users.service';
 import { OrdersService } from '../orders/orders.service';
@@ -8,6 +9,7 @@ import { ListingsService } from '../listings/listings.service';
 import {
   CertificateStatus,
   CertificateType,
+  Currency,
   KycStatus,
   ListingStatus,
   OrderStatus,
@@ -19,6 +21,7 @@ import { Listing } from '../listings/listing.entity';
 
 describe('AdminController', () => {
   let controller: AdminController;
+  let adminService: jest.Mocked<AdminService>;
   let certificatesService: jest.Mocked<CertificatesService>;
   let usersService: jest.Mocked<UsersService>;
   let ordersService: jest.Mocked<OrdersService>;
@@ -28,6 +31,10 @@ describe('AdminController', () => {
   const adminUser = { id: 'admin-1', role: UserRole.ADMIN } as User;
 
   beforeEach(async () => {
+    adminService = {
+      getDashboard: jest.fn(),
+    } as unknown as jest.Mocked<AdminService>;
+
     certificatesService = {
       findForAdmin: jest.fn(),
     } as unknown as jest.Mocked<CertificatesService>;
@@ -62,6 +69,7 @@ describe('AdminController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AdminController],
       providers: [
+        { provide: AdminService, useValue: adminService },
         { provide: CertificatesService, useValue: certificatesService },
         { provide: UsersService, useValue: usersService },
         { provide: OrdersService, useValue: ordersService },
@@ -71,6 +79,44 @@ describe('AdminController', () => {
     }).compile();
 
     controller = module.get<AdminController>(AdminController);
+  });
+
+  describe('getDashboard', () => {
+    it('delegates to adminService.getDashboard', async () => {
+      const stub = {
+        kpis: {
+          totalUsers: 10,
+          totalListings: 9,
+          activeListings: 7,
+          activeOrders: 5,
+          totalRevenue: 123.45,
+          revenueMtd: 67.89,
+          revenueCurrency: Currency.SAR,
+          revenueByCurrency: [
+            {
+              currency: Currency.SAR,
+              totalRevenue: 123.45,
+              revenueMtd: 67.89,
+            },
+          ],
+          pendingKyc: 2,
+          usersPendingKyc: 2,
+          pendingCertificates: 3,
+          certsPending: 3,
+          openDisputes: 1,
+          disputedOrders: 1,
+          flaggedListings: 4,
+          avgReleaseDays: 0,
+        },
+        activity: [],
+      };
+      adminService.getDashboard.mockResolvedValue(stub);
+
+      const result = await controller.getDashboard();
+
+      expect(adminService.getDashboard).toHaveBeenCalledTimes(1);
+      expect(result).toBe(stub);
+    });
   });
 
   describe('listCertificates', () => {
