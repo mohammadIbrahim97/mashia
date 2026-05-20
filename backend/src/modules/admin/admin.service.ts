@@ -23,6 +23,7 @@ export type AdminDashboardKpis = {
   totalRevenue: number;
   revenueMtd: number;
   revenueCurrency: Currency;
+  revenueByCurrency: AdminDashboardRevenueByCurrency[];
   pendingKyc: number;
   usersPendingKyc: number;
   pendingCertificates: number;
@@ -31,6 +32,12 @@ export type AdminDashboardKpis = {
   disputedOrders: number;
   flaggedListings: number;
   avgReleaseDays: number;
+};
+
+export type AdminDashboardRevenueByCurrency = {
+  currency: Currency;
+  totalRevenue: number;
+  revenueMtd: number;
 };
 
 export type AdminDashboardActivityItem = {
@@ -48,6 +55,7 @@ export type AdminDashboardResponse = {
 };
 
 type RevenueAggregateRaw = {
+  currency?: Currency | null;
   total_revenue?: string | number | null;
   revenue_mtd?: string | number | null;
 };
@@ -68,7 +76,8 @@ export class AdminService {
   ) {}
 
   async getDashboard(): Promise<AdminDashboardResponse> {
-    const monthStart = this.getMonthStart();
+    const monthStart = this.getUtcMonthStart();
+    const revenueCurrency = Currency.SAR;
 
     const [
       totalUsers,
@@ -103,8 +112,9 @@ export class AdminService {
       this.listingsRepository.count({
         where: { status: ListingStatus.FLAGGED },
       }),
-      this.getRevenueAggregate(monthStart),
+      this.getRevenueByCurrency(monthStart),
     ]);
+    const displayRevenue = this.getCurrencyRevenue(revenue, revenueCurrency);
 
     return {
       kpis: {
@@ -112,9 +122,10 @@ export class AdminService {
         totalListings,
         activeListings,
         activeOrders,
-        totalRevenue: revenue.totalRevenue,
-        revenueMtd: revenue.revenueMtd,
-        revenueCurrency: Currency.SAR,
+        totalRevenue: displayRevenue.totalRevenue,
+        revenueMtd: displayRevenue.revenueMtd,
+        revenueCurrency,
+        revenueByCurrency: revenue,
         pendingKyc: usersPendingKyc,
         usersPendingKyc,
         pendingCertificates: certsPending,
@@ -128,12 +139,13 @@ export class AdminService {
     };
   }
 
-  private async getRevenueAggregate(
+  private async getRevenueByCurrency(
     monthStart: Date,
-  ): Promise<{ totalRevenue: number; revenueMtd: number }> {
-    const raw = await this.paymentsRepository
+  ): Promise<AdminDashboardRevenueByCurrency[]> {
+    const rows = await this.paymentsRepository
       .createQueryBuilder('payment')
-      .select('COALESCE(SUM(payment.commission_amount), 0)', 'total_revenue')
+      .select('payment.currency', 'currency')
+      .addSelect('COALESCE(SUM(payment.commission_amount), 0)', 'total_revenue')
       .addSelect(
         'COALESCE(SUM(CASE WHEN payment.paid_at >= :monthStart THEN payment.commission_amount ELSE 0 END), 0)',
         'revenue_mtd',
@@ -141,18 +153,41 @@ export class AdminService {
       .where('payment.escrow_status IN (:...revenueStatuses)', {
         revenueStatuses: [EscrowStatus.HELD, EscrowStatus.RELEASED],
       })
+      .groupBy('payment.currency')
       .setParameter('monthStart', monthStart)
-      .getRawOne<RevenueAggregateRaw>();
+      .getRawMany<RevenueAggregateRaw>();
 
+    return rows
+      .map((row) => ({
+        currency: row.currency,
+        totalRevenue: this.toNumber(row.total_revenue),
+        revenueMtd: this.toNumber(row.revenue_mtd),
+      }))
+      .filter(
+        (
+          row,
+        ): row is AdminDashboardRevenueByCurrency =>
+          row.currency !== null && row.currency !== undefined,
+      )
+      .sort((a, b) => a.currency.localeCompare(b.currency));
+  }
+
+  private getCurrencyRevenue(
+    revenue: AdminDashboardRevenueByCurrency[],
+    currency: Currency,
+  ): AdminDashboardRevenueByCurrency {
+    const match = revenue.find((item) => item.currency === currency);
+    if (match) return match;
     return {
-      totalRevenue: this.toNumber(raw?.total_revenue),
-      revenueMtd: this.toNumber(raw?.revenue_mtd),
+      currency,
+      totalRevenue: 0,
+      revenueMtd: 0,
     };
   }
 
-  private getMonthStart(): Date {
+  private getUtcMonthStart(): Date {
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1);
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   }
 
   private toNumber(value: string | number | null | undefined): number {

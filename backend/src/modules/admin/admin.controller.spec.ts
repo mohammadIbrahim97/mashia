@@ -92,6 +92,13 @@ describe('AdminController', () => {
           totalRevenue: 123.45,
           revenueMtd: 67.89,
           revenueCurrency: Currency.SAR,
+          revenueByCurrency: [
+            {
+              currency: Currency.SAR,
+              totalRevenue: 123.45,
+              revenueMtd: 67.89,
+            },
+          ],
           pendingKyc: 2,
           usersPendingKyc: 2,
           pendingCertificates: 3,

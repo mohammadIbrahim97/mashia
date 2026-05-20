@@ -17,6 +17,7 @@ import {
 } from '@shared/enums';
 
 type RevenueAggregateRaw = {
+  currency?: Currency | null;
   total_revenue?: string | number | null;
   revenue_mtd?: string | number | null;
 };
@@ -34,15 +35,18 @@ describe('AdminService', () => {
     createQueryBuilder: jest.fn(),
   });
 
-  const createRevenueQueryBuilder = (raw: RevenueAggregateRaw | null) => ({
+  const createRevenueQueryBuilder = (raw: RevenueAggregateRaw[]) => ({
     select: jest.fn().mockReturnThis(),
     addSelect: jest.fn().mockReturnThis(),
     where: jest.fn().mockReturnThis(),
+    groupBy: jest.fn().mockReturnThis(),
     setParameter: jest.fn().mockReturnThis(),
-    getRawOne: jest.fn().mockResolvedValue(raw),
+    getRawMany: jest.fn().mockResolvedValue(raw),
   });
 
   beforeEach(async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-05-31T23:30:00.000Z'));
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AdminService,
@@ -71,12 +75,24 @@ describe('AdminService', () => {
     certificatesRepository = module.get(getRepositoryToken(Certificate));
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   describe('getDashboard', () => {
     it('returns dashboard KPIs from repository counts and revenue aggregates', async () => {
-      const revenueQb = createRevenueQueryBuilder({
-        total_revenue: '1234.56',
-        revenue_mtd: '789.01',
-      });
+      const revenueQb = createRevenueQueryBuilder([
+        {
+          currency: Currency.SAR,
+          total_revenue: '1234.56',
+          revenue_mtd: '789.01',
+        },
+        {
+          currency: Currency.USD,
+          total_revenue: '999.99',
+          revenue_mtd: '88.88',
+        },
+      ]);
       usersRepository.count.mockResolvedValueOnce(10).mockResolvedValueOnce(2);
       listingsRepository.count
         .mockResolvedValueOnce(9)
@@ -110,6 +126,10 @@ describe('AdminService', () => {
       });
 
       expect(revenueQb.select).toHaveBeenCalledWith(
+        'payment.currency',
+        'currency',
+      );
+      expect(revenueQb.addSelect).toHaveBeenCalledWith(
         'COALESCE(SUM(payment.commission_amount), 0)',
         'total_revenue',
       );
@@ -121,9 +141,10 @@ describe('AdminService', () => {
         'payment.escrow_status IN (:...revenueStatuses)',
         { revenueStatuses: [EscrowStatus.HELD, EscrowStatus.RELEASED] },
       );
+      expect(revenueQb.groupBy).toHaveBeenCalledWith('payment.currency');
       expect(revenueQb.setParameter).toHaveBeenCalledWith(
         'monthStart',
-        expect.any(Date),
+        new Date('2026-05-01T00:00:00.000Z'),
       );
 
       expect(result).toEqual({
@@ -135,6 +156,18 @@ describe('AdminService', () => {
           totalRevenue: 1234.56,
           revenueMtd: 789.01,
           revenueCurrency: Currency.SAR,
+          revenueByCurrency: [
+            {
+              currency: Currency.SAR,
+              totalRevenue: 1234.56,
+              revenueMtd: 789.01,
+            },
+            {
+              currency: Currency.USD,
+              totalRevenue: 999.99,
+              revenueMtd: 88.88,
+            },
+          ],
           pendingKyc: 2,
           usersPendingKyc: 2,
           pendingCertificates: 3,
@@ -154,13 +187,14 @@ describe('AdminService', () => {
       ordersRepository.count.mockResolvedValue(0);
       certificatesRepository.count.mockResolvedValue(0);
       paymentsRepository.createQueryBuilder.mockReturnValue(
-        createRevenueQueryBuilder(null) as never,
+        createRevenueQueryBuilder([]) as never,
       );
 
       const result = await service.getDashboard();
 
       expect(result.kpis.totalRevenue).toBe(0);
       expect(result.kpis.revenueMtd).toBe(0);
+      expect(result.kpis.revenueByCurrency).toEqual([]);
     });
   });
 });

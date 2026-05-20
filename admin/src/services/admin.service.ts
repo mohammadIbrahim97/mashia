@@ -7,10 +7,17 @@ import { paymentsService } from './payments.service';
 
 export type DashboardKpis = {
   totalUsers: number;
+  totalListings?: number;
   activeListings: number;
   activeOrders: number;
+  totalRevenue?: number;
   revenueMtd: number;
   revenueCurrency: string;
+  revenueByCurrency?: Array<{
+    currency: string;
+    totalRevenue: number;
+    revenueMtd: number;
+  }>;
   usersPendingKyc: number;
   certsPending: number;
   disputedOrders: number;
@@ -56,14 +63,21 @@ export const adminService = {
 
       const sarRevenue = revenue.byCurrency.find((r) => r.currency === 'SAR');
       const revenueMtd = sarRevenue ? sarRevenue.held.commission + sarRevenue.released.commission : 0;
+      const revenueByCurrency = revenue.byCurrency.map((r) => ({
+        currency: r.currency,
+        totalRevenue: r.held.commission + r.released.commission,
+        revenueMtd: r.held.commission + r.released.commission,
+      }));
 
       return {
         kpis: {
           totalUsers: usersAll.total ?? 0,
           activeListings: listingsActive.total ?? 0,
           activeOrders: ordersAll.total ?? 0,
+          totalRevenue: revenueMtd,
           revenueMtd,
           revenueCurrency: 'SAR',
+          revenueByCurrency,
           usersPendingKyc: usersPending.total ?? 0,
           certsPending: 0,
           disputedOrders: ordersDisputed.total ?? 0,

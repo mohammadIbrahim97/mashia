@@ -21,6 +21,19 @@ function formatTime(ts: string): string {
       }).format(dt);
 }
 
+function formatMoney(value: number, currency: string): string {
+  const safeValue = Number.isFinite(value) ? value : 0;
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: 2,
+    }).format(safeValue);
+  } catch {
+    return `${safeValue.toLocaleString()} ${currency}`;
+  }
+}
+
 export default function DashboardPage() {
   const [kpis, setKpis] = useState<DashboardKpis | null>(null);
   const [activity, setActivity] = useState<DashboardActivityItem[]>([]);
@@ -109,6 +122,8 @@ export default function DashboardPage() {
         <KpiCard label="Avg. release" value={loadingKpis ? '—' : kpis?.avgReleaseDays ?? 0} unit="DAYS" hint={kpisError ?? undefined} tone="neutral" />
       </div>
 
+      <RevenueSection kpis={kpis} loading={loadingKpis} error={kpisError} />
+
       <div className="grid grid-cols-[1.6fr_1fr] gap-4">
         <Card kicker="● RECENT ACTIVITY" title="Last 24 hours" action={<Button kind="ghost" size="sm">Open audit log →</Button>} padding={0}>
           {loadingActivity && <div className="px-5 py-4"><LoadingState label="Loading activity…" /></div>}
@@ -152,5 +167,98 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function RevenueSection({
+  kpis,
+  loading,
+  error,
+}: {
+  kpis: DashboardKpis | null;
+  loading: boolean;
+  error: string | null;
+}) {
+  const rows = kpis?.revenueByCurrency ?? [];
+  const primaryCurrency = kpis?.revenueCurrency ?? 'SAR';
+  const primary = rows.find((row) => row.currency === primaryCurrency);
+  const totalRevenue = primary?.totalRevenue ?? kpis?.totalRevenue ?? 0;
+  const revenueMtd = primary?.revenueMtd ?? kpis?.revenueMtd ?? 0;
+
+  return (
+    <Card
+      kicker="● REVENUE"
+      title="Commission by currency"
+      action={
+        <Link
+          href="/payments"
+          className="font-body font-semibold text-xs text-mashia-600 hover:bg-mashia-50 rounded-md px-3 py-1.5"
+        >
+          Open payments →
+        </Link>
+      }
+      padding={0}
+      className="mb-6"
+    >
+      {loading && <div className="px-5 py-4"><LoadingState label="Loading revenue…" /></div>}
+      {!loading && error && <div className="px-5 py-4 text-sm text-flagged">{error}</div>}
+      {!loading && !error && (
+        <>
+          <div className="grid grid-cols-[1fr_1fr_120px] gap-4 px-5 py-4 border-b border-hairline">
+            <div>
+              <div className="font-display text-[24px] font-medium text-ink">
+                {formatMoney(revenueMtd, primaryCurrency)}
+              </div>
+              <div className="font-mono text-[10px] tracking-mono-wide uppercase text-muted mt-1">
+                month to date
+              </div>
+            </div>
+            <div>
+              <div className="font-display text-[24px] font-medium text-ink">
+                {formatMoney(totalRevenue, primaryCurrency)}
+              </div>
+              <div className="font-mono text-[10px] tracking-mono-wide uppercase text-muted mt-1">
+                total tracked
+              </div>
+            </div>
+            <div>
+              <div className="font-display text-[24px] font-medium text-ink">
+                {rows.length}
+              </div>
+              <div className="font-mono text-[10px] tracking-mono-wide uppercase text-muted mt-1">
+                currencies
+              </div>
+            </div>
+          </div>
+          {rows.length === 0 ? (
+            <div className="px-5 py-4 text-sm text-muted">No revenue recorded.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <div className="min-w-[520px]">
+                <div className="grid grid-cols-[120px_1fr_1fr] gap-4 px-5 py-2.5 font-mono text-[10px] tracking-mono-wide uppercase text-muted border-b border-hairline">
+                  <div>Currency</div>
+                  <div>MTD commission</div>
+                  <div>Total commission</div>
+                </div>
+                {rows.map((row, i) => (
+                  <div
+                    key={row.currency}
+                    className={`grid grid-cols-[120px_1fr_1fr] gap-4 px-5 py-3 text-[13px] items-center ${i ? 'border-t border-hairline' : ''}`}
+                  >
+                    <div className="font-mono text-[12px] text-ink">{row.currency}</div>
+                    <div className="font-display text-[18px] font-medium text-ink">
+                      {formatMoney(row.revenueMtd, row.currency)}
+                    </div>
+                    <div className="font-display text-[18px] font-medium text-ink">
+                      {formatMoney(row.totalRevenue, row.currency)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </Card>
   );
 }
