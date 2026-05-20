@@ -20,9 +20,22 @@ export type AdminDashboardKpis = {
   totalListings: number;
   activeListings: number;
   activeOrders: number;
+  /**
+   * Display-currency total for revenueCurrency only. Do not use this as a
+   * cross-currency financial total; use revenueByCurrency for reporting.
+   */
   totalRevenue: number;
+  /**
+   * Display-currency month-to-date total for revenueCurrency only.
+   */
   revenueMtd: number;
+  /**
+   * Currency used for headline dashboard revenue KPIs.
+   */
   revenueCurrency: Currency;
+  /**
+   * Canonical multi-currency revenue totals, grouped by payment currency.
+   */
   revenueByCurrency: AdminDashboardRevenueByCurrency[];
   pendingKyc: number;
   usersPendingKyc: number;
@@ -60,6 +73,10 @@ type RevenueAggregateRaw = {
   revenue_mtd?: string | number | null;
 };
 
+// Headline revenue KPIs are a single-currency display view for the dashboard.
+// Use revenueByCurrency for canonical multi-currency reporting.
+const PRIMARY_ADMIN_REVENUE_CURRENCY = Currency.SAR;
+
 @Injectable()
 export class AdminService {
   constructor(
@@ -77,7 +94,7 @@ export class AdminService {
 
   async getDashboard(): Promise<AdminDashboardResponse> {
     const monthStart = this.getUtcMonthStart();
-    const revenueCurrency = Currency.SAR;
+    const revenueCurrency = PRIMARY_ADMIN_REVENUE_CURRENCY;
 
     const [
       totalUsers,
