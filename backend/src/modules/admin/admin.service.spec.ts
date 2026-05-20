@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AdminService } from './admin.service';
@@ -29,6 +30,7 @@ describe('AdminService', () => {
   let ordersRepository: jest.Mocked<Repository<Order>>;
   let paymentsRepository: jest.Mocked<Repository<Payment>>;
   let certificatesRepository: jest.Mocked<Repository<Certificate>>;
+  let configService: { get: jest.Mock };
 
   const createRepositoryMock = () => ({
     count: jest.fn(),
@@ -64,6 +66,12 @@ describe('AdminService', () => {
           provide: getRepositoryToken(Certificate),
           useValue: createRepositoryMock(),
         },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn().mockReturnValue(undefined),
+          },
+        },
       ],
     }).compile();
 
@@ -73,6 +81,7 @@ describe('AdminService', () => {
     ordersRepository = module.get(getRepositoryToken(Order));
     paymentsRepository = module.get(getRepositoryToken(Payment));
     certificatesRepository = module.get(getRepositoryToken(Certificate));
+    configService = module.get(ConfigService);
   });
 
   afterEach(() => {
@@ -179,6 +188,29 @@ describe('AdminService', () => {
         },
         activity: [],
       });
+    });
+
+    it('uses configured admin dashboard revenue currency when valid', async () => {
+      configService.get.mockReturnValue(Currency.USD);
+      usersRepository.count.mockResolvedValue(0);
+      listingsRepository.count.mockResolvedValue(0);
+      ordersRepository.count.mockResolvedValue(0);
+      certificatesRepository.count.mockResolvedValue(0);
+      paymentsRepository.createQueryBuilder.mockReturnValue(
+        createRevenueQueryBuilder([
+          {
+            currency: Currency.USD,
+            total_revenue: '45',
+            revenue_mtd: '12',
+          },
+        ]) as never,
+      );
+
+      const result = await service.getDashboard();
+
+      expect(result.kpis.revenueCurrency).toBe(Currency.USD);
+      expect(result.kpis.totalRevenue).toBe(45);
+      expect(result.kpis.revenueMtd).toBe(12);
     });
 
     it('normalizes missing revenue aggregate values to zero', async () => {

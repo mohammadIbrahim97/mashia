@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Not, Repository } from 'typeorm';
 import { Certificate } from '../certificates/certificate.entity';
@@ -73,9 +74,7 @@ type RevenueAggregateRaw = {
   revenue_mtd?: string | number | null;
 };
 
-// Headline revenue KPIs are a single-currency display view for the dashboard.
-// Use revenueByCurrency for canonical multi-currency reporting.
-const PRIMARY_ADMIN_REVENUE_CURRENCY = Currency.SAR;
+const DEFAULT_PRIMARY_ADMIN_REVENUE_CURRENCY = Currency.SAR;
 
 @Injectable()
 export class AdminService {
@@ -90,11 +89,12 @@ export class AdminService {
     private readonly paymentsRepository: Repository<Payment>,
     @InjectRepository(Certificate)
     private readonly certificatesRepository: Repository<Certificate>,
+    private readonly configService: ConfigService,
   ) {}
 
   async getDashboard(): Promise<AdminDashboardResponse> {
     const monthStart = this.getUtcMonthStart();
-    const revenueCurrency = PRIMARY_ADMIN_REVENUE_CURRENCY;
+    const revenueCurrency = this.getPrimaryRevenueCurrency();
 
     const [
       totalUsers,
@@ -143,6 +143,7 @@ export class AdminService {
         revenueMtd: displayRevenue.revenueMtd,
         revenueCurrency,
         revenueByCurrency: revenue,
+        // Legacy aliases kept for backward compatibility with existing clients.
         pendingKyc: usersPendingKyc,
         usersPendingKyc,
         pendingCertificates: certsPending,
@@ -205,6 +206,17 @@ export class AdminService {
   private getUtcMonthStart(): Date {
     const now = new Date();
     return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  }
+
+  private getPrimaryRevenueCurrency(): Currency {
+    const configured = this.configService.get<string>(
+      'ADMIN_DASHBOARD_REVENUE_CURRENCY',
+    );
+    const currencies = Object.values(Currency) as string[];
+    if (configured && currencies.includes(configured)) {
+      return configured as Currency;
+    }
+    return DEFAULT_PRIMARY_ADMIN_REVENUE_CURRENCY;
   }
 
   private toNumber(value: string | number | null | undefined): number {
