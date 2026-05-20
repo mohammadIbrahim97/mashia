@@ -21,6 +21,7 @@ import { UsersService } from '../users/users.service';
 import { OrdersService } from '../orders/orders.service';
 import { PaymentsService } from '../payments/payments.service';
 import { ListingsService } from '../listings/listings.service';
+import { AdminService } from './admin.service';
 import { AdminCertificatesQueryDto } from './dto/admin-certificates-query.dto';
 import { AdminUsersQueryDto } from './dto/admin-users-query.dto';
 import { AdminKycDecisionDto } from './dto/admin-kyc-decision.dto';
@@ -36,12 +37,18 @@ import {
 @Roles(UserRole.ADMIN)
 export class AdminController {
   constructor(
+    private readonly adminService: AdminService,
     private readonly certificatesService: CertificatesService,
     private readonly usersService: UsersService,
     private readonly ordersService: OrdersService,
     private readonly paymentsService: PaymentsService,
     private readonly listingsService: ListingsService,
   ) {}
+
+  @Get('dashboard')
+  async getDashboard() {
+    return this.adminService.getDashboard();
+  }
 
   // ----- Certificates -----
 
