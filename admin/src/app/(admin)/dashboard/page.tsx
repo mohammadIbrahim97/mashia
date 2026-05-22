@@ -238,9 +238,10 @@ function RevenueSection({
               </div>
             </div>
             <div className="flex items-end justify-end">
-              <label className="flex flex-col gap-1">
+              <label htmlFor="revenue-currency-select" className="flex flex-col gap-1">
                 <span className="font-mono text-[10px] tracking-mono-wide uppercase text-muted">Currency</span>
                 <select
+                  id="revenue-currency-select"
                   value={selectedCurrency}
                   onChange={onCurrencyChange}
                   className="border border-hairline bg-white rounded-md px-2 py-1.5 text-[12px] text-ink"
