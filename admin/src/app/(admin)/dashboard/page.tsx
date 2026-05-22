@@ -194,8 +194,8 @@ function RevenueSection({
   }, [defaultCurrency]);
 
   const selected = rows.find((row) => row.currency === selectedCurrency);
-  const totalRevenue = selected?.totalRevenue ?? 0;
-  const revenueMtd = selected?.revenueMtd ?? 0;
+  const totalRevenue = selected?.totalRevenue ?? kpis?.totalRevenue ?? 0;
+  const revenueMtd = selected?.revenueMtd ?? kpis?.revenueMtd ?? 0;
 
   const onCurrencyChange = (event: ChangeEvent<HTMLSelectElement>) => {
     setSelectedCurrency(event.target.value);
