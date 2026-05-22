@@ -180,10 +180,13 @@ function RevenueSection({
   error: string | null;
 }) {
   const rows = kpis?.revenueByCurrency ?? [];
-  const selectableCurrencies = ['SAR', 'SYP', 'TRY'];
+  const fallbackCurrencies = ['SAR', 'SYP', 'TRY'];
+  const selectableCurrencies = rows.length
+    ? rows.map((row) => row.currency)
+    : fallbackCurrencies;
   const defaultCurrency = (kpis?.revenueCurrency && selectableCurrencies.includes(kpis.revenueCurrency))
     ? kpis.revenueCurrency
-    : 'SAR';
+    : selectableCurrencies[0];
   const [selectedCurrency, setSelectedCurrency] = useState(defaultCurrency);
 
   useEffect(() => {
