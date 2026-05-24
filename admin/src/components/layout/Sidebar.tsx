@@ -25,10 +25,10 @@ type Item = {
 
 const ITEMS: Item[] = [
   { href: '/dashboard', label: 'Dashboard', us: 'G3-US02', Icon: LayoutGrid },
-  { href: '/users', label: 'Users', us: 'G3-US03', Icon: Users, badge: 23, badgeKind: 'warn' },
-  { href: '/listings', label: 'Listings', us: 'G3-US04', Icon: ListChecks, badge: 4, badgeKind: 'danger' },
-  { href: '/certificates', label: 'Certificates', us: 'G3-US05', Icon: Shield, badge: 7, badgeKind: 'warn' },
-  { href: '/orders', label: 'Orders', us: 'G3-US06', Icon: ShoppingBag, badge: 2, badgeKind: 'danger' },
+  { href: '/users', label: 'Users', us: 'G3-US03', Icon: Users },
+  { href: '/listings', label: 'Listings', us: 'G3-US04', Icon: ListChecks },
+  { href: '/certificates', label: 'Certificates', us: 'G3-US05', Icon: Shield },
+  { href: '/orders', label: 'Orders', us: 'G3-US06', Icon: ShoppingBag },
   { href: '/payments', label: 'Payments', us: 'G3-US07', Icon: FileText },
 ];
 
