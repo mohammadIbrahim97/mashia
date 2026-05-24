@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Overline } from '@/components/ui/Overline';
@@ -180,10 +180,28 @@ function RevenueSection({
   error: string | null;
 }) {
   const rows = kpis?.revenueByCurrency ?? [];
-  const primaryCurrency = kpis?.revenueCurrency ?? 'SAR';
-  const primary = rows.find((row) => row.currency === primaryCurrency);
-  const totalRevenue = primary?.totalRevenue ?? kpis?.totalRevenue ?? 0;
-  const revenueMtd = primary?.revenueMtd ?? kpis?.revenueMtd ?? 0;
+  const fallbackCurrencies = ['SAR', 'SYP', 'TRY'];
+  const rowCurrencies = Array.from(new Set(rows.map((row) => row.currency)));
+  const preferredCurrencies = fallbackCurrencies.filter((currency) => rowCurrencies.includes(currency));
+  const selectableCurrencies = rowCurrencies.length
+    ? [...preferredCurrencies, ...rowCurrencies.filter((currency) => !preferredCurrencies.includes(currency))]
+    : fallbackCurrencies;
+  const defaultCurrency = (kpis?.revenueCurrency && selectableCurrencies.includes(kpis.revenueCurrency))
+    ? kpis.revenueCurrency
+    : selectableCurrencies[0];
+  const [selectedCurrency, setSelectedCurrency] = useState(defaultCurrency);
+
+  useEffect(() => {
+    setSelectedCurrency(defaultCurrency);
+  }, [defaultCurrency]);
+
+  const selected = rows.find((row) => row.currency === selectedCurrency);
+  const totalRevenue = selected?.totalRevenue ?? kpis?.totalRevenue ?? 0;
+  const revenueMtd = selected?.revenueMtd ?? kpis?.revenueMtd ?? 0;
+
+  const onCurrencyChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    setSelectedCurrency(event.target.value);
+  };
 
   return (
     <Card
@@ -207,7 +225,7 @@ function RevenueSection({
           <div className="grid grid-cols-[1fr_1fr_120px] gap-4 px-5 py-4 border-b border-hairline">
             <div>
               <div className="font-display text-[24px] font-medium text-ink">
-                {formatMoney(revenueMtd, primaryCurrency)}
+                {formatMoney(revenueMtd, selectedCurrency)}
               </div>
               <div className="font-mono text-[10px] tracking-mono-wide uppercase text-muted mt-1">
                 month to date
@@ -215,19 +233,26 @@ function RevenueSection({
             </div>
             <div>
               <div className="font-display text-[24px] font-medium text-ink">
-                {formatMoney(totalRevenue, primaryCurrency)}
+                {formatMoney(totalRevenue, selectedCurrency)}
               </div>
               <div className="font-mono text-[10px] tracking-mono-wide uppercase text-muted mt-1">
                 total tracked
               </div>
             </div>
-            <div>
-              <div className="font-display text-[24px] font-medium text-ink">
-                {rows.length}
-              </div>
-              <div className="font-mono text-[10px] tracking-mono-wide uppercase text-muted mt-1">
-                currencies
-              </div>
+            <div className="flex items-end justify-end">
+              <label htmlFor="revenue-currency-select" className="flex flex-col gap-1">
+                <span className="font-mono text-[10px] tracking-mono-wide uppercase text-muted">Currency</span>
+                <select
+                  id="revenue-currency-select"
+                  value={selectedCurrency}
+                  onChange={onCurrencyChange}
+                  className="border border-hairline bg-white rounded-md px-2 py-1.5 text-[12px] text-ink"
+                >
+                  {selectableCurrencies.map((currency) => (
+                    <option key={currency} value={currency}>{currency}</option>
+                  ))}
+                </select>
+              </label>
             </div>
           </div>
           {rows.length === 0 ? (
