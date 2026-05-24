@@ -181,8 +181,10 @@ function RevenueSection({
 }) {
   const rows = kpis?.revenueByCurrency ?? [];
   const fallbackCurrencies = ['SAR', 'SYP', 'TRY'];
-  const selectableCurrencies = rows.length
-    ? rows.map((row) => row.currency)
+  const rowCurrencies = Array.from(new Set(rows.map((row) => row.currency)));
+  const preferredCurrencies = fallbackCurrencies.filter((currency) => rowCurrencies.includes(currency));
+  const selectableCurrencies = rowCurrencies.length
+    ? [...preferredCurrencies, ...rowCurrencies.filter((currency) => !preferredCurrencies.includes(currency))]
     : fallbackCurrencies;
   const defaultCurrency = (kpis?.revenueCurrency && selectableCurrencies.includes(kpis.revenueCurrency))
     ? kpis.revenueCurrency
