@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import {
   LayoutGrid,
   Users,
@@ -35,6 +36,16 @@ const ITEMS: Item[] = [
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [adminName, setAdminName] = useState('Admin');
+
+  useEffect(() => {
+    const user = session.getUser();
+    if (user?.fullName) {
+      setAdminName(user.fullName);
+    }
+  }, []);
+
+  const adminInitial = adminName.trim().charAt(0).toUpperCase() || 'A';
 
   const onSignOut = () => {
     session.clear();
@@ -106,10 +117,10 @@ export function Sidebar() {
           className="flex items-center gap-2.5 px-3 py-2 bg-transparent border-none cursor-pointer text-sand font-body text-xs rounded-md hover:bg-white/[0.03]"
         >
           <div className="w-6 h-6 rounded-full bg-gold text-basalt flex items-center justify-center font-display font-semibold text-xs">
-            L
+            {adminInitial}
           </div>
           <div className="flex-1 text-left">
-            <div className="font-semibold">Layla A.</div>
+            <div className="font-semibold">{adminName}</div>
             <div className="text-[10px] opacity-60 font-mono tracking-mono">
               SUPER · ADMIN
             </div>

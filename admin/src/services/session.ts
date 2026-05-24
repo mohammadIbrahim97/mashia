@@ -2,6 +2,12 @@
 
 const ACCESS_KEY = 'access_token';
 const REFRESH_KEY = 'refresh_token';
+const USER_KEY = 'admin_user';
+
+type SessionUser = {
+  fullName: string;
+  role: 'admin';
+};
 
 function setCookie(name: string, value: string, maxAgeSec: number) {
   if (typeof document === 'undefined') return;
@@ -22,15 +28,36 @@ function clearCookie(name: string) {
 export const session = {
   getAccess: () => readCookie(ACCESS_KEY),
   getRefresh: () => readCookie(REFRESH_KEY),
-  set(accessToken: string, refreshToken: string) {
+  getUser(): SessionUser | null {
+    if (typeof window === 'undefined') return null;
+    const raw = window.localStorage.getItem(USER_KEY);
+    if (!raw) return null;
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return null;
+      const user = parsed as Record<string, unknown>;
+      if (typeof user.fullName !== 'string') return null;
+      if (user.role !== 'admin') return null;
+      return { fullName: user.fullName, role: 'admin' };
+    } catch {
+      return null;
+    }
+  },
+  set(accessToken: string, refreshToken: string, user?: SessionUser) {
     // Access token TTL aligns with backend default (15min); refresh token gets
     // 7 days. Cookies are non-HttpOnly so the JS can read them — switch to
     // HttpOnly via a Server Action when we tighten auth before production.
     setCookie(ACCESS_KEY, accessToken, 15 * 60);
     setCookie(REFRESH_KEY, refreshToken, 7 * 24 * 60 * 60);
+    if (typeof window !== 'undefined' && user) {
+      window.localStorage.setItem(USER_KEY, JSON.stringify(user));
+    }
   },
   clear() {
     clearCookie(ACCESS_KEY);
     clearCookie(REFRESH_KEY);
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(USER_KEY);
+    }
   },
 };
