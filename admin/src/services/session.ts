@@ -33,7 +33,12 @@ export const session = {
     const raw = window.localStorage.getItem(USER_KEY);
     if (!raw) return null;
     try {
-      return JSON.parse(raw) as SessionUser;
+      const parsed: unknown = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return null;
+      const user = parsed as Record<string, unknown>;
+      if (typeof user.fullName !== 'string') return null;
+      if (user.role !== 'admin') return null;
+      return { fullName: user.fullName, role: 'admin' };
     } catch {
       return null;
     }

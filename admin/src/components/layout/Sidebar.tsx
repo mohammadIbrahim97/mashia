@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   LayoutGrid,
   Users,
@@ -45,7 +45,7 @@ export function Sidebar() {
     }
   }, []);
 
-  const adminInitial = useMemo(() => adminName.trim().charAt(0).toUpperCase() || 'A', [adminName]);
+  const adminInitial = adminName.trim().charAt(0).toUpperCase() || 'A';
 
   const onSignOut = () => {
     session.clear();
