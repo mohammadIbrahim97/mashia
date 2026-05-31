@@ -12,7 +12,9 @@ import {
   Currency,
   KycStatus,
   ListingStatus,
+  EscrowStatus,
   OrderStatus,
+  PaymentMethod,
   UserRole,
 } from '@shared/enums';
 import { User } from '../users/user.entity';
@@ -279,21 +281,115 @@ describe('AdminController', () => {
   });
 
   describe('getOrder', () => {
-    it('returns order + linked payment (or null) and parallelizes both lookups', async () => {
-      const order = { id: 'order-1' } as never;
-      const payment = { id: 'pay-1' } as Payment;
-      ordersService.findOneForAdmin.mockResolvedValue(order);
-      paymentsService.findByOrderForAdmin.mockResolvedValue(payment);
+    const orderDetail = {
+      id: 'order-1',
+      listingId: 'listing-1',
+      listing: { id: 'listing-1', title: 'Awassi flock' },
+      buyerId: 'buyer-1',
+      buyer: {
+        id: 'buyer-1',
+        fullName: 'Buyer One',
+        phone: '+966500000001',
+        passwordHash: 'hash-secret',
+        totpSecret: 'totp-secret',
+        kycDocuments: { id: 's3://private/buyer-id.png' },
+      },
+      sellerId: 'seller-1',
+      seller: {
+        id: 'seller-1',
+        fullName: 'Seller One',
+        phone: '+966500000002',
+        passwordHash: 'seller-hash-secret',
+        totpSecret: 'seller-totp-secret',
+        kycDocuments: { id: 's3://private/seller-id.png' },
+      },
+      brokerId: null,
+      quantity: 2,
+      unitPrice: '100.00',
+      currency: Currency.SAR,
+      totalPrice: '200.00',
+      commissionRate: '5.00',
+      commissionAmount: '10.00',
+      status: OrderStatus.DISPUTED,
+      deliveryCountry: 'SA',
+      deliveryCity: 'Riyadh',
+      deliveryAddress: '123 Market St',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+    } as never;
+
+    const paymentDetail = {
+      id: 'pay-1',
+      orderId: 'order-1',
+      payerId: 'buyer-1',
+      amount: '200.00',
+      sellerAmount: '190.00',
+      commissionAmount: '10.00',
+      currency: Currency.SAR,
+      method: PaymentMethod.STC_PAY,
+      escrowStatus: EscrowStatus.HELD,
+      transactionRef: 'processor-secret-ref',
+      releasedAt: null,
+      refundedAt: null,
+      autoReleaseAt: new Date('2026-01-08T00:00:00.000Z'),
+      createdAt: new Date('2026-01-01T00:01:00.000Z'),
+    } as unknown as Payment;
+
+    it('returns sanitized order + linked payment detail', async () => {
+      ordersService.findOneForAdmin.mockResolvedValue(orderDetail);
+      paymentsService.findByOrderForAdmin.mockResolvedValue(paymentDetail);
 
       const result = await controller.getOrder('order-1');
 
-      expect(result).toEqual({ order, payment });
+      expect(result).toEqual({
+        order: expect.objectContaining({
+          id: 'order-1',
+          buyer: {
+            id: 'buyer-1',
+            fullName: 'Buyer One',
+            phone: '+966500000001',
+          },
+          seller: {
+            id: 'seller-1',
+            fullName: 'Seller One',
+            phone: '+966500000002',
+          },
+          totalPrice: 200,
+          commissionAmount: 10,
+        }),
+        payment: expect.objectContaining({
+          id: 'pay-1',
+          amount: 200,
+          sellerAmount: 190,
+          commissionAmount: 10,
+          escrowStatus: EscrowStatus.HELD,
+        }),
+      });
+    });
+
+    it('does not expose user secrets or payment transaction references', async () => {
+      ordersService.findOneForAdmin.mockResolvedValue(orderDetail);
+      paymentsService.findByOrderForAdmin.mockResolvedValue(paymentDetail);
+
+      const result = await controller.getOrder('order-1');
+      const serialized = JSON.stringify(result);
+
+      expect(serialized).not.toContain('passwordHash');
+      expect(serialized).not.toContain('totpSecret');
+      expect(serialized).not.toContain('kycDocuments');
+      expect(serialized).not.toContain('transactionRef');
+      expect(serialized).not.toContain('processor-secret-ref');
     });
   });
 
   describe('forceRelease', () => {
-    it('delegates to forceReleaseByOrder and returns refreshed order + payment', async () => {
-      const order = { id: 'order-1' } as never;
+    it('delegates to forceReleaseByOrder and returns sanitized refreshed order + payment', async () => {
+      const order = {
+        id: 'order-1',
+        listing: null,
+        buyer: null,
+        seller: null,
+      } as never;
       const payment = { id: 'pay-1' } as Payment;
       paymentsService.forceReleaseByOrder.mockResolvedValue(payment);
       ordersService.findOneForAdmin.mockResolvedValue(order);
@@ -303,13 +399,19 @@ describe('AdminController', () => {
       expect(paymentsService.forceReleaseByOrder).toHaveBeenCalledWith(
         'order-1',
       );
-      expect(result).toEqual({ order, payment });
+      expect(result.order.id).toBe('order-1');
+      expect(result.payment?.id).toBe('pay-1');
     });
   });
 
   describe('refund', () => {
-    it('delegates to refundByOrder and returns refreshed order + payment', async () => {
-      const order = { id: 'order-1' } as never;
+    it('delegates to refundByOrder and returns sanitized refreshed order + payment', async () => {
+      const order = {
+        id: 'order-1',
+        listing: null,
+        buyer: null,
+        seller: null,
+      } as never;
       const payment = { id: 'pay-1' } as Payment;
       paymentsService.refundByOrder.mockResolvedValue(payment);
       ordersService.findOneForAdmin.mockResolvedValue(order);
@@ -317,7 +419,8 @@ describe('AdminController', () => {
       const result = await controller.refund('order-1');
 
       expect(paymentsService.refundByOrder).toHaveBeenCalledWith('order-1');
-      expect(result).toEqual({ order, payment });
+      expect(result.order.id).toBe('order-1');
+      expect(result.payment?.id).toBe('pay-1');
     });
   });
 
