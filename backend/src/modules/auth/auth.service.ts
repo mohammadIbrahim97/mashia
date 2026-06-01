@@ -89,6 +89,7 @@ export class AuthService {
       throw new NotFoundException('User not found. Please register first.');
     }
 
+    this.assertActiveUser(user);
     const tokens = this.generateTokens(user);
     return { ...tokens, user };
   }
@@ -123,6 +124,7 @@ export class AuthService {
     const ttl = payload.exp - Math.floor(Date.now() / 1000);
     await this.redis.set(blacklistKey, '1', 'EX', ttl);
 
+    this.assertActiveUser(user);
     const tokens = this.generateTokens(user);
     return tokens;
   }
@@ -146,6 +148,7 @@ export class AuthService {
     if (!user || !ok) {
       throw new UnauthorizedException('Invalid email or password');
     }
+    this.assertActiveUser(user);
 
     if (user.totpEnabled) {
       const ticket = crypto.randomUUID();
@@ -192,6 +195,7 @@ export class AuthService {
       if (!user || !user.totpEnabled || !user.totpSecret) {
         throw new UnauthorizedException('TOTP not enabled for this account');
       }
+      this.assertActiveUser(user);
 
       const ok = authenticator.verify({ token: code, secret: user.totpSecret });
       if (!ok) {
@@ -248,6 +252,12 @@ export class AuthService {
     }
     await this.usersService.updateAuthFields(user.id, { totpEnabled: true });
     return { enabled: true };
+  }
+
+  private assertActiveUser(user: User): void {
+    if (user.suspended) {
+      throw new UnauthorizedException('Account suspended');
+    }
   }
 
   private generateTokens(

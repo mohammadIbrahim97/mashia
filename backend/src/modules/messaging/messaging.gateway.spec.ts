@@ -2,13 +2,40 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
-import { MessageType } from '@shared/enums';
+import {
+  KycStatus,
+  MessageType,
+  PreferredLanguage,
+  UserRole,
+} from '@shared/enums';
 import { Message } from './message.entity';
 import { AuthSocket, MessagingGateway } from './messaging.gateway';
+import { UsersService } from '../users/users.service';
 import { MessagingService } from './messaging.service';
 
 const userId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const conversationId = '11111111-1111-4111-8111-111111111111';
+const activeUser = {
+  id: userId,
+  role: UserRole.BUYER,
+  fullName: 'Ahmad Ali',
+  phone: '+966501234567',
+  email: null,
+  country: 'SA',
+  city: 'Riyadh',
+  kycStatus: KycStatus.PENDING,
+  kycDocuments: null,
+  preferredLanguage: PreferredLanguage.AR,
+  passwordHash: null,
+  totpSecret: null,
+  totpEnabled: false,
+  suspended: false,
+  kycRejectionReason: null,
+  kycReviewedAt: null,
+  kycReviewedById: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
 
 interface RoomTrackingSocket extends AuthSocket {
   rooms: Set<string>;
@@ -51,6 +78,7 @@ describe('MessagingGateway', () => {
   let messagingService: jest.Mocked<
     Pick<MessagingService, 'assertIsParticipant' | 'sendMessage' | 'markMessagesRead'>
   >;
+  let usersService: jest.Mocked<Pick<UsersService, 'findById'>>;
 
   beforeEach(async () => {
     jwtService = { verify: jest.fn() };
@@ -59,11 +87,15 @@ describe('MessagingGateway', () => {
       sendMessage: jest.fn(),
       markMessagesRead: jest.fn(),
     };
+    usersService = {
+      findById: jest.fn().mockResolvedValue(activeUser),
+    };
     const moduleRef = await Test.createTestingModule({
       providers: [
         MessagingGateway,
         { provide: MessagingService, useValue: messagingService },
         { provide: JwtService, useValue: jwtService },
+        { provide: UsersService, useValue: usersService },
         {
           provide: ConfigService,
           useValue: { get: jest.fn().mockReturnValue('test-secret') },
@@ -74,27 +106,28 @@ describe('MessagingGateway', () => {
   });
 
   describe('handleConnection', () => {
-    it('verifies token from handshake.auth.token and sets client.data.userId', () => {
+    it('verifies token from handshake.auth.token and sets client.data.userId', async () => {
       const client = buildSocket({ auth: { token: 'valid.jwt.token' } });
       jwtService.verify.mockReturnValue({ sub: userId } as never);
 
-      gateway.handleConnection(client);
+      await gateway.handleConnection(client);
 
       expect(jwtService.verify).toHaveBeenCalledWith('valid.jwt.token', {
         secret: 'test-secret',
       });
+      expect(usersService.findById).toHaveBeenCalledWith(userId);
       expect(client.data.userId).toBe(userId);
       expect(client.disconnect).not.toHaveBeenCalled();
     });
 
-    it('falls back to Authorization Bearer header when handshake.auth has no token', () => {
+    it('falls back to Authorization Bearer header when handshake.auth has no token', async () => {
       const client = buildSocket({
         auth: {},
         headers: { authorization: 'Bearer header.jwt.token' },
       });
       jwtService.verify.mockReturnValue({ sub: userId } as never);
 
-      gateway.handleConnection(client);
+      await gateway.handleConnection(client);
 
       expect(jwtService.verify).toHaveBeenCalledWith('header.jwt.token', {
         secret: 'test-secret',
@@ -102,35 +135,57 @@ describe('MessagingGateway', () => {
       expect(client.data.userId).toBe(userId);
     });
 
-    it('disconnects when no token is present', () => {
+    it('disconnects when no token is present', async () => {
       const client = buildSocket({ auth: {}, headers: {} });
 
-      gateway.handleConnection(client);
+      await gateway.handleConnection(client);
 
       expect(client.disconnect).toHaveBeenCalledWith(true);
       expect(jwtService.verify).not.toHaveBeenCalled();
       expect(client.data.userId).toBeUndefined();
     });
 
-    it('disconnects when token verification throws', () => {
-      const client = buildSocket({ auth: { token: 'bad.jwt' } });
-      jwtService.verify.mockImplementation(() => {
-        throw new Error('invalid token');
-      });
+    it('disconnects when the token belongs to a suspended user', async () => {
+      const client = buildSocket({ auth: { token: 'valid.jwt.token' } });
+      jwtService.verify.mockReturnValue({ sub: userId } as never);
+      usersService.findById.mockResolvedValue({ ...activeUser, suspended: true });
 
-      gateway.handleConnection(client);
+      await gateway.handleConnection(client);
 
       expect(client.disconnect).toHaveBeenCalledWith(true);
       expect(client.data.userId).toBeUndefined();
     });
 
-    it('ignores Authorization header that is not a Bearer scheme', () => {
+    it('disconnects when the token user no longer exists', async () => {
+      const client = buildSocket({ auth: { token: 'valid.jwt.token' } });
+      jwtService.verify.mockReturnValue({ sub: userId } as never);
+      usersService.findById.mockResolvedValue(null);
+
+      await gateway.handleConnection(client);
+
+      expect(client.disconnect).toHaveBeenCalledWith(true);
+      expect(client.data.userId).toBeUndefined();
+    });
+
+    it('disconnects when token verification throws', async () => {
+      const client = buildSocket({ auth: { token: 'bad.jwt' } });
+      jwtService.verify.mockImplementation(() => {
+        throw new Error('invalid token');
+      });
+
+      await gateway.handleConnection(client);
+
+      expect(client.disconnect).toHaveBeenCalledWith(true);
+      expect(client.data.userId).toBeUndefined();
+    });
+
+    it('ignores Authorization header that is not a Bearer scheme', async () => {
       const client = buildSocket({
         auth: {},
         headers: { authorization: 'Basic abc' },
       });
 
-      gateway.handleConnection(client);
+      await gateway.handleConnection(client);
 
       expect(client.disconnect).toHaveBeenCalledWith(true);
     });
@@ -228,6 +283,20 @@ describe('MessagingGateway', () => {
       expect(client.join).not.toHaveBeenCalled();
     });
 
+    it('acks unauthorized and disconnects when user was suspended after connecting', async () => {
+      const client = buildAuthedSocket();
+      usersService.findById.mockResolvedValue({ ...activeUser, suspended: true });
+
+      const ack = await gateway.handleJoinConversation(client, {
+        conversationId,
+      });
+
+      expect(ack).toEqual({ ok: false, error: 'unauthorized' });
+      expect(client.disconnect).toHaveBeenCalledWith(true);
+      expect(messagingService.assertIsParticipant).not.toHaveBeenCalled();
+      expect(client.join).not.toHaveBeenCalled();
+    });
+
     it('acks unauthorized when client.data.userId is missing', async () => {
       const client = buildSocket() as RoomTrackingSocket;
 
@@ -321,6 +390,17 @@ describe('MessagingGateway', () => {
       expect(messagingService.sendMessage).not.toHaveBeenCalled();
     });
 
+    it('acks unauthorized and disconnects when user was suspended after connecting', async () => {
+      const client = buildAuthedSocket();
+      usersService.findById.mockResolvedValue({ ...activeUser, suspended: true });
+
+      const ack = await gateway.handleSendMessage(client, validPayload);
+
+      expect(ack).toEqual({ ok: false, error: 'unauthorized' });
+      expect(client.disconnect).toHaveBeenCalledWith(true);
+      expect(messagingService.sendMessage).not.toHaveBeenCalled();
+    });
+
     it('acks unauthorized when client.data.userId is missing', async () => {
       const client = buildSocket() as RoomTrackingSocket;
 
@@ -328,6 +408,47 @@ describe('MessagingGateway', () => {
 
       expect(ack).toEqual({ ok: false, error: 'unauthorized' });
       expect(messagingService.sendMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleTyping', () => {
+    const buildAuthedSocket = (): RoomTrackingSocket => {
+      const client = buildSocket() as RoomTrackingSocket;
+      client.data.userId = userId;
+      return client;
+    };
+
+    const validPayload = { conversationId, isTyping: true };
+
+    it('broadcasts typing status for active participants', async () => {
+      const client = buildAuthedSocket();
+      const mocks = client as unknown as BroadcastMocks;
+      messagingService.assertIsParticipant.mockResolvedValue(undefined);
+
+      const ack = await gateway.handleTyping(client, validPayload);
+
+      expect(messagingService.assertIsParticipant).toHaveBeenCalledWith(
+        conversationId,
+        userId,
+      );
+      expect(mocks.to).toHaveBeenCalledWith(`conversation:${conversationId}`);
+      expect(mocks.emit).toHaveBeenCalledWith('userTyping', {
+        conversationId,
+        userId,
+        isTyping: true,
+      });
+      expect(ack).toEqual({ ok: true });
+    });
+
+    it('acks unauthorized and disconnects when user was suspended after connecting', async () => {
+      const client = buildAuthedSocket();
+      usersService.findById.mockResolvedValue({ ...activeUser, suspended: true });
+
+      const ack = await gateway.handleTyping(client, validPayload);
+
+      expect(ack).toEqual({ ok: false, error: 'unauthorized' });
+      expect(client.disconnect).toHaveBeenCalledWith(true);
+      expect(messagingService.assertIsParticipant).not.toHaveBeenCalled();
     });
   });
 
@@ -428,6 +549,17 @@ describe('MessagingGateway', () => {
       const ack = await gateway.handleMarkRead(client, badPayload);
 
       expect(ack).toEqual({ ok: false, error: 'invalid_payload' });
+      expect(messagingService.markMessagesRead).not.toHaveBeenCalled();
+    });
+
+    it('acks unauthorized and disconnects when user was suspended after connecting', async () => {
+      const client = buildAuthedSocket();
+      usersService.findById.mockResolvedValue({ ...activeUser, suspended: true });
+
+      const ack = await gateway.handleMarkRead(client, validPayload);
+
+      expect(ack).toEqual({ ok: false, error: 'unauthorized' });
+      expect(client.disconnect).toHaveBeenCalledWith(true);
       expect(messagingService.markMessagesRead).not.toHaveBeenCalled();
     });
 
