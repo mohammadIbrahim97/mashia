@@ -16,11 +16,13 @@ import {
   UserRole,
 } from '@shared/enums';
 import { UploadCertificateDto } from './dto/upload-certificate.dto';
+import { S3Service } from '@shared/s3/s3.service';
 
 describe('CertificatesService', () => {
   let service: CertificatesService;
   let certificates: jest.Mocked<Repository<Certificate>>;
   let listings: jest.Mocked<Repository<Listing>>;
+  let s3Service: jest.Mocked<S3Service>;
 
   const sellerId = '550e8400-e29b-41d4-a716-446655440000';
   const adminId = '660e8400-e29b-41d4-a716-446655440000';
@@ -45,18 +47,23 @@ describe('CertificatesService', () => {
       findOne: jest.fn(),
       update: jest.fn().mockResolvedValue({ affected: 1 }),
     };
+    const s3Mock = {
+      isTrustedObjectUrl: jest.fn().mockReturnValue(true),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CertificatesService,
         { provide: getRepositoryToken(Certificate), useValue: certRepo },
         { provide: getRepositoryToken(Listing), useValue: listingRepo },
+        { provide: S3Service, useValue: s3Mock },
       ],
     }).compile();
 
     service = module.get<CertificatesService>(CertificatesService);
     certificates = module.get(getRepositoryToken(Certificate));
     listings = module.get(getRepositoryToken(Listing));
+    s3Service = module.get(S3Service);
   });
 
   describe('create', () => {
@@ -75,7 +82,23 @@ describe('CertificatesService', () => {
         }),
       );
       expect(result).toBe(stub);
+      expect(s3Service.isTrustedObjectUrl).toHaveBeenCalledWith(
+        baseDto.fileUrl,
+        'certificates',
+      );
       expect(listings.update).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException when fileUrl is not trusted object storage', async () => {
+      s3Service.isTrustedObjectUrl.mockReturnValue(false);
+
+      await expect(
+        service.create(sellerId, {
+          ...baseDto,
+          fileUrl: 'http://127.0.0.1:4444/admin-review-probe.png',
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(certificates.save).not.toHaveBeenCalled();
     });
 
     it('links to listing and sets healthStatus=pending when listingId provided and seller owns it', async () => {

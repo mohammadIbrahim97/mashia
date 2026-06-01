@@ -86,6 +86,32 @@ describe('S3Service', () => {
     });
   });
 
+  describe('isTrustedObjectUrl', () => {
+    it('accepts AWS certificate object URLs for the configured bucket', () => {
+      expect(
+        service.isTrustedObjectUrl(
+          'https://mashia-files.s3.me-south-1.amazonaws.com/certificates/user/cert.png?X-Amz-Signature=abc',
+          'certificates',
+        ),
+      ).toBe(true);
+    });
+
+    it('rejects external and non-certificate URLs', () => {
+      expect(
+        service.isTrustedObjectUrl(
+          'https://attacker.example.com/certificates/user/cert.png',
+          'certificates',
+        ),
+      ).toBe(false);
+      expect(
+        service.isTrustedObjectUrl(
+          'https://mashia-files.s3.me-south-1.amazonaws.com/listings/user/photo.png',
+          'certificates',
+        ),
+      ).toBe(false);
+    });
+  });
+
   describe('ensureBucketExists', () => {
     it('should create bucket when HeadBucket returns 404', async () => {
       s3Mock

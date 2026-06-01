@@ -11,6 +11,7 @@ import { Listing } from '../listings/listing.entity';
 import { UploadCertificateDto } from './dto/upload-certificate.dto';
 import { VerifyCertificateDto } from './dto/verify-certificate.dto';
 import { CertificateStatus, HealthStatus, UserRole } from '@shared/enums';
+import { S3Service } from '@shared/s3/s3.service';
 
 export type AdminCertificateListQuery = {
   status?: CertificateStatus | 'all';
@@ -25,6 +26,7 @@ export class CertificatesService {
     private readonly certificatesRepository: Repository<Certificate>,
     @InjectRepository(Listing)
     private readonly listingsRepository: Repository<Listing>,
+    private readonly s3Service: S3Service,
   ) {}
 
   async create(
@@ -33,6 +35,10 @@ export class CertificatesService {
   ): Promise<Certificate> {
     if (new Date(dto.expiryDate) < new Date(dto.issueDate)) {
       throw new BadRequestException('expiryDate must be on or after issueDate');
+    }
+
+    if (!this.s3Service.isTrustedObjectUrl(dto.fileUrl, 'certificates')) {
+      throw new BadRequestException('fileUrl must reference an uploaded certificate file');
     }
 
     let listingId: string | null = null;
