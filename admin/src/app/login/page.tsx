@@ -15,7 +15,7 @@ import { session } from '@/services/session';
 type Step = 'credentials' | 'totp';
 
 function persistSession(s: LoginSuccess) {
-  session.set(s.accessToken, s.refreshToken, {
+  session.set(s.accessToken, {
     fullName: s.user.fullName,
     role: s.user.role,
   });
