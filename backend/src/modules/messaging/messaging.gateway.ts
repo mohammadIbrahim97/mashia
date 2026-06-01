@@ -19,6 +19,7 @@ import { Socket } from 'socket.io';
 import { Message } from './message.entity';
 import { MarkReadDto } from './dto/mark-read.dto';
 import { SendMessageDto } from './dto/send-message.dto';
+import { UsersService } from '../users/users.service';
 import { MessagingService } from './messaging.service';
 
 export type JoinConversationAckError =
@@ -63,9 +64,10 @@ export class MessagingGateway
     private readonly messagingService: MessagingService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly usersService: UsersService,
   ) {}
 
-  handleConnection(client: AuthSocket): void {
+  async handleConnection(client: AuthSocket): Promise<void> {
     const token = this.extractToken(client);
     if (!token) {
       client.disconnect(true);
@@ -75,7 +77,12 @@ export class MessagingGateway
       const payload = this.jwtService.verify<{ sub: string }>(token, {
         secret: this.configService.get<string>('JWT_SECRET'),
       });
-      client.data.userId = payload.sub;
+      const user = await this.usersService.findById(payload.sub);
+      if (!user || user.suspended) {
+        client.disconnect(true);
+        return;
+      }
+      client.data.userId = user.id;
     } catch {
       client.disconnect(true);
     }
@@ -96,7 +103,7 @@ export class MessagingGateway
       return { ok: false, error: 'invalid_payload' };
     }
 
-    const userId = client.data.userId;
+    const userId = await this.getActiveUserId(client);
     if (!userId) {
       return { ok: false, error: 'unauthorized' };
     }
@@ -126,7 +133,7 @@ export class MessagingGateway
       return { ok: false, error: 'invalid_payload' };
     }
 
-    const userId = client.data.userId;
+    const userId = await this.getActiveUserId(client);
     if (!userId) {
       return { ok: false, error: 'unauthorized' };
     }
@@ -165,7 +172,7 @@ export class MessagingGateway
       return { ok: false, error: 'invalid_payload' };
     }
 
-    const userId = client.data.userId;
+    const userId = await this.getActiveUserId(client);
     if (!userId) {
       return { ok: false, error: 'unauthorized' };
     }
@@ -196,7 +203,7 @@ export class MessagingGateway
       return { ok: false, error: 'invalid_payload' };
     }
 
-    const userId = client.data.userId;
+    const userId = await this.getActiveUserId(client);
     if (!userId) {
       return { ok: false, error: 'unauthorized' };
     }
@@ -230,6 +237,22 @@ export class MessagingGateway
     if (err instanceof NotFoundException) return 'not_found';
     if (err instanceof ForbiddenException) return 'forbidden';
     return null;
+  }
+
+  private async getActiveUserId(client: AuthSocket): Promise<string | null> {
+    const userId = client.data.userId;
+    if (!userId) {
+      return null;
+    }
+
+    const user = await this.usersService.findById(userId);
+    if (!user || user.suspended) {
+      client.data.userId = undefined;
+      client.disconnect(true);
+      return null;
+    }
+
+    return user.id;
   }
 
   private extractToken(client: AuthSocket): string | null {
