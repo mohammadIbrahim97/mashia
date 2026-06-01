@@ -16,6 +16,8 @@ import { Roles } from '@shared/decorators/roles.decorator';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
 import { UserRole } from '@shared/enums';
 import { User } from '../users/user.entity';
+import { Order } from '../orders/order.entity';
+import { Payment } from '../payments/payment.entity';
 import { CertificatesService } from '../certificates/certificates.service';
 import { UsersService } from '../users/users.service';
 import { OrdersService } from '../orders/orders.service';
@@ -104,21 +106,77 @@ export class AdminController {
       this.ordersService.findOneForAdmin(id),
       this.paymentsService.findByOrderForAdmin(id),
     ]);
-    return { order, payment };
+    return this.toAdminOrderDetail(order, payment);
   }
 
   @Post('orders/:id/release')
   async forceRelease(@Param('id', ParseUUIDPipe) id: string) {
     const payment = await this.paymentsService.forceReleaseByOrder(id);
     const order = await this.ordersService.findOneForAdmin(id);
-    return { order, payment };
+    return this.toAdminOrderDetail(order, payment);
   }
 
   @Post('orders/:id/refund')
   async refund(@Param('id', ParseUUIDPipe) id: string) {
     const payment = await this.paymentsService.refundByOrder(id);
     const order = await this.ordersService.findOneForAdmin(id);
-    return { order, payment };
+    return this.toAdminOrderDetail(order, payment);
+  }
+
+  private toAdminOrderDetail(order: Order, payment: Payment | null) {
+    return {
+      order: {
+        id: order.id,
+        listingId: order.listingId,
+        listing: order.listing
+          ? { id: order.listing.id, title: order.listing.title }
+          : null,
+        buyerId: order.buyerId,
+        buyer: order.buyer
+          ? {
+              id: order.buyer.id,
+              fullName: order.buyer.fullName,
+              phone: order.buyer.phone,
+            }
+          : null,
+        sellerId: order.sellerId,
+        seller: order.seller
+          ? {
+              id: order.seller.id,
+              fullName: order.seller.fullName,
+              phone: order.seller.phone,
+            }
+          : null,
+        brokerId: order.brokerId,
+        quantity: order.quantity,
+        unitPrice: Number(order.unitPrice),
+        currency: order.currency,
+        totalPrice: Number(order.totalPrice),
+        commissionRate: Number(order.commissionRate),
+        commissionAmount: Number(order.commissionAmount),
+        status: order.status,
+        deliveryCountry: order.deliveryCountry,
+        deliveryCity: order.deliveryCity,
+        deliveryAddress: order.deliveryAddress,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+      },
+      payment: payment
+        ? {
+            id: payment.id,
+            amount: Number(payment.amount),
+            sellerAmount: Number(payment.sellerAmount),
+            commissionAmount: Number(payment.commissionAmount),
+            currency: payment.currency,
+            method: payment.method,
+            escrowStatus: payment.escrowStatus,
+            releasedAt: payment.releasedAt,
+            refundedAt: payment.refundedAt,
+            autoReleaseAt: payment.autoReleaseAt,
+            createdAt: payment.createdAt,
+          }
+        : null,
+    };
   }
 
   // ----- Listings (G3-US04) -----
