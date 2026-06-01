@@ -251,6 +251,15 @@ describe('AuthService', () => {
       expect(result.user).toEqual(mockUser);
     });
 
+    it('should reject suspended users', async () => {
+      usersService.findByPhone.mockResolvedValue({ ...mockUser, suspended: true });
+
+      await expect(authService.login('+966501234567', '123456')).rejects.toThrow(
+        'Account suspended',
+      );
+      expect(jwtService.sign).not.toHaveBeenCalled();
+    });
+
     it('should throw NotFoundException when phone not registered', async () => {
       usersService.findByPhone.mockResolvedValue(null);
 
@@ -302,6 +311,23 @@ describe('AuthService', () => {
       );
       expect(result.accessToken).toBe('new-access-token');
       expect(result.refreshToken).toBe('new-refresh-token');
+    });
+
+    it('should blacklist the presented refresh token and reject suspended users', async () => {
+      jwtService.verify = jest.fn().mockReturnValue(validPayload);
+      mockRedis.get.mockResolvedValue(null);
+      usersService.findById.mockResolvedValue({ ...mockUser, suspended: true });
+
+      await expect(authService.refresh('old-refresh-token')).rejects.toThrow(
+        'Account suspended',
+      );
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        'rt_blacklist:test-jti-uuid',
+        '1',
+        'EX',
+        expect.any(Number),
+      );
+      expect(jwtService.sign).not.toHaveBeenCalled();
     });
 
     it('should throw UnauthorizedException for expired token', async () => {
@@ -420,6 +446,21 @@ describe('AuthService', () => {
         );
       });
 
+      it('throws UnauthorizedException when admin is suspended', async () => {
+        const passwordHash = await bcrypt.hash(adminPassword, 10);
+        usersService.findAdminByEmail.mockResolvedValue({
+          ...adminUserNoTotp,
+          passwordHash,
+          suspended: true,
+        } as User);
+
+        await expect(
+          authService.adminLogin(adminEmail, adminPassword),
+        ).rejects.toThrow('Account suspended');
+        expect(mockRedis.set).not.toHaveBeenCalled();
+        expect(jwtService.sign).not.toHaveBeenCalled();
+      });
+
       it('throws UnauthorizedException for wrong password', async () => {
         const passwordHash = await bcrypt.hash(adminPassword, 10);
         usersService.findAdminByEmail.mockResolvedValue({
@@ -456,6 +497,26 @@ describe('AuthService', () => {
         expect(mockRedis.del).toHaveBeenCalledWith(
           'admin_totp_ticket:valid-ticket',
           'admin_totp_ticket_attempts:valid-ticket',
+        );
+      });
+
+      it('throws UnauthorizedException when the TOTP admin is suspended', async () => {
+        mockRedis.get.mockResolvedValue(adminUserWithTotp.id);
+        usersService.findById.mockResolvedValue({
+          ...adminUserWithTotp,
+          suspended: true,
+        } as User);
+        const code = authenticator.generate(totpSecret);
+
+        await expect(
+          authService.verifyAdminTotp('valid-ticket', code),
+        ).rejects.toThrow('Account suspended');
+        expect(jwtService.sign).not.toHaveBeenCalled();
+        expect(mockRedis.eval).toHaveBeenCalledWith(
+          expect.stringContaining('redis.call("GET", KEYS[1])'),
+          1,
+          'admin_totp_ticket_lock:valid-ticket',
+          expect.any(String),
         );
       });
 
