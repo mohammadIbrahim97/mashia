@@ -1,7 +1,6 @@
 import axios, {
   AxiosError,
   AxiosResponse,
-  InternalAxiosRequestConfig,
 } from 'axios';
 import { session } from './session';
 
@@ -23,68 +22,16 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Refresh-on-401: when an admin's access token expires, transparently mint a
-// new pair from the refresh token and retry the original request once. If the
-// refresh itself fails (refresh token expired/revoked), wipe the session and
-// bounce to /login.
-
-type RetryConfig = InternalAxiosRequestConfig & { _retry?: boolean };
-
-let refreshing: Promise<string | null> | null = null;
-
-async function refreshAccessToken(): Promise<string | null> {
-  const refresh = session.getRefresh();
-  if (!refresh) return null;
-  try {
-    const res = await axios.post(
-      `${API_BASE_URL}/auth/refresh`,
-      { refreshToken: refresh },
-    );
-    const body = res.data;
-    const payload = (body && typeof body === 'object' && 'data' in body
-      ? body.data
-      : body) as { accessToken?: string; refreshToken?: string };
-    if (payload.accessToken && payload.refreshToken) {
-      session.set(payload.accessToken, payload.refreshToken);
-      return payload.accessToken;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 api.interceptors.response.use(
   (res) => res,
-  async (err: AxiosError) => {
-    const status = err.response?.status;
-    const original = err.config as RetryConfig | undefined;
-
-    if (status !== 401 || !original || original._retry) {
-      return Promise.reject(err);
-    }
-
-    // Don't try to refresh if the failing call IS the refresh endpoint.
-    if (original.url?.endsWith('/auth/refresh')) {
-      return Promise.reject(err);
-    }
-
-    original._retry = true;
-
-    refreshing = refreshing ?? refreshAccessToken();
-    const newToken = await refreshing;
-    refreshing = null;
-
-    if (!newToken) {
+  (err: AxiosError) => {
+    if (err.response?.status === 401) {
       session.clear();
       if (typeof window !== 'undefined') {
         window.location.href = '/login';
       }
-      return Promise.reject(err);
     }
-
-    original.headers.set('Authorization', `Bearer ${newToken}`);
-    return api(original);
+    return Promise.reject(err);
   },
 );
 
