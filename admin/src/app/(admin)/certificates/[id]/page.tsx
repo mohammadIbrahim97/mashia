@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
@@ -157,19 +156,27 @@ export default function AdminCertificateDetailPage({
       <div className="grid grid-cols-[1fr_360px] gap-4">
         <Card kicker="● DOCUMENT" title="Certificate file" padding={0}>
           <div className="aspect-[4/3] w-full bg-parchment relative">
-            {cert.fileUrl ? (
-              <Image
-                src={cert.fileUrl}
-                alt="Certificate document"
-                fill
-                style={{ objectFit: 'contain' }}
-                unoptimized
-              />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center text-muted font-mono text-[11px] tracking-mono uppercase">
-                No file
-              </div>
-            )}
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
+              {cert.fileUrl ? (
+                <>
+                  <div className="text-muted font-mono text-[11px] tracking-mono uppercase">
+                    Automatic file preview disabled
+                  </div>
+                  <a
+                    href={cert.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[13px] text-ink underline decoration-dotted underline-offset-4"
+                  >
+                    Open certificate file
+                  </a>
+                </>
+              ) : (
+                <div className="text-muted font-mono text-[11px] tracking-mono uppercase">
+                  No file
+                </div>
+              )}
+            </div>
           </div>
         </Card>
 
