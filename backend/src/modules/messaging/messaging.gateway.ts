@@ -50,14 +50,21 @@ export interface MarkReadAck {
   readAt?: Date | null;
 }
 
+interface TypingState {
+  isTyping: boolean;
+  lastStartedAt: number;
+}
+
 export interface AuthSocket extends Socket {
-  data: { userId?: string };
+  data: { userId?: string; typingStates?: Map<string, TypingState> };
 }
 
 @WebSocketGateway({ namespace: '/chat', cors: true })
 export class MessagingGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
+  private static readonly TYPING_START_MIN_INTERVAL_MS = 1000;
+
   private readonly logger = new Logger(MessagingGateway.name);
 
   constructor(
@@ -172,6 +179,14 @@ export class MessagingGateway
       return { ok: false, error: 'invalid_payload' };
     }
 
+    const room = `conversation:${conversationId}`;
+    if (!client.rooms.has(room)) {
+      return { ok: false, error: 'forbidden' };
+    }
+    if (this.shouldSuppressTypingEvent(client, conversationId, isTyping)) {
+      return { ok: true };
+    }
+
     const userId = await this.getActiveUserId(client);
     if (!userId) {
       return { ok: false, error: 'unauthorized' };
@@ -185,9 +200,8 @@ export class MessagingGateway
       throw err;
     }
 
-    client
-      .to(`conversation:${conversationId}`)
-      .emit('userTyping', { conversationId, userId, isTyping });
+    this.recordTypingEvent(client, conversationId, isTyping);
+    client.to(room).emit('userTyping', { conversationId, userId, isTyping });
     return { ok: true };
   }
 
@@ -229,6 +243,42 @@ export class MessagingGateway
       });
     }
     return { ok: true, updated: result.updated, readAt: result.readAt };
+  }
+
+  private shouldSuppressTypingEvent(
+    client: AuthSocket,
+    conversationId: string,
+    isTyping: boolean,
+  ): boolean {
+    const state = client.data.typingStates?.get(conversationId);
+    if (!state) {
+      return false;
+    }
+    if (state.isTyping === isTyping) {
+      return true;
+    }
+    if (
+      isTyping &&
+      Date.now() - state.lastStartedAt <
+        MessagingGateway.TYPING_START_MIN_INTERVAL_MS
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  private recordTypingEvent(
+    client: AuthSocket,
+    conversationId: string,
+    isTyping: boolean,
+  ): void {
+    const typingStates = client.data.typingStates ?? new Map<string, TypingState>();
+    client.data.typingStates = typingStates;
+    const previous = typingStates.get(conversationId);
+    typingStates.set(conversationId, {
+      isTyping,
+      lastStartedAt: isTyping ? Date.now() : previous?.lastStartedAt ?? 0,
+    });
   }
 
   private mapServiceError(

@@ -420,8 +420,9 @@ describe('MessagingGateway', () => {
 
     const validPayload = { conversationId, isTyping: true };
 
-    it('broadcasts typing status for active participants', async () => {
+    it('broadcasts typing status for active participants in joined rooms', async () => {
       const client = buildAuthedSocket();
+      client.rooms.add(`conversation:${conversationId}`);
       const mocks = client as unknown as BroadcastMocks;
       messagingService.assertIsParticipant.mockResolvedValue(undefined);
 
@@ -442,6 +443,7 @@ describe('MessagingGateway', () => {
 
     it('acks unauthorized and disconnects when user was suspended after connecting', async () => {
       const client = buildAuthedSocket();
+      client.rooms.add(`conversation:${conversationId}`);
       usersService.findById.mockResolvedValue({ ...activeUser, suspended: true });
 
       const ack = await gateway.handleTyping(client, validPayload);
@@ -449,6 +451,49 @@ describe('MessagingGateway', () => {
       expect(ack).toEqual({ ok: false, error: 'unauthorized' });
       expect(client.disconnect).toHaveBeenCalledWith(true);
       expect(messagingService.assertIsParticipant).not.toHaveBeenCalled();
+    });
+
+    it('rejects typing events before the socket joins the conversation room', async () => {
+      const client = buildAuthedSocket();
+      const mocks = client as unknown as BroadcastMocks;
+
+      const ack = await gateway.handleTyping(client, validPayload);
+
+      expect(ack).toEqual({ ok: false, error: 'forbidden' });
+      expect(usersService.findById).not.toHaveBeenCalled();
+      expect(messagingService.assertIsParticipant).not.toHaveBeenCalled();
+      expect(mocks.to).not.toHaveBeenCalled();
+    });
+
+    it('suppresses duplicate typing states before user and participant lookups', async () => {
+      const client = buildAuthedSocket();
+      client.rooms.add(`conversation:${conversationId}`);
+      const mocks = client as unknown as BroadcastMocks;
+      messagingService.assertIsParticipant.mockResolvedValue(undefined);
+
+      await gateway.handleTyping(client, validPayload);
+      const ack = await gateway.handleTyping(client, validPayload);
+
+      expect(ack).toEqual({ ok: true });
+      expect(usersService.findById).toHaveBeenCalledTimes(1);
+      expect(messagingService.assertIsParticipant).toHaveBeenCalledTimes(1);
+      expect(mocks.to).toHaveBeenCalledTimes(1);
+    });
+
+    it('rate limits rapid typing-start transitions before user and participant lookups', async () => {
+      const client = buildAuthedSocket();
+      client.rooms.add(`conversation:${conversationId}`);
+      const mocks = client as unknown as BroadcastMocks;
+      messagingService.assertIsParticipant.mockResolvedValue(undefined);
+
+      await gateway.handleTyping(client, { conversationId, isTyping: true });
+      await gateway.handleTyping(client, { conversationId, isTyping: false });
+      const ack = await gateway.handleTyping(client, { conversationId, isTyping: true });
+
+      expect(ack).toEqual({ ok: true });
+      expect(usersService.findById).toHaveBeenCalledTimes(2);
+      expect(messagingService.assertIsParticipant).toHaveBeenCalledTimes(2);
+      expect(mocks.to).toHaveBeenCalledTimes(2);
     });
   });
 
