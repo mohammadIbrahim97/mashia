@@ -207,13 +207,20 @@ export class MessagingGateway
       return { ok: false, error: 'rate_limited' };
     }
 
+    const reservedState = { isTyping, lastEmittedAt: now };
     client.data.typingStates ??= {};
-    client.data.typingStates[conversationId] = { isTyping, lastEmittedAt: now };
+    client.data.typingStates[conversationId] = reservedState;
 
     const activeUserId = await this.getActiveUserId(client);
     if (!activeUserId) {
-      delete client.data.typingStates[conversationId];
+      if (client.data.typingStates[conversationId] === reservedState) {
+        delete client.data.typingStates[conversationId];
+      }
       return { ok: false, error: 'unauthorized' };
+    }
+
+    if (client.data.typingStates[conversationId] !== reservedState) {
+      return { ok: true };
     }
 
     client

@@ -495,6 +495,84 @@ describe('MessagingGateway', () => {
       expect(mocks.emit).toHaveBeenCalledTimes(1);
     });
 
+    it('does not emit a stale typing start after a newer stop transition completes first', async () => {
+      const client = buildAuthedSocket();
+      const mocks = client as unknown as BroadcastMocks;
+      client.rooms.add(`conversation:${conversationId}`);
+      let resolveStart: (value: typeof activeUser) => void;
+      let resolveStop: (value: typeof activeUser) => void;
+      usersService.findById
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            resolveStart = resolve;
+          }),
+        )
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            resolveStop = resolve;
+          }),
+        );
+
+      const startAckPromise = gateway.handleTyping(client, validPayload);
+      const stopAckPromise = gateway.handleTyping(client, {
+        conversationId,
+        isTyping: false,
+      });
+
+      resolveStop!(activeUser);
+      const stopAck = await stopAckPromise;
+
+      expect(stopAck).toEqual({ ok: true });
+      expect(mocks.emit).toHaveBeenCalledTimes(1);
+      expect(mocks.emit).toHaveBeenCalledWith('userTyping', {
+        conversationId,
+        userId,
+        isTyping: false,
+      });
+
+      resolveStart!(activeUser);
+      const startAck = await startAckPromise;
+
+      expect(startAck).toEqual({ ok: true });
+      expect(mocks.emit).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not let a stale unauthorized typing check clear a newer reserved state', async () => {
+      const client = buildAuthedSocket();
+      client.rooms.add(`conversation:${conversationId}`);
+      let resolveStart: (value: null) => void;
+      let resolveStop: (value: typeof activeUser) => void;
+      usersService.findById
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            resolveStart = resolve;
+          }),
+        )
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            resolveStop = resolve;
+          }),
+        );
+
+      const startAckPromise = gateway.handleTyping(client, validPayload);
+      const stopAckPromise = gateway.handleTyping(client, {
+        conversationId,
+        isTyping: false,
+      });
+
+      resolveStart!(null);
+      const startAck = await startAckPromise;
+
+      expect(startAck).toEqual({ ok: false, error: 'unauthorized' });
+      expect(client.data.typingStates?.[conversationId]).toEqual({
+        isTyping: false,
+        lastEmittedAt: expect.any(Number),
+      });
+
+      resolveStop!(activeUser);
+      await stopAckPromise;
+    });
+
     it('rate-limits rapid typing start transitions before DB checks or broadcasts', async () => {
       const client = buildAuthedSocket();
       const mocks = client as unknown as BroadcastMocks;
