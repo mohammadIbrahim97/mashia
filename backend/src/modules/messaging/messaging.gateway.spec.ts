@@ -469,6 +469,32 @@ describe('MessagingGateway', () => {
       expect(mocks.emit).toHaveBeenCalledTimes(1);
     });
 
+    it('reserves typing state while the active-user check is pending to suppress concurrent duplicates', async () => {
+      const client = buildAuthedSocket();
+      const mocks = client as unknown as BroadcastMocks;
+      client.rooms.add(`conversation:${conversationId}`);
+      let resolveFindById: (value: typeof activeUser) => void;
+      usersService.findById.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveFindById = resolve;
+        }),
+      );
+
+      const firstAckPromise = gateway.handleTyping(client, validPayload);
+      const secondAck = await gateway.handleTyping(client, validPayload);
+
+      expect(secondAck).toEqual({ ok: true });
+      expect(usersService.findById).toHaveBeenCalledTimes(1);
+      expect(mocks.to).not.toHaveBeenCalled();
+
+      resolveFindById!(activeUser);
+      const firstAck = await firstAckPromise;
+
+      expect(firstAck).toEqual({ ok: true });
+      expect(mocks.to).toHaveBeenCalledTimes(1);
+      expect(mocks.emit).toHaveBeenCalledTimes(1);
+    });
+
     it('rate-limits rapid typing start transitions before DB checks or broadcasts', async () => {
       const client = buildAuthedSocket();
       const mocks = client as unknown as BroadcastMocks;

@@ -207,13 +207,14 @@ export class MessagingGateway
       return { ok: false, error: 'rate_limited' };
     }
 
-    const activeUserId = await this.getActiveUserId(client);
-    if (!activeUserId) {
-      return { ok: false, error: 'unauthorized' };
-    }
-
     client.data.typingStates ??= {};
     client.data.typingStates[conversationId] = { isTyping, lastEmittedAt: now };
+
+    const activeUserId = await this.getActiveUserId(client);
+    if (!activeUserId) {
+      delete client.data.typingStates[conversationId];
+      return { ok: false, error: 'unauthorized' };
+    }
 
     client
       .to(room)
