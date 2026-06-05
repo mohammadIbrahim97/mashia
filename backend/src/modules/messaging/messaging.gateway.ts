@@ -50,14 +50,30 @@ export interface MarkReadAck {
   readAt?: Date | null;
 }
 
+type TypingAck = { ok: boolean; error?: JoinConversationAckError };
+
+interface TypingState {
+  isTyping: boolean;
+  lastStartedAt: number;
+  pendingAck?: Promise<TypingAck>;
+}
+
+interface TypingAttempt {
+  suppressed: boolean;
+  previous?: TypingState;
+  pendingAck?: Promise<TypingAck>;
+}
+
 export interface AuthSocket extends Socket {
-  data: { userId?: string };
+  data: { userId?: string; typingStates?: Map<string, TypingState> };
 }
 
 @WebSocketGateway({ namespace: '/chat', cors: true })
 export class MessagingGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
+  private static readonly TYPING_START_MIN_INTERVAL_MS = 1000;
+
   private readonly logger = new Logger(MessagingGateway.name);
 
   constructor(
@@ -161,7 +177,10 @@ export class MessagingGateway
     @ConnectedSocket() client: AuthSocket,
     @MessageBody() payload: unknown,
   ): Promise<{ ok: boolean; error?: JoinConversationAckError }> {
-    const data = payload as { conversationId?: unknown; isTyping?: unknown } | null;
+    const data = payload as {
+      conversationId?: unknown;
+      isTyping?: unknown;
+    } | null;
     const conversationId = data?.conversationId;
     const isTyping = data?.isTyping;
     if (
@@ -172,23 +191,52 @@ export class MessagingGateway
       return { ok: false, error: 'invalid_payload' };
     }
 
+    const room = `conversation:${conversationId}`;
+    if (!client.rooms.has(room)) {
+      return { ok: false, error: 'forbidden' };
+    }
     const userId = await this.getActiveUserId(client);
     if (!userId) {
       return { ok: false, error: 'unauthorized' };
     }
 
+    let resolvePending: (ack: TypingAck) => void = () => undefined;
+    let rejectPending: (err: unknown) => void = () => undefined;
+    const pendingAck = new Promise<TypingAck>((resolve, reject) => {
+      resolvePending = resolve;
+      rejectPending = reject;
+    });
+    pendingAck.catch(() => undefined);
+
+    const attempt = this.recordTypingAttempt(
+      client,
+      conversationId,
+      isTyping,
+      pendingAck,
+    );
+    if (attempt.suppressed) {
+      return attempt.pendingAck ? await attempt.pendingAck : { ok: true };
+    }
+
     try {
       await this.messagingService.assertIsParticipant(conversationId, userId);
     } catch (err) {
+      this.restoreTypingState(client, conversationId, attempt.previous);
       const error = this.mapServiceError(err);
-      if (error) return { ok: false, error };
+      if (error) {
+        const ack: TypingAck = { ok: false, error };
+        resolvePending(ack);
+        return ack;
+      }
+      rejectPending(err);
       throw err;
     }
 
-    client
-      .to(`conversation:${conversationId}`)
-      .emit('userTyping', { conversationId, userId, isTyping });
-    return { ok: true };
+    this.finishTypingAttempt(client, conversationId);
+    client.to(room).emit('userTyping', { conversationId, userId, isTyping });
+    const ack: TypingAck = { ok: true };
+    resolvePending(ack);
+    return ack;
   }
 
   @SubscribeMessage('markRead')
@@ -229,6 +277,61 @@ export class MessagingGateway
       });
     }
     return { ok: true, updated: result.updated, readAt: result.readAt };
+  }
+
+  private recordTypingAttempt(
+    client: AuthSocket,
+    conversationId: string,
+    isTyping: boolean,
+    pendingAck: Promise<TypingAck>,
+  ): TypingAttempt {
+    const typingStates =
+      client.data.typingStates ?? new Map<string, TypingState>();
+    client.data.typingStates = typingStates;
+
+    const previous = typingStates.get(conversationId);
+    if (previous?.isTyping === isTyping) {
+      return { suppressed: true, pendingAck: previous.pendingAck };
+    }
+    if (
+      isTyping &&
+      previous &&
+      Date.now() - previous.lastStartedAt <
+        MessagingGateway.TYPING_START_MIN_INTERVAL_MS
+    ) {
+      return { suppressed: true, pendingAck: previous.pendingAck };
+    }
+
+    typingStates.set(conversationId, {
+      isTyping,
+      lastStartedAt: isTyping ? Date.now() : previous?.lastStartedAt ?? 0,
+      pendingAck,
+    });
+    return { suppressed: false, previous };
+  }
+
+  private finishTypingAttempt(
+    client: AuthSocket,
+    conversationId: string,
+  ): void {
+    const state = client.data.typingStates?.get(conversationId);
+    if (state) {
+      state.pendingAck = undefined;
+    }
+  }
+
+  private restoreTypingState(
+    client: AuthSocket,
+    conversationId: string,
+    previous?: TypingState,
+  ): void {
+    const typingStates = client.data.typingStates;
+    if (!typingStates) return;
+    if (previous) {
+      typingStates.set(conversationId, previous);
+    } else {
+      typingStates.delete(conversationId);
+    }
   }
 
   private mapServiceError(
