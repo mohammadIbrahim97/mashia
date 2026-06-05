@@ -26,8 +26,7 @@ export type JoinConversationAckError =
   | 'forbidden'
   | 'not_found'
   | 'invalid_payload'
-  | 'unauthorized'
-  | 'rate_limited';
+  | 'unauthorized';
 
 export interface JoinConversationAck {
   ok: boolean;
@@ -51,19 +50,9 @@ export interface MarkReadAck {
   readAt?: Date | null;
 }
 
-interface TypingState {
-  isTyping: boolean;
-  lastEmittedAt: number;
-}
-
 export interface AuthSocket extends Socket {
-  data: {
-    userId?: string;
-    typingStates?: Record<string, TypingState>;
-  };
+  data: { userId?: string };
 }
-
-const TYPING_EVENT_MIN_INTERVAL_MS = 1000;
 
 @WebSocketGateway({ namespace: '/chat', cors: true })
 export class MessagingGateway
@@ -183,49 +172,22 @@ export class MessagingGateway
       return { ok: false, error: 'invalid_payload' };
     }
 
-    const userId = client.data.userId;
+    const userId = await this.getActiveUserId(client);
     if (!userId) {
       return { ok: false, error: 'unauthorized' };
     }
 
-    const room = `conversation:${conversationId}`;
-    if (!client.rooms.has(room)) {
-      return { ok: false, error: 'forbidden' };
-    }
-
-    const previousState = client.data.typingStates?.[conversationId];
-    if (previousState?.isTyping === isTyping) {
-      return { ok: true };
-    }
-
-    const now = Date.now();
-    if (
-      previousState &&
-      isTyping &&
-      now - previousState.lastEmittedAt < TYPING_EVENT_MIN_INTERVAL_MS
-    ) {
-      return { ok: false, error: 'rate_limited' };
-    }
-
-    const reservedState = { isTyping, lastEmittedAt: now };
-    client.data.typingStates ??= {};
-    client.data.typingStates[conversationId] = reservedState;
-
-    const activeUserId = await this.getActiveUserId(client);
-    if (!activeUserId) {
-      if (client.data.typingStates[conversationId] === reservedState) {
-        delete client.data.typingStates[conversationId];
-      }
-      return { ok: false, error: 'unauthorized' };
-    }
-
-    if (client.data.typingStates[conversationId] !== reservedState) {
-      return { ok: true };
+    try {
+      await this.messagingService.assertIsParticipant(conversationId, userId);
+    } catch (err) {
+      const error = this.mapServiceError(err);
+      if (error) return { ok: false, error };
+      throw err;
     }
 
     client
-      .to(room)
-      .emit('userTyping', { conversationId, userId: activeUserId, isTyping });
+      .to(`conversation:${conversationId}`)
+      .emit('userTyping', { conversationId, userId, isTyping });
     return { ok: true };
   }
 
