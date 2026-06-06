@@ -143,6 +143,20 @@ describe('MessagingService', () => {
   });
 
   describe('findOrCreateConversation', () => {
+    it.each([
+      ['missing', {}],
+      ['null', { participantIds: null }],
+      ['non-array', { participantIds: participantA }],
+    ])('throws BadRequestException when participantIds is %s', async (_label, dto) => {
+      await expect(
+        service.findOrCreateConversation(
+          participantA,
+          dto as unknown as Parameters<typeof service.findOrCreateConversation>[1],
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(convRepo.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
     it('throws BadRequestException when participantIds does not contain exactly two unique users', async () => {
       await expect(
         service.findOrCreateConversation(participantA, {

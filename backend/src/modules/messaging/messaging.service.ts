@@ -199,8 +199,14 @@ export class MessagingService {
     }));
   }
 
-  private hasExactlyTwoUniqueParticipants(participantIds: string[]): boolean {
-    return participantIds.length === 2 && new Set(participantIds).size === 2;
+  private hasExactlyTwoUniqueParticipants(
+    participantIds: unknown,
+  ): participantIds is string[] {
+    return (
+      Array.isArray(participantIds) &&
+      participantIds.length === 2 &&
+      new Set(participantIds).size === 2
+    );
   }
 
   private async findParticipantConversation(
