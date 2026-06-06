@@ -16,7 +16,8 @@ const conversationId2 = '22222222-2222-4222-8222-222222222222';
 const participantA = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const participantB = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const stranger = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
-const listingId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+const participantC = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+const listingId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 
 interface ConvQbStub {
   where: jest.Mock;
@@ -142,6 +143,24 @@ describe('MessagingService', () => {
   });
 
   describe('findOrCreateConversation', () => {
+    it('throws BadRequestException when participantIds does not contain exactly two unique users', async () => {
+      await expect(
+        service.findOrCreateConversation(participantA, {
+          participantIds: [participantA, participantB, participantC],
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(convRepo.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException when participantIds contains duplicate users', async () => {
+      await expect(
+        service.findOrCreateConversation(participantA, {
+          participantIds: [participantA, participantA],
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(convRepo.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
     it('throws BadRequestException when current user is not in participantIds', async () => {
       await expect(
         service.findOrCreateConversation(stranger, {
@@ -514,6 +533,32 @@ describe('MessagingService', () => {
       await expect(
         service.markMessagesRead(conversationId, participantA, messageIds),
       ).rejects.toBeInstanceOf(NotFoundException);
+
+      expect(msgRepo.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException when markRead is used on a group conversation', async () => {
+      convRepo.findOne.mockResolvedValue({
+        id: conversationId,
+        participantIds: [participantA, participantB, participantC],
+      } as Conversation);
+
+      await expect(
+        service.markMessagesRead(conversationId, participantA, messageIds),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(msgRepo.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException when markRead is used on a duplicate-id conversation', async () => {
+      convRepo.findOne.mockResolvedValue({
+        id: conversationId,
+        participantIds: [participantA, participantA],
+      } as Conversation);
+
+      await expect(
+        service.markMessagesRead(conversationId, participantA, messageIds),
+      ).rejects.toBeInstanceOf(BadRequestException);
 
       expect(msgRepo.createQueryBuilder).not.toHaveBeenCalled();
     });

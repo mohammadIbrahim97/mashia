@@ -36,15 +36,7 @@ export class MessagingService {
     conversationId: string,
     userId: string,
   ): Promise<void> {
-    const conversation = await this.conversationsRepository.findOne({
-      where: { id: conversationId },
-    });
-    if (!conversation) {
-      throw new NotFoundException('Conversation not found');
-    }
-    if (!conversation.participantIds.includes(userId)) {
-      throw new ForbiddenException('Not a conversation participant');
-    }
+    await this.findParticipantConversation(conversationId, userId);
   }
 
   async sendMessage(
@@ -74,7 +66,15 @@ export class MessagingService {
     readerId: string,
     messageIds: string[],
   ): Promise<{ updated: string[]; readAt: Date | null }> {
-    await this.assertIsParticipant(conversationId, readerId);
+    const conversation = await this.findParticipantConversation(
+      conversationId,
+      readerId,
+    );
+    if (!this.hasExactlyTwoUniqueParticipants(conversation.participantIds)) {
+      throw new BadRequestException(
+        'Read receipts require a two-party conversation',
+      );
+    }
 
     const readAt = new Date();
     const result = await this.messagesRepository
@@ -102,6 +102,11 @@ export class MessagingService {
     currentUserId: string,
     dto: CreateConversationDto,
   ): Promise<FindOrCreateResult> {
+    if (!this.hasExactlyTwoUniqueParticipants(dto.participantIds)) {
+      throw new BadRequestException(
+        'Conversations must have exactly two unique participants',
+      );
+    }
     if (!dto.participantIds.includes(currentUserId)) {
       throw new BadRequestException(
         'Current user must be one of the participants',
@@ -192,6 +197,26 @@ export class MessagingService {
       lastMessage: lastMessages.get(c.id) ?? null,
       unreadCount: unreadCounts.get(c.id) ?? 0,
     }));
+  }
+
+  private hasExactlyTwoUniqueParticipants(participantIds: string[]): boolean {
+    return participantIds.length === 2 && new Set(participantIds).size === 2;
+  }
+
+  private async findParticipantConversation(
+    conversationId: string,
+    userId: string,
+  ): Promise<Conversation> {
+    const conversation = await this.conversationsRepository.findOne({
+      where: { id: conversationId },
+    });
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+    if (!conversation.participantIds.includes(userId)) {
+      throw new ForbiddenException('Not a conversation participant');
+    }
+    return conversation;
   }
 
   private async fetchLastMessages(conversationIds: string[]) {

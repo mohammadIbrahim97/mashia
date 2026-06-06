@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Logger,
   NotFoundException,
@@ -336,9 +337,10 @@ export class MessagingGateway
 
   private mapServiceError(
     err: unknown,
-  ): 'not_found' | 'forbidden' | null {
+  ): 'not_found' | 'forbidden' | 'invalid_payload' | null {
     if (err instanceof NotFoundException) return 'not_found';
     if (err instanceof ForbiddenException) return 'forbidden';
+    if (err instanceof BadRequestException) return 'invalid_payload';
     return null;
   }
 
