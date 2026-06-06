@@ -76,6 +76,17 @@ const buildSocket = (
   } as unknown as RoomTrackingSocket;
 };
 
+const buildDeepExtraPayload = (): { next?: unknown } => {
+  const root: { next?: unknown } = {};
+  let current = root;
+  for (let i = 0; i < 3000; i += 1) {
+    const next = {};
+    current.next = next;
+    current = next;
+  }
+  return root;
+};
+
 describe('MessagingGateway', () => {
   let gateway: MessagingGateway;
   let jwtService: jest.Mocked<Pick<JwtService, 'verify'>>;
@@ -357,6 +368,25 @@ describe('MessagingGateway', () => {
       expect(ack).toEqual({ ok: true, message: saved });
     });
 
+    it('ignores deeply nested extra fields before transforming the DTO', async () => {
+      const client = buildAuthedSocket();
+      const saved = buildSavedMessage();
+      messagingService.sendMessage.mockResolvedValue(saved);
+
+      const ack = await gateway.handleSendMessage(client, {
+        ...validPayload,
+        unused: buildDeepExtraPayload(),
+      });
+
+      expect(messagingService.sendMessage).toHaveBeenCalledWith(
+        conversationId,
+        userId,
+        'hello',
+        MessageType.TEXT,
+      );
+      expect(ack).toEqual({ ok: true, message: saved });
+    });
+
     it('acks forbidden and does not broadcast when caller is not a participant', async () => {
       const client = buildAuthedSocket();
       const mocks = client as unknown as BroadcastMocks;
@@ -408,7 +438,10 @@ describe('MessagingGateway', () => {
     it('acks unauthorized when client.data.userId is missing', async () => {
       const client = buildSocket() as RoomTrackingSocket;
 
-      const ack = await gateway.handleSendMessage(client, validPayload);
+      const ack = await gateway.handleSendMessage(client, {
+        ...validPayload,
+        unused: buildDeepExtraPayload(),
+      });
 
       expect(ack).toEqual({ ok: false, error: 'unauthorized' });
       expect(messagingService.sendMessage).not.toHaveBeenCalled();
@@ -657,6 +690,26 @@ describe('MessagingGateway', () => {
       expect(ack).toEqual({ ok: true, updated: messageIds, readAt });
     });
 
+    it('ignores deeply nested extra fields before transforming the DTO', async () => {
+      const client = buildAuthedSocket();
+      messagingService.markMessagesRead.mockResolvedValue({
+        updated: [],
+        readAt: null,
+      });
+
+      const ack = await gateway.handleMarkRead(client, {
+        ...validPayload,
+        unused: buildDeepExtraPayload(),
+      });
+
+      expect(messagingService.markMessagesRead).toHaveBeenCalledWith(
+        conversationId,
+        userId,
+        messageIds,
+      );
+      expect(ack).toEqual({ ok: true, updated: [], readAt: null });
+    });
+
     it('does not broadcast when 0 rows updated (own messages or already read), but still acks ok=true', async () => {
       const client = buildAuthedSocket();
       const mocks = client as unknown as BroadcastMocks;
@@ -746,7 +799,10 @@ describe('MessagingGateway', () => {
     it('acks unauthorized when client.data.userId is missing', async () => {
       const client = buildSocket() as RoomTrackingSocket;
 
-      const ack = await gateway.handleMarkRead(client, validPayload);
+      const ack = await gateway.handleMarkRead(client, {
+        ...validPayload,
+        unused: buildDeepExtraPayload(),
+      });
 
       expect(ack).toEqual({ ok: false, error: 'unauthorized' });
       expect(messagingService.markMessagesRead).not.toHaveBeenCalled();

@@ -142,17 +142,24 @@ export class MessagingGateway
     @ConnectedSocket() client: AuthSocket,
     @MessageBody() payload: unknown,
   ): Promise<SendMessageAck> {
-    const dto =
-      plainToInstance(SendMessageDto, payload as object) ??
-      new SendMessageDto();
-    const errors = await validate(dto);
-    if (errors.length > 0) {
-      return { ok: false, error: 'invalid_payload' };
-    }
-
     const userId = await this.getActiveUserId(client);
     if (!userId) {
       return { ok: false, error: 'unauthorized' };
+    }
+
+    const data = payload as {
+      conversationId?: unknown;
+      content?: unknown;
+      type?: unknown;
+    } | null;
+    const dto = plainToInstance(SendMessageDto, {
+      conversationId: data?.conversationId,
+      content: data?.content,
+      type: data?.type,
+    });
+    const errors = await validate(dto);
+    if (errors.length > 0) {
+      return { ok: false, error: 'invalid_payload' };
     }
 
     let saved: Message;
@@ -245,16 +252,22 @@ export class MessagingGateway
     @ConnectedSocket() client: AuthSocket,
     @MessageBody() payload: unknown,
   ): Promise<MarkReadAck> {
-    const dto =
-      plainToInstance(MarkReadDto, payload as object) ?? new MarkReadDto();
-    const errors = await validate(dto);
-    if (errors.length > 0) {
-      return { ok: false, error: 'invalid_payload' };
-    }
-
     const userId = await this.getActiveUserId(client);
     if (!userId) {
       return { ok: false, error: 'unauthorized' };
+    }
+
+    const data = payload as {
+      conversationId?: unknown;
+      messageIds?: unknown;
+    } | null;
+    const dto = plainToInstance(MarkReadDto, {
+      conversationId: data?.conversationId,
+      messageIds: data?.messageIds,
+    });
+    const errors = await validate(dto);
+    if (errors.length > 0) {
+      return { ok: false, error: 'invalid_payload' };
     }
 
     let result: { updated: string[]; readAt: Date | null };
