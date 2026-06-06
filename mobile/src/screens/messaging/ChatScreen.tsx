@@ -100,7 +100,7 @@ export function ChatScreen({ navigation, route }: Props) {
     (async () => {
       const tokens = await loadTokens();
       socket = io(`${config.apiBaseUrl}/chat`, {
-        query: { token: tokens?.accessToken ?? '' },
+        auth: { token: tokens?.accessToken ?? '' },
         transports: ['websocket'],
       });
       socketRef.current = socket;
