@@ -14,12 +14,10 @@ import {
   SubscribeMessage,
   WebSocketGateway,
 } from '@nestjs/websockets';
-import { plainToInstance } from 'class-transformer';
-import { isUUID, validate } from 'class-validator';
+import { isUUID } from 'class-validator';
 import { Socket } from 'socket.io';
+import { MessageType } from '@shared/enums';
 import { Message } from './message.entity';
-import { MarkReadDto } from './dto/mark-read.dto';
-import { SendMessageDto } from './dto/send-message.dto';
 import { UsersService } from '../users/users.service';
 import { MessagingService } from './messaging.service';
 
@@ -152,23 +150,27 @@ export class MessagingGateway
       content?: unknown;
       type?: unknown;
     } | null;
-    const dto = plainToInstance(SendMessageDto, {
-      conversationId: data?.conversationId,
-      content: data?.content,
-      type: data?.type,
-    });
-    const errors = await validate(dto);
-    if (errors.length > 0) {
+    const conversationId = data?.conversationId;
+    const content = data?.content;
+    const type = data?.type;
+    if (
+      typeof conversationId !== 'string' ||
+      !isUUID(conversationId, '4') ||
+      typeof content !== 'string' ||
+      content.length === 0 ||
+      content.length > 4000 ||
+      !this.isMessageType(type)
+    ) {
       return { ok: false, error: 'invalid_payload' };
     }
 
     let saved: Message;
     try {
       saved = await this.messagingService.sendMessage(
-        dto.conversationId,
+        conversationId,
         userId,
-        dto.content,
-        dto.type,
+        content,
+        type,
       );
     } catch (err) {
       const error = this.mapServiceError(err);
@@ -176,7 +178,7 @@ export class MessagingGateway
       throw err;
     }
 
-    client.to(`conversation:${dto.conversationId}`).emit('newMessage', saved);
+    client.to(`conversation:${conversationId}`).emit('newMessage', saved);
     return { ok: true, message: saved };
   }
 
@@ -261,21 +263,28 @@ export class MessagingGateway
       conversationId?: unknown;
       messageIds?: unknown;
     } | null;
-    const dto = plainToInstance(MarkReadDto, {
-      conversationId: data?.conversationId,
-      messageIds: data?.messageIds,
-    });
-    const errors = await validate(dto);
-    if (errors.length > 0) {
+    const conversationId = data?.conversationId;
+    const messageIds = data?.messageIds;
+    if (
+      typeof conversationId !== 'string' ||
+      !isUUID(conversationId, '4') ||
+      !Array.isArray(messageIds) ||
+      messageIds.length === 0 ||
+      messageIds.length > 200 ||
+      !messageIds.every(
+        (messageId): messageId is string =>
+          typeof messageId === 'string' && isUUID(messageId, '4'),
+      )
+    ) {
       return { ok: false, error: 'invalid_payload' };
     }
 
     let result: { updated: string[]; readAt: Date | null };
     try {
       result = await this.messagingService.markMessagesRead(
-        dto.conversationId,
+        conversationId,
         userId,
-        dto.messageIds,
+        messageIds,
       );
     } catch (err) {
       const error = this.mapServiceError(err);
@@ -284,7 +293,7 @@ export class MessagingGateway
     }
 
     if (result.updated.length > 0) {
-      client.to(`conversation:${dto.conversationId}`).emit('messageRead', {
+      client.to(`conversation:${conversationId}`).emit('messageRead', {
         messageIds: result.updated,
         readerId: userId,
         readAt: result.readAt,
@@ -346,6 +355,10 @@ export class MessagingGateway
     } else {
       typingStates.delete(conversationId);
     }
+  }
+
+  private isMessageType(value: unknown): value is MessageType {
+    return Object.values(MessageType).includes(value as MessageType);
   }
 
   private mapServiceError(

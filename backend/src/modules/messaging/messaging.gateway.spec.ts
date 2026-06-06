@@ -368,7 +368,7 @@ describe('MessagingGateway', () => {
       expect(ack).toEqual({ ok: true, message: saved });
     });
 
-    it('ignores deeply nested extra fields before transforming the DTO', async () => {
+    it('ignores deeply nested extra fields outside the DTO shape', async () => {
       const client = buildAuthedSocket();
       const saved = buildSavedMessage();
       messagingService.sendMessage.mockResolvedValue(saved);
@@ -411,9 +411,12 @@ describe('MessagingGateway', () => {
 
     it.each<[string, unknown]>([
       ['conversationId is not a uuid v4', { ...validPayload, conversationId: 'not-a-uuid' }],
+      ['conversationId is deeply nested', { ...validPayload, conversationId: buildDeepExtraPayload() }],
       ['content is empty', { ...validPayload, content: '' }],
       ['content exceeds 4000 chars', { ...validPayload, content: 'x'.repeat(4001) }],
+      ['content is deeply nested', { ...validPayload, content: buildDeepExtraPayload() }],
       ['type is not a MessageType value', { ...validPayload, type: 'sticker' }],
+      ['type is deeply nested', { ...validPayload, type: buildDeepExtraPayload() }],
       ['payload is null', null],
     ])('acks invalid_payload when %s', async (_label, badPayload) => {
       const client = buildAuthedSocket();
@@ -690,7 +693,7 @@ describe('MessagingGateway', () => {
       expect(ack).toEqual({ ok: true, updated: messageIds, readAt });
     });
 
-    it('ignores deeply nested extra fields before transforming the DTO', async () => {
+    it('ignores deeply nested extra fields outside the DTO shape', async () => {
       const client = buildAuthedSocket();
       messagingService.markMessagesRead.mockResolvedValue({
         updated: [],
@@ -767,6 +770,10 @@ describe('MessagingGateway', () => {
       ['conversationId is not a uuid v4', { ...validPayload, conversationId: 'not-a-uuid' }],
       ['messageIds is empty', { ...validPayload, messageIds: [] }],
       ['messageIds contains a non-uuid', { ...validPayload, messageIds: [messageIds[0], 'bad'] }],
+      ['messageIds contains a deeply nested value', {
+        ...validPayload,
+        messageIds: [buildDeepExtraPayload()],
+      }],
       ['messageIds exceeds 200 entries', {
         ...validPayload,
         messageIds: Array.from(
