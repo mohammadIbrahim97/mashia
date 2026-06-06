@@ -35,6 +35,11 @@ describe('CreateConversationDto', () => {
     expect(props(errs)).toContain('participantIds');
   });
 
+  it('rejects when participantIds has more than 2 items', async () => {
+    const errs = await validate_({ participantIds: [u1, u2, u1] });
+    expect(props(errs)).toContain('participantIds');
+  });
+
   it('rejects when participantIds is not an array', async () => {
     const errs = await validate_({ participantIds: u1 });
     expect(props(errs)).toContain('participantIds');

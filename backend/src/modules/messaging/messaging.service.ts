@@ -35,7 +35,7 @@ export class MessagingService {
   async assertIsParticipant(
     conversationId: string,
     userId: string,
-  ): Promise<void> {
+  ): Promise<Conversation> {
     const conversation = await this.conversationsRepository.findOne({
       where: { id: conversationId },
     });
@@ -45,6 +45,7 @@ export class MessagingService {
     if (!conversation.participantIds.includes(userId)) {
       throw new ForbiddenException('Not a conversation participant');
     }
+    return conversation;
   }
 
   async sendMessage(
@@ -74,7 +75,10 @@ export class MessagingService {
     readerId: string,
     messageIds: string[],
   ): Promise<{ updated: string[]; readAt: Date | null }> {
-    await this.assertIsParticipant(conversationId, readerId);
+    const conversation = await this.assertIsParticipant(conversationId, readerId);
+    if (conversation.participantIds.length !== 2) {
+      throw new BadRequestException('Read receipts require a two-party conversation');
+    }
 
     const readAt = new Date();
     const result = await this.messagesRepository
@@ -102,6 +106,9 @@ export class MessagingService {
     currentUserId: string,
     dto: CreateConversationDto,
   ): Promise<FindOrCreateResult> {
+    if (dto.participantIds.length !== 2) {
+      throw new BadRequestException('Conversations must have exactly two participants');
+    }
     if (!dto.participantIds.includes(currentUserId)) {
       throw new BadRequestException(
         'Current user must be one of the participants',

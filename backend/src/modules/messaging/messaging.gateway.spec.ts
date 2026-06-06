@@ -1,4 +1,8 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
@@ -8,6 +12,7 @@ import {
   PreferredLanguage,
   UserRole,
 } from '@shared/enums';
+import { Conversation } from './conversation.entity';
 import { Message } from './message.entity';
 import { AuthSocket, MessagingGateway } from './messaging.gateway';
 import { UsersService } from '../users/users.service';
@@ -15,6 +20,11 @@ import { MessagingService } from './messaging.service';
 
 const userId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const conversationId = '11111111-1111-4111-8111-111111111111';
+const participantConversation = {
+  id: conversationId,
+  participantIds: [userId, 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'],
+} as Conversation;
+
 const activeUser = {
   id: userId,
   role: UserRole.BUYER,
@@ -207,7 +217,7 @@ describe('MessagingGateway', () => {
 
     it('adds participant to conversation room and acks ok=true', async () => {
       const client = buildAuthedSocket();
-      messagingService.assertIsParticipant.mockResolvedValue(undefined);
+      messagingService.assertIsParticipant.mockResolvedValue(participantConversation);
 
       const ack = await gateway.handleJoinConversation(client, {
         conversationId,
@@ -424,7 +434,7 @@ describe('MessagingGateway', () => {
       const client = buildAuthedSocket();
       client.rooms.add(`conversation:${conversationId}`);
       const mocks = client as unknown as BroadcastMocks;
-      messagingService.assertIsParticipant.mockResolvedValue(undefined);
+      messagingService.assertIsParticipant.mockResolvedValue(participantConversation);
 
       const ack = await gateway.handleTyping(client, validPayload);
 
@@ -469,7 +479,7 @@ describe('MessagingGateway', () => {
       const client = buildAuthedSocket();
       client.rooms.add(`conversation:${conversationId}`);
       const mocks = client as unknown as BroadcastMocks;
-      messagingService.assertIsParticipant.mockResolvedValue(undefined);
+      messagingService.assertIsParticipant.mockResolvedValue(participantConversation);
 
       await gateway.handleTyping(client, validPayload);
       const ack = await gateway.handleTyping(client, validPayload);
@@ -484,7 +494,7 @@ describe('MessagingGateway', () => {
       const client = buildAuthedSocket();
       client.rooms.add(`conversation:${conversationId}`);
       const mocks = client as unknown as BroadcastMocks;
-      messagingService.assertIsParticipant.mockResolvedValue(undefined);
+      messagingService.assertIsParticipant.mockResolvedValue(participantConversation);
 
       await gateway.handleTyping(client, validPayload);
       usersService.findById.mockResolvedValue({ ...activeUser, suspended: true });
@@ -506,7 +516,7 @@ describe('MessagingGateway', () => {
       client.rooms.add(`conversation:${conversationId}`);
       const mocks = client as unknown as BroadcastMocks;
       usersService.findById.mockReturnValue(findById);
-      messagingService.assertIsParticipant.mockResolvedValue(undefined);
+      messagingService.assertIsParticipant.mockResolvedValue(participantConversation);
 
       const firstAck = gateway.handleTyping(client, validPayload);
       const secondAck = gateway.handleTyping(client, validPayload);
@@ -524,8 +534,8 @@ describe('MessagingGateway', () => {
 
     it('suppresses concurrent duplicate typing starts while participant checks are in flight', async () => {
       let resolveParticipant: () => void = () => undefined;
-      const participantCheck = new Promise<void>((resolve) => {
-        resolveParticipant = resolve;
+      const participantCheck = new Promise<Conversation>((resolve) => {
+        resolveParticipant = () => resolve(participantConversation);
       });
       const client = buildAuthedSocket();
       client.rooms.add(`conversation:${conversationId}`);
@@ -553,7 +563,7 @@ describe('MessagingGateway', () => {
       const mocks = client as unknown as BroadcastMocks;
       const now = jest.spyOn(Date, 'now');
       now.mockReturnValue(1000);
-      messagingService.assertIsParticipant.mockResolvedValue(undefined);
+      messagingService.assertIsParticipant.mockResolvedValue(participantConversation);
 
       await gateway.handleTyping(client, { conversationId, isTyping: true });
       now.mockReturnValue(1100);
@@ -595,7 +605,7 @@ describe('MessagingGateway', () => {
       const mocks = client as unknown as BroadcastMocks;
       const now = jest.spyOn(Date, 'now');
       now.mockReturnValue(1000);
-      messagingService.assertIsParticipant.mockResolvedValue(undefined);
+      messagingService.assertIsParticipant.mockResolvedValue(participantConversation);
 
       await gateway.handleTyping(client, { conversationId, isTyping: true });
       now.mockReturnValue(1100);
@@ -690,6 +700,19 @@ describe('MessagingGateway', () => {
       const ack = await gateway.handleMarkRead(client, validPayload);
 
       expect(ack).toEqual({ ok: false, error: 'not_found' });
+      expect(mocks.to).not.toHaveBeenCalled();
+    });
+
+    it('acks invalid_payload when read receipts are not supported for the conversation', async () => {
+      const client = buildAuthedSocket();
+      const mocks = client as unknown as BroadcastMocks;
+      messagingService.markMessagesRead.mockRejectedValue(
+        new BadRequestException(),
+      );
+
+      const ack = await gateway.handleMarkRead(client, validPayload);
+
+      expect(ack).toEqual({ ok: false, error: 'invalid_payload' });
       expect(mocks.to).not.toHaveBeenCalled();
     });
 
