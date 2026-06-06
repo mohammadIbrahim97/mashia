@@ -1,4 +1,8 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
@@ -690,6 +694,19 @@ describe('MessagingGateway', () => {
       const ack = await gateway.handleMarkRead(client, validPayload);
 
       expect(ack).toEqual({ ok: false, error: 'not_found' });
+      expect(mocks.to).not.toHaveBeenCalled();
+    });
+
+    it('acks invalid_payload when read receipts are not supported for the conversation', async () => {
+      const client = buildAuthedSocket();
+      const mocks = client as unknown as BroadcastMocks;
+      messagingService.markMessagesRead.mockRejectedValue(
+        new BadRequestException(),
+      );
+
+      const ack = await gateway.handleMarkRead(client, validPayload);
+
+      expect(ack).toEqual({ ok: false, error: 'invalid_payload' });
       expect(mocks.to).not.toHaveBeenCalled();
     });
 
