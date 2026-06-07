@@ -469,7 +469,7 @@ describe('MessagingGateway', () => {
       expect(mocks.to).not.toHaveBeenCalled();
     });
 
-    it('suppresses duplicate typing states after active-user validation', async () => {
+    it('suppresses duplicate typing states before active-user validation', async () => {
       const client = buildAuthedSocket();
       client.rooms.add(`conversation:${conversationId}`);
       const mocks = client as unknown as BroadcastMocks;
@@ -479,29 +479,12 @@ describe('MessagingGateway', () => {
       const ack = await gateway.handleTyping(client, validPayload);
 
       expect(ack).toEqual({ ok: true });
-      expect(usersService.findById).toHaveBeenCalledTimes(2);
+      expect(usersService.findById).toHaveBeenCalledTimes(1);
       expect(messagingService.assertIsParticipant).toHaveBeenCalledTimes(1);
       expect(mocks.to).toHaveBeenCalledTimes(1);
     });
 
-    it('revalidates active users before suppressing duplicate typing states', async () => {
-      const client = buildAuthedSocket();
-      client.rooms.add(`conversation:${conversationId}`);
-      const mocks = client as unknown as BroadcastMocks;
-      messagingService.assertIsParticipant.mockResolvedValue(undefined);
-
-      await gateway.handleTyping(client, validPayload);
-      usersService.findById.mockResolvedValue({ ...activeUser, suspended: true });
-      const ack = await gateway.handleTyping(client, validPayload);
-
-      expect(ack).toEqual({ ok: false, error: 'unauthorized' });
-      expect(client.disconnect).toHaveBeenCalledWith(true);
-      expect(usersService.findById).toHaveBeenCalledTimes(2);
-      expect(messagingService.assertIsParticipant).toHaveBeenCalledTimes(1);
-      expect(mocks.to).toHaveBeenCalledTimes(1);
-    });
-
-    it('suppresses concurrent duplicate typing starts after active lookups complete', async () => {
+    it('suppresses concurrent duplicate typing starts before duplicate active lookups', async () => {
       let resolveFindById: (user: typeof activeUser) => void = () => undefined;
       const findById = new Promise<typeof activeUser>((resolve) => {
         resolveFindById = resolve;
@@ -515,7 +498,7 @@ describe('MessagingGateway', () => {
       const firstAck = gateway.handleTyping(client, validPayload);
       const secondAck = gateway.handleTyping(client, validPayload);
 
-      expect(usersService.findById).toHaveBeenCalledTimes(2);
+      expect(usersService.findById).toHaveBeenCalledTimes(1);
       expect(messagingService.assertIsParticipant).not.toHaveBeenCalled();
       expect(mocks.to).not.toHaveBeenCalled();
 
@@ -541,7 +524,7 @@ describe('MessagingGateway', () => {
       const secondAck = gateway.handleTyping(client, validPayload);
       await Promise.resolve();
 
-      expect(usersService.findById).toHaveBeenCalledTimes(2);
+      expect(usersService.findById).toHaveBeenCalledTimes(1);
       expect(messagingService.assertIsParticipant).toHaveBeenCalledTimes(1);
       expect(mocks.to).not.toHaveBeenCalled();
 
@@ -551,7 +534,7 @@ describe('MessagingGateway', () => {
       expect(mocks.to).toHaveBeenCalledTimes(1);
     });
 
-    it('rate limits rapid typing-start transitions after active-user validation', async () => {
+    it('rate limits rapid typing-start transitions before active-user validation', async () => {
       const client = buildAuthedSocket();
       client.rooms.add(`conversation:${conversationId}`);
       const mocks = client as unknown as BroadcastMocks;
@@ -568,7 +551,7 @@ describe('MessagingGateway', () => {
       });
 
       expect(ack).toEqual({ ok: true });
-      expect(usersService.findById).toHaveBeenCalledTimes(3);
+      expect(usersService.findById).toHaveBeenCalledTimes(2);
       expect(messagingService.assertIsParticipant).toHaveBeenCalledTimes(2);
       expect(mocks.to).toHaveBeenCalledTimes(2);
 

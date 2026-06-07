@@ -196,10 +196,6 @@ export class MessagingGateway
     if (!client.rooms.has(room)) {
       return { ok: false, error: 'forbidden' };
     }
-    const userId = await this.getActiveUserId(client);
-    if (!userId) {
-      return { ok: false, error: 'unauthorized' };
-    }
 
     let resolvePending: (ack: TypingAck) => void = () => undefined;
     let rejectPending: (err: unknown) => void = () => undefined;
@@ -217,6 +213,21 @@ export class MessagingGateway
     );
     if (attempt.suppressed) {
       return attempt.pendingAck ? await attempt.pendingAck : { ok: true };
+    }
+
+    let userId: string | null;
+    try {
+      userId = await this.getActiveUserId(client);
+    } catch (err) {
+      this.restoreTypingState(client, conversationId, attempt.previous);
+      rejectPending(err);
+      throw err;
+    }
+    if (!userId) {
+      this.restoreTypingState(client, conversationId, attempt.previous);
+      const ack: TypingAck = { ok: false, error: 'unauthorized' };
+      resolvePending(ack);
+      return ack;
     }
 
     try {
