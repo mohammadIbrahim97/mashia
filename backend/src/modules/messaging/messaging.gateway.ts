@@ -220,7 +220,11 @@ export class MessagingGateway
       pendingAck,
     );
     if (attempt.suppressed) {
-      return attempt.pendingAck ? await attempt.pendingAck : { ok: true };
+      if (attempt.pendingAck) {
+        return await attempt.pendingAck;
+      }
+      const userId = await this.getActiveUserId(client);
+      return userId ? { ok: true } : { ok: false, error: 'unauthorized' };
     }
 
     let userId: string | null;
