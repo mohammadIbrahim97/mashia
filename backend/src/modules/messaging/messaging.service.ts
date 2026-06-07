@@ -9,6 +9,9 @@ import { DataSource, In, Repository } from 'typeorm';
 import { MessageType } from '@shared/enums';
 import { Conversation } from './conversation.entity';
 import { Message } from './message.entity';
+import { Listing } from '../listings/listing.entity';
+import { Order } from '../orders/order.entity';
+import { User } from '../users/user.entity';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { ConversationListItemResponse } from './dto/conversation-list-item.response';
 
@@ -29,6 +32,12 @@ export class MessagingService {
     private readonly conversationsRepository: Repository<Conversation>,
     @InjectRepository(Message)
     private readonly messagesRepository: Repository<Message>,
+    @InjectRepository(User)
+    private readonly usersRepository: Repository<User>,
+    @InjectRepository(Listing)
+    private readonly listingsRepository: Repository<Listing>,
+    @InjectRepository(Order)
+    private readonly ordersRepository: Repository<Order>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -117,6 +126,13 @@ export class MessagingService {
     const listingId = dto.listingId ?? null;
     const orderId = dto.orderId ?? null;
 
+    await this.assertCanCreateConversation(
+      currentUserId,
+      sortedIds,
+      listingId,
+      orderId,
+    );
+
     const qb = this.conversationsRepository
       .createQueryBuilder('c')
       .where('c.participant_ids = :ids', { ids: sortedIds });
@@ -124,6 +140,11 @@ export class MessagingService {
       qb.andWhere('c.listing_id IS NULL');
     } else {
       qb.andWhere('c.listing_id = :listingId', { listingId });
+    }
+    if (orderId === null) {
+      qb.andWhere('c.order_id IS NULL');
+    } else {
+      qb.andWhere('c.order_id = :orderId', { orderId });
     }
 
     const existing = await qb.getOne();
@@ -197,6 +218,69 @@ export class MessagingService {
       lastMessage: lastMessages.get(c.id) ?? null,
       unreadCount: unreadCounts.get(c.id) ?? 0,
     }));
+  }
+
+  private async assertCanCreateConversation(
+    currentUserId: string,
+    participantIds: string[],
+    listingId: string | null,
+    orderId: string | null,
+  ): Promise<void> {
+    const userCount = await this.usersRepository.countBy({
+      id: In(participantIds),
+    });
+    if (userCount !== participantIds.length) {
+      throw new BadRequestException('One or more participants are invalid');
+    }
+
+    if (orderId !== null) {
+      const order = await this.ordersRepository.findOne({
+        where: { id: orderId },
+      });
+      if (!order) {
+        throw new ForbiddenException('Conversation is not allowed');
+      }
+
+      const orderParticipantIds = [
+        order.buyerId,
+        order.sellerId,
+        order.brokerId,
+      ].filter((id): id is string => id !== null);
+      const currentUserIsOrderParticipant =
+        orderParticipantIds.includes(currentUserId);
+      const participantsAreOrderParticipants = participantIds.every((id) =>
+        orderParticipantIds.includes(id),
+      );
+      const listingMatchesOrder =
+        listingId === null || listingId === order.listingId;
+
+      if (
+        !currentUserIsOrderParticipant ||
+        !participantsAreOrderParticipants ||
+        !listingMatchesOrder
+      ) {
+        throw new ForbiddenException('Conversation is not allowed');
+      }
+      return;
+    }
+
+    if (listingId !== null) {
+      const listing = await this.listingsRepository.findOne({
+        where: { id: listingId },
+      });
+      if (
+        !listing ||
+        listing.sellerId === currentUserId ||
+        !participantIds.includes(listing.sellerId)
+      ) {
+        throw new ForbiddenException('Conversation is not allowed');
+      }
+      return;
+    }
+
+    throw new BadRequestException(
+      'Conversation requires a listingId or orderId',
+    );
   }
 
   private hasExactlyTwoUniqueParticipants(

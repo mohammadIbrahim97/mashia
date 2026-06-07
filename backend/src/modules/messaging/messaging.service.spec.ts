@@ -9,6 +9,9 @@ import { DataSource, Repository } from 'typeorm';
 import { MessageType } from '@shared/enums';
 import { Conversation } from './conversation.entity';
 import { Message } from './message.entity';
+import { Listing } from '../listings/listing.entity';
+import { Order } from '../orders/order.entity';
+import { User } from '../users/user.entity';
 import { MessagingService } from './messaging.service';
 
 const conversationId = '11111111-1111-4111-8111-111111111111';
@@ -18,6 +21,8 @@ const participantB = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const stranger = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const participantC = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const listingId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+const orderId = '99999999-9999-4999-8999-999999999999';
+const orderId2 = '88888888-8888-4888-8888-888888888888';
 
 interface ConvQbStub {
   where: jest.Mock;
@@ -30,7 +35,10 @@ interface ConvQbStub {
   getMany: jest.Mock<Promise<Conversation[]>, []>;
 }
 
-const buildConvQb = (existing: Conversation | null = null, many: Conversation[] = []): ConvQbStub => {
+const buildConvQb = (
+  existing: Conversation | null = null,
+  many: Conversation[] = [],
+): ConvQbStub => {
   const qb: Partial<ConvQbStub> = {};
   qb.where = jest.fn().mockReturnValue(qb);
   qb.andWhere = jest.fn().mockReturnValue(qb);
@@ -79,9 +87,15 @@ const buildMsgQb = (
 describe('MessagingService', () => {
   let service: MessagingService;
   let convRepo: jest.Mocked<
-    Pick<Repository<Conversation>, 'findOne' | 'createQueryBuilder' | 'create' | 'save'>
+    Pick<
+      Repository<Conversation>,
+      'findOne' | 'createQueryBuilder' | 'create' | 'save'
+    >
   >;
   let msgRepo: jest.Mocked<Pick<Repository<Message>, 'createQueryBuilder'>>;
+  let usersRepo: jest.Mocked<Pick<Repository<User>, 'countBy'>>;
+  let listingsRepo: jest.Mocked<Pick<Repository<Listing>, 'findOne'>>;
+  let ordersRepo: jest.Mocked<Pick<Repository<Order>, 'findOne'>>;
   let txManager: { save: jest.Mock; update: jest.Mock };
   let dataSource: { transaction: jest.Mock };
 
@@ -93,6 +107,14 @@ describe('MessagingService', () => {
       save: jest.fn(),
     };
     msgRepo = { createQueryBuilder: jest.fn() };
+    usersRepo = { countBy: jest.fn().mockResolvedValue(2) };
+    listingsRepo = {
+      findOne: jest.fn().mockResolvedValue({
+        id: listingId,
+        sellerId: participantB,
+      } as Listing),
+    };
+    ordersRepo = { findOne: jest.fn() };
     txManager = {
       save: jest.fn(),
       update: jest.fn().mockResolvedValue({ affected: 1 }),
@@ -107,6 +129,9 @@ describe('MessagingService', () => {
         MessagingService,
         { provide: getRepositoryToken(Conversation), useValue: convRepo },
         { provide: getRepositoryToken(Message), useValue: msgRepo },
+        { provide: getRepositoryToken(User), useValue: usersRepo },
+        { provide: getRepositoryToken(Listing), useValue: listingsRepo },
+        { provide: getRepositoryToken(Order), useValue: ordersRepo },
         { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
@@ -147,15 +172,20 @@ describe('MessagingService', () => {
       ['missing', {}],
       ['null', { participantIds: null }],
       ['non-array', { participantIds: participantA }],
-    ])('throws BadRequestException when participantIds is %s', async (_label, dto) => {
-      await expect(
-        service.findOrCreateConversation(
-          participantA,
-          dto as unknown as Parameters<typeof service.findOrCreateConversation>[1],
-        ),
-      ).rejects.toBeInstanceOf(BadRequestException);
-      expect(convRepo.createQueryBuilder).not.toHaveBeenCalled();
-    });
+    ])(
+      'throws BadRequestException when participantIds is %s',
+      async (_label, dto) => {
+        await expect(
+          service.findOrCreateConversation(
+            participantA,
+            dto as unknown as Parameters<
+              typeof service.findOrCreateConversation
+            >[1],
+          ),
+        ).rejects.toBeInstanceOf(BadRequestException);
+        expect(convRepo.createQueryBuilder).not.toHaveBeenCalled();
+      },
+    );
 
     it('throws BadRequestException when participantIds does not contain exactly two unique users', async () => {
       await expect(
@@ -209,11 +239,13 @@ describe('MessagingService', () => {
       convRepo.createQueryBuilder.mockReturnValue(
         qb as unknown as ReturnType<typeof convRepo.createQueryBuilder>,
       );
-      const draft = { participantIds: [participantA, participantB] } as Conversation;
+      const draft = {
+        participantIds: [participantA, participantB],
+      } as Conversation;
       const saved = {
         id: conversationId,
         participantIds: [participantA, participantB],
-        listingId: null,
+        listingId,
         orderId: null,
       } as Conversation;
       convRepo.create.mockReturnValue(draft);
@@ -221,15 +253,19 @@ describe('MessagingService', () => {
 
       const result = await service.findOrCreateConversation(participantA, {
         participantIds: [participantB, participantA],
+        listingId,
       });
 
       expect(result).toEqual({ created: true, conversation: saved });
       expect(convRepo.create).toHaveBeenCalledWith({
         participantIds: [participantA, participantB].sort(),
-        listingId: null,
+        listingId,
         orderId: null,
       });
-      expect(qb.andWhere).toHaveBeenCalledWith('c.listing_id IS NULL');
+      expect(qb.andWhere).toHaveBeenCalledWith('c.listing_id = :listingId', {
+        listingId,
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith('c.order_id IS NULL');
     });
 
     it('matches existing conversation regardless of participantIds order', async () => {
@@ -242,6 +278,7 @@ describe('MessagingService', () => {
 
       await service.findOrCreateConversation(participantA, {
         participantIds: [participantB, participantA],
+        listingId,
       });
 
       expect(qb.where).toHaveBeenCalledWith('c.participant_ids = :ids', {
@@ -265,6 +302,150 @@ describe('MessagingService', () => {
       expect(qb.andWhere).toHaveBeenCalledWith('c.listing_id = :listingId', {
         listingId,
       });
+    });
+
+    it('rejects unknown participant IDs before creating a conversation', async () => {
+      usersRepo.countBy.mockResolvedValue(1);
+
+      await expect(
+        service.findOrCreateConversation(participantA, {
+          participantIds: [participantA, participantB],
+          listingId,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(convRepo.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    it('rejects unscoped conversation creation', async () => {
+      await expect(
+        service.findOrCreateConversation(participantA, {
+          participantIds: [participantA, participantB],
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(convRepo.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    it('rejects listing conversations that do not include the listing seller', async () => {
+      listingsRepo.findOne.mockResolvedValue({
+        id: listingId,
+        sellerId: participantC,
+      } as Listing);
+
+      await expect(
+        service.findOrCreateConversation(participantA, {
+          participantIds: [participantA, participantB],
+          listingId,
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(convRepo.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    it('rejects listing conversations initiated by the listing seller', async () => {
+      await expect(
+        service.findOrCreateConversation(participantB, {
+          participantIds: [participantA, participantB],
+          listingId,
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(convRepo.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    it('filters by order_id when provided', async () => {
+      const qb = buildConvQb(null);
+      convRepo.createQueryBuilder.mockReturnValue(
+        qb as unknown as ReturnType<typeof convRepo.createQueryBuilder>,
+      );
+      ordersRepo.findOne.mockResolvedValue({
+        id: orderId,
+        buyerId: participantA,
+        sellerId: participantB,
+        brokerId: null,
+        listingId: null,
+      } as Order);
+      convRepo.create.mockReturnValue({} as Conversation);
+      convRepo.save.mockResolvedValue({} as Conversation);
+
+      await service.findOrCreateConversation(participantA, {
+        participantIds: [participantA, participantB],
+        orderId,
+      });
+
+      expect(qb.andWhere).toHaveBeenCalledWith('c.order_id = :orderId', {
+        orderId,
+      });
+    });
+
+    it('does not conflate order-scoped conversations with the same participants', async () => {
+      const qb = buildConvQb(null);
+      convRepo.createQueryBuilder.mockReturnValue(
+        qb as unknown as ReturnType<typeof convRepo.createQueryBuilder>,
+      );
+      ordersRepo.findOne.mockResolvedValue({
+        id: orderId2,
+        buyerId: participantA,
+        sellerId: participantB,
+        brokerId: null,
+        listingId: null,
+      } as Order);
+      convRepo.create.mockReturnValue({} as Conversation);
+      convRepo.save.mockResolvedValue({} as Conversation);
+
+      await service.findOrCreateConversation(participantA, {
+        participantIds: [participantA, participantB],
+        orderId: orderId2,
+      });
+
+      expect(qb.andWhere).toHaveBeenCalledWith('c.order_id = :orderId', {
+        orderId: orderId2,
+      });
+      expect(convRepo.create).toHaveBeenCalledWith({
+        participantIds: [participantA, participantB].sort(),
+        listingId: null,
+        orderId: orderId2,
+      });
+    });
+
+    it('rejects order conversations unless participants belong to the order', async () => {
+      ordersRepo.findOne.mockResolvedValue({
+        id: orderId,
+        buyerId: participantA,
+        sellerId: participantC,
+        brokerId: null,
+        listingId: null,
+      } as Order);
+
+      await expect(
+        service.findOrCreateConversation(participantA, {
+          participantIds: [participantA, participantB],
+          orderId,
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(convRepo.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    it('rejects order conversations when listingId does not match the order', async () => {
+      ordersRepo.findOne.mockResolvedValue({
+        id: orderId,
+        buyerId: participantA,
+        sellerId: participantB,
+        brokerId: null,
+        listingId: orderId2,
+      } as Order);
+
+      await expect(
+        service.findOrCreateConversation(participantA, {
+          participantIds: [participantA, participantB],
+          listingId,
+          orderId,
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(convRepo.createQueryBuilder).not.toHaveBeenCalled();
     });
   });
 
@@ -316,9 +497,13 @@ describe('MessagingService', () => {
       } as Message;
       const qb = setup([newest, middle, oldest]);
 
-      const result = await service.listMessages(conversationId, participantA, { limit: 50 });
+      const result = await service.listMessages(conversationId, participantA, {
+        limit: 50,
+      });
 
-      expect(qb.where).toHaveBeenCalledWith('m.conversation_id = :cid', { cid: conversationId });
+      expect(qb.where).toHaveBeenCalledWith('m.conversation_id = :cid', {
+        cid: conversationId,
+      });
       expect(qb.orderBy).toHaveBeenCalledWith('m.created_at', 'DESC');
       expect(qb.take).toHaveBeenCalledWith(50);
       expect(result.map((m) => m.id)).toEqual(['m1', 'm2', 'm3']);
