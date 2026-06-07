@@ -125,6 +125,11 @@ export class MessagingService {
     } else {
       qb.andWhere('c.listing_id = :listingId', { listingId });
     }
+    if (orderId === null) {
+      qb.andWhere('c.order_id IS NULL');
+    } else {
+      qb.andWhere('c.order_id = :orderId', { orderId });
+    }
 
     const existing = await qb.getOne();
     if (existing) {

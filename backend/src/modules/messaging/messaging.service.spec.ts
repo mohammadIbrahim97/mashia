@@ -11,6 +11,7 @@ import { Conversation } from './conversation.entity';
 import { Message } from './message.entity';
 import { MessagingService } from './messaging.service';
 
+// Deterministic UUID-shaped fixtures for unit tests; not real persisted IDs.
 const conversationId = '11111111-1111-4111-8111-111111111111';
 const conversationId2 = '22222222-2222-4222-8222-222222222222';
 const participantA = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -18,6 +19,8 @@ const participantB = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const stranger = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const participantC = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const listingId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+const orderId = '99999999-9999-4999-8999-999999999999';
+const orderId2 = '88888888-8888-4888-8888-888888888888';
 
 interface ConvQbStub {
   where: jest.Mock;
@@ -230,6 +233,7 @@ describe('MessagingService', () => {
         orderId: null,
       });
       expect(qb.andWhere).toHaveBeenCalledWith('c.listing_id IS NULL');
+      expect(qb.andWhere).toHaveBeenCalledWith('c.order_id IS NULL');
     });
 
     it('matches existing conversation regardless of participantIds order', async () => {
@@ -264,6 +268,50 @@ describe('MessagingService', () => {
 
       expect(qb.andWhere).toHaveBeenCalledWith('c.listing_id = :listingId', {
         listingId,
+      });
+    });
+
+    it('does not reuse a conversation from a different orderId', async () => {
+      const existingDifferentOrder = {
+        id: conversationId,
+        participantIds: [participantA, participantB],
+        listingId,
+        orderId,
+      } as Conversation;
+      const qb = buildConvQb(existingDifferentOrder);
+      qb.getOne.mockImplementation(async () => {
+        const hasRequestedOrderPredicate = qb.andWhere.mock.calls.some(
+          ([clause, params]) =>
+            clause === 'c.order_id = :orderId' &&
+            (params as { orderId?: string })?.orderId === orderId2,
+        );
+        return hasRequestedOrderPredicate ? null : existingDifferentOrder;
+      });
+      convRepo.createQueryBuilder.mockReturnValue(
+        qb as unknown as ReturnType<typeof convRepo.createQueryBuilder>,
+      );
+      convRepo.create.mockReturnValue({} as Conversation);
+      convRepo.save.mockResolvedValue({
+        id: conversationId2,
+        participantIds: [participantA, participantB],
+        listingId,
+        orderId: orderId2,
+      } as Conversation);
+
+      const result = await service.findOrCreateConversation(participantA, {
+        participantIds: [participantA, participantB],
+        listingId,
+        orderId: orderId2,
+      });
+
+      expect(result.created).toBe(true);
+      expect(qb.andWhere).toHaveBeenCalledWith('c.order_id = :orderId', {
+        orderId: orderId2,
+      });
+      expect(convRepo.create).toHaveBeenCalledWith({
+        participantIds: [participantA, participantB].sort(),
+        listingId,
+        orderId: orderId2,
       });
     });
   });
