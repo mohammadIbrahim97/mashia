@@ -314,6 +314,46 @@ describe('MessagingService', () => {
         orderId: orderId2,
       });
     });
+
+    it('returns an existing conversation when a concurrent insert wins the race', async () => {
+      const initialQb = buildConvQb(null);
+      const concurrentlyCreated = {
+        id: conversationId,
+        participantIds: [participantA, participantB],
+        listingId,
+        orderId,
+      } as Conversation;
+      const retryQb = buildConvQb(concurrentlyCreated);
+      convRepo.createQueryBuilder
+        .mockReturnValueOnce(
+          initialQb as unknown as ReturnType<typeof convRepo.createQueryBuilder>,
+        )
+        .mockReturnValueOnce(
+          retryQb as unknown as ReturnType<typeof convRepo.createQueryBuilder>,
+        );
+      convRepo.create.mockReturnValue({} as Conversation);
+      const dbError = new Error('duplicate key') as Error & { code: string };
+      dbError.code = '23505';
+      convRepo.save.mockRejectedValue(dbError);
+
+      const result = await service.findOrCreateConversation(participantA, {
+        participantIds: [participantA, participantB],
+        listingId,
+        orderId,
+      });
+
+      expect(result).toEqual({
+        created: false,
+        conversation: concurrentlyCreated,
+      });
+      expect(convRepo.createQueryBuilder).toHaveBeenCalledTimes(2);
+      expect(retryQb.andWhere).toHaveBeenCalledWith('c.listing_id = :listingId', {
+        listingId,
+      });
+      expect(retryQb.andWhere).toHaveBeenCalledWith('c.order_id = :orderId', {
+        orderId,
+      });
+    });
   });
 
   describe('listMessages', () => {
