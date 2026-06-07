@@ -117,16 +117,11 @@ export class MessagingService {
     const listingId = dto.listingId ?? null;
     const orderId = dto.orderId ?? null;
 
-    const qb = this.conversationsRepository
-      .createQueryBuilder('c')
-      .where('c.participant_ids = :ids', { ids: sortedIds });
-    if (listingId === null) {
-      qb.andWhere('c.listing_id IS NULL');
-    } else {
-      qb.andWhere('c.listing_id = :listingId', { listingId });
-    }
-
-    const existing = await qb.getOne();
+    const existing = await this.findConversationByIdentity(
+      sortedIds,
+      listingId,
+      orderId,
+    );
     if (existing) {
       return { created: false, conversation: existing };
     }
@@ -136,8 +131,22 @@ export class MessagingService {
       listingId,
       orderId,
     });
-    const saved = await this.conversationsRepository.save(entity);
-    return { created: true, conversation: saved };
+    try {
+      const saved = await this.conversationsRepository.save(entity);
+      return { created: true, conversation: saved };
+    } catch (error) {
+      if (this.isUniqueViolation(error)) {
+        const conversation = await this.findConversationByIdentity(
+          sortedIds,
+          listingId,
+          orderId,
+        );
+        if (conversation) {
+          return { created: false, conversation };
+        }
+      }
+      throw error;
+    }
   }
 
   async listMessages(
@@ -197,6 +206,37 @@ export class MessagingService {
       lastMessage: lastMessages.get(c.id) ?? null,
       unreadCount: unreadCounts.get(c.id) ?? 0,
     }));
+  }
+
+  private async findConversationByIdentity(
+    sortedIds: string[],
+    listingId: string | null,
+    orderId: string | null,
+  ): Promise<Conversation | null> {
+    const qb = this.conversationsRepository
+      .createQueryBuilder('c')
+      .where('c.participant_ids = :ids', { ids: sortedIds });
+    if (listingId === null) {
+      qb.andWhere('c.listing_id IS NULL');
+    } else {
+      qb.andWhere('c.listing_id = :listingId', { listingId });
+    }
+    if (orderId === null) {
+      qb.andWhere('c.order_id IS NULL');
+    } else {
+      qb.andWhere('c.order_id = :orderId', { orderId });
+    }
+
+    return qb.getOne();
+  }
+
+  private isUniqueViolation(error: unknown): boolean {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: unknown }).code === '23505'
+    );
   }
 
   private hasExactlyTwoUniqueParticipants(

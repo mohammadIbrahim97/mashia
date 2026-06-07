@@ -40,9 +40,25 @@ export class CreateConversations1777500000000 implements MigrationInterface {
       CREATE INDEX "idx_conversations_listing_id"
       ON "conversations" ("listing_id")
     `);
+
+    await queryRunner.query(`
+      CREATE INDEX "idx_conversations_order_id"
+      ON "conversations" ("order_id")
+    `);
+
+    await queryRunner.query(`
+      CREATE UNIQUE INDEX "idx_conversations_unique_identity"
+      ON "conversations" (
+        "participant_ids",
+        COALESCE("listing_id", '00000000-0000-0000-0000-000000000000'::uuid),
+        COALESCE("order_id", '00000000-0000-0000-0000-000000000000'::uuid)
+      )
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."idx_conversations_unique_identity"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "public"."idx_conversations_order_id"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "public"."idx_conversations_listing_id"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "public"."idx_conversations_participant_ids"`);
     await queryRunner.query(`ALTER TABLE "conversations" DROP CONSTRAINT IF EXISTS "FK_conversations_order_id"`);

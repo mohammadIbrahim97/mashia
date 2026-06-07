@@ -13,7 +13,9 @@ import { Order } from '../orders/order.entity';
 
 @Entity('conversations')
 @Index('idx_conversations_participant_ids', { synchronize: false })
+@Index('idx_conversations_unique_identity', { synchronize: false })
 @Index('idx_conversations_listing_id', ['listingId'])
+@Index('idx_conversations_order_id', ['orderId'])
 export class Conversation {
   @PrimaryGeneratedColumn('uuid')
   id: string;
