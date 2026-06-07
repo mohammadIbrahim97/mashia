@@ -505,7 +505,7 @@ describe('MessagingGateway', () => {
       expect(mocks.to).not.toHaveBeenCalled();
     });
 
-    it('suppresses duplicate typing states before active-user validation', async () => {
+    it('revalidates active users before suppressing duplicate typing states', async () => {
       const client = buildAuthedSocket();
       client.rooms.add(`conversation:${conversationId}`);
       const mocks = client as unknown as BroadcastMocks;
@@ -515,9 +515,29 @@ describe('MessagingGateway', () => {
       const ack = await gateway.handleTyping(client, validPayload);
 
       expect(ack).toEqual({ ok: true });
-      expect(usersService.findById).toHaveBeenCalledTimes(1);
+      expect(usersService.findById).toHaveBeenCalledTimes(2);
       expect(messagingService.assertIsParticipant).toHaveBeenCalledTimes(1);
       expect(mocks.to).toHaveBeenCalledTimes(1);
+    });
+
+    it('disconnects suspended users before suppressing duplicate typing states', async () => {
+      const client = buildAuthedSocket();
+      client.rooms.add(`conversation:${conversationId}`);
+      const mocks = client as unknown as BroadcastMocks;
+      messagingService.assertIsParticipant.mockResolvedValue(undefined);
+
+      await gateway.handleTyping(client, validPayload);
+      usersService.findById.mockResolvedValue({
+        ...activeUser,
+        suspended: true,
+      });
+      const ack = await gateway.handleTyping(client, validPayload);
+
+      expect(ack).toEqual({ ok: false, error: 'unauthorized' });
+      expect(usersService.findById).toHaveBeenCalledTimes(2);
+      expect(messagingService.assertIsParticipant).toHaveBeenCalledTimes(1);
+      expect(mocks.to).toHaveBeenCalledTimes(1);
+      expect(client.disconnect).toHaveBeenCalledWith(true);
     });
 
     it('suppresses concurrent duplicate typing starts before duplicate active lookups', async () => {
@@ -570,7 +590,7 @@ describe('MessagingGateway', () => {
       expect(mocks.to).toHaveBeenCalledTimes(1);
     });
 
-    it('rate limits rapid typing-start transitions before active-user validation', async () => {
+    it('revalidates active users before rate limiting rapid typing-start transitions', async () => {
       const client = buildAuthedSocket();
       client.rooms.add(`conversation:${conversationId}`);
       const mocks = client as unknown as BroadcastMocks;
@@ -587,7 +607,7 @@ describe('MessagingGateway', () => {
       });
 
       expect(ack).toEqual({ ok: true });
-      expect(usersService.findById).toHaveBeenCalledTimes(2);
+      expect(usersService.findById).toHaveBeenCalledTimes(3);
       expect(messagingService.assertIsParticipant).toHaveBeenCalledTimes(2);
       expect(mocks.to).toHaveBeenCalledTimes(2);
 
