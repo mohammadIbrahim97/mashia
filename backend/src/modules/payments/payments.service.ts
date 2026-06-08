@@ -213,40 +213,6 @@ export class PaymentsService {
     });
   }
 
-  private async rollbackClaimedEscrowOperation(
-    paymentId: string,
-    claimStatus: EscrowStatus.RELEASING | EscrowStatus.REFUNDING,
-  ): Promise<void> {
-    await this.dataSource.transaction(async (manager) => {
-      const locked = await manager.findOne(Payment, {
-        where: { id: paymentId },
-        lock: { mode: 'pessimistic_write' },
-      });
-      if (!locked || locked.escrowStatus !== claimStatus) {
-        return;
-      }
-
-      locked.escrowStatus = EscrowStatus.HELD;
-      await manager.save(locked);
-    });
-  }
-
-  private async restoreClaimForRetry(
-    paymentId: string,
-    claimStatus: EscrowStatus.RELEASING | EscrowStatus.REFUNDING,
-    err: unknown,
-  ): Promise<void> {
-    try {
-      await this.rollbackClaimedEscrowOperation(paymentId, claimStatus);
-    } catch (rollbackErr) {
-      this.logger.error(
-        `Failed to restore payment ${paymentId} to HELD after escrow provider failure`,
-        rollbackErr instanceof Error ? rollbackErr.stack : undefined,
-      );
-    }
-    throw err;
-  }
-
   private async finalizeClaimedEscrowOperation(
     paymentId: string,
     claimStatus: EscrowStatus.RELEASING | EscrowStatus.REFUNDING,
@@ -279,11 +245,7 @@ export class PaymentsService {
       EscrowStatus.REFUNDING,
       'refund',
     );
-    try {
-      await this.escrow.refundFunds(claimed.transactionRef);
-    } catch (err) {
-      await this.restoreClaimForRetry(claimed.id, EscrowStatus.REFUNDING, err);
-    }
+    await this.escrow.refundFunds(claimed.transactionRef);
     const saved = await this.finalizeClaimedEscrowOperation(
       claimed.id,
       EscrowStatus.REFUNDING,
@@ -313,11 +275,7 @@ export class PaymentsService {
       EscrowStatus.RELEASING,
       'release',
     );
-    try {
-      await this.escrow.releaseFunds(claimed.transactionRef);
-    } catch (err) {
-      await this.restoreClaimForRetry(claimed.id, EscrowStatus.RELEASING, err);
-    }
+    await this.escrow.releaseFunds(claimed.transactionRef);
     const saved = await this.finalizeClaimedEscrowOperation(
       claimed.id,
       EscrowStatus.RELEASING,
@@ -371,16 +329,7 @@ export class PaymentsService {
       const payment = rows[i].payment;
       const sellerId = rows[i].sellerId;
       try {
-        try {
-          await this.escrow.releaseFunds(payment.transactionRef);
-        } catch (err) {
-          await this.restoreClaimForRetry(
-            payment.id,
-            EscrowStatus.RELEASING,
-            err,
-          );
-          throw err;
-        }
+        await this.escrow.releaseFunds(payment.transactionRef);
         const saved = await this.finalizeClaimedEscrowOperation(
           payment.id,
           EscrowStatus.RELEASING,
