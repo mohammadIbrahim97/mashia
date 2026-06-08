@@ -64,7 +64,9 @@ export enum PaymentMethod {
 
 export enum EscrowStatus {
   HELD = 'held',
+  RELEASING = 'releasing',
   RELEASED = 'released',
+  REFUNDING = 'refunding',
   REFUNDED = 'refunded',
 }
 
