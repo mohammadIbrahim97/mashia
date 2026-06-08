@@ -3,6 +3,10 @@ import { BaseExceptionFilter } from '@nestjs/core';
 import { Request } from 'express';
 import * as Sentry from '@sentry/node';
 
+function stripUrlQuery(url?: string): string | undefined {
+  return url?.split(/[?#]/, 1)[0];
+}
+
 @Catch()
 export class SentryExceptionFilter extends BaseExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
@@ -12,7 +16,7 @@ export class SentryExceptionFilter extends BaseExceptionFilter {
         extra: {
           requestId: req?.id,
           method: req?.method,
-          url: req?.originalUrl ?? req?.url,
+          url: stripUrlQuery(req?.originalUrl ?? req?.url),
         },
       });
     }

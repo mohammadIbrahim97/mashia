@@ -28,12 +28,12 @@ describe('SentryExceptionFilter', () => {
     superCatch.mockRestore();
   });
 
-  it('captures unknown errors with requestId/method/url', () => {
+  it('captures unknown errors with requestId/method/url path only', () => {
     const err = new Error('boom');
     const host = buildHost({
       id: 'req-1',
       method: 'POST',
-      originalUrl: '/api/v1/listings',
+      originalUrl: '/api/v1/listings?token=secret&email=user%40example.com',
     });
 
     filter.catch(err, host);
@@ -48,9 +48,9 @@ describe('SentryExceptionFilter', () => {
     expect(superCatch).toHaveBeenCalledWith(err, host);
   });
 
-  it('falls back to req.url when originalUrl is missing', () => {
+  it('falls back to req.url without query when originalUrl is missing', () => {
     const err = new Error('boom');
-    const host = buildHost({ id: 'req-2', method: 'GET', url: '/x' });
+    const host = buildHost({ id: 'req-2', method: 'GET', url: '/x?otp=123456' });
 
     filter.catch(err, host);
 
