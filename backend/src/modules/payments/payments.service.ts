@@ -193,10 +193,22 @@ export class PaymentsService {
   }
 
   private async _doRefund(payment: Payment): Promise<Payment> {
-    await this.escrow.refundFunds(payment.transactionRef);
-    payment.escrowStatus = EscrowStatus.REFUNDED;
-    payment.refundedAt = new Date();
-    const saved = await this.paymentsRepository.save(payment);
+    const saved = await this.dataSource.transaction(async (manager) => {
+      const locked = await manager.findOne(Payment, {
+        where: { id: payment.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!locked || locked.escrowStatus !== EscrowStatus.HELD) {
+        throw new BadRequestException(
+          `Payment must be HELD to refund (current: ${locked?.escrowStatus ?? 'missing'})`,
+        );
+      }
+
+      await this.escrow.refundFunds(locked.transactionRef);
+      locked.escrowStatus = EscrowStatus.REFUNDED;
+      locked.refundedAt = new Date();
+      return manager.save(locked);
+    });
 
     this.eventEmitter.emit(
       PaymentRefundedEvent.EVENT_NAME,
@@ -216,10 +228,22 @@ export class PaymentsService {
     payment: Payment,
     sellerId: string,
   ): Promise<Payment> {
-    await this.escrow.releaseFunds(payment.transactionRef);
-    payment.escrowStatus = EscrowStatus.RELEASED;
-    payment.releasedAt = new Date();
-    const saved = await this.paymentsRepository.save(payment);
+    const saved = await this.dataSource.transaction(async (manager) => {
+      const locked = await manager.findOne(Payment, {
+        where: { id: payment.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!locked || locked.escrowStatus !== EscrowStatus.HELD) {
+        throw new BadRequestException(
+          `Payment must be HELD to release (current: ${locked?.escrowStatus ?? 'missing'})`,
+        );
+      }
+
+      await this.escrow.releaseFunds(locked.transactionRef);
+      locked.escrowStatus = EscrowStatus.RELEASED;
+      locked.releasedAt = new Date();
+      return manager.save(locked);
+    });
 
     this.eventEmitter.emit(
       PaymentReleasedEvent.EVENT_NAME,
