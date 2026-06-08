@@ -21,6 +21,8 @@ import { EscrowStatus, OrderStatus, PaymentMethod, UserRole } from '@shared/enum
 
 @Injectable()
 export class PaymentsService {
+  private static readonly ESCROW_CLAIM_TIMEOUT_MS = 15 * 60 * 1000;
+
   private readonly logger = new Logger(PaymentsService.name);
 
   constructor(
@@ -115,6 +117,7 @@ export class PaymentsService {
       payment,
       OrderStatus.DELIVERED,
       'release',
+      EscrowStatus.RELEASING,
     );
     return this._doRelease(payment, order.sellerId);
   }
@@ -124,6 +127,7 @@ export class PaymentsService {
       orderId,
       OrderStatus.DISPUTED,
       'force-release',
+      EscrowStatus.RELEASING,
     );
     return this._doRelease(payment, order.sellerId);
   }
@@ -133,6 +137,7 @@ export class PaymentsService {
       orderId,
       OrderStatus.DISPUTED,
       'refund',
+      EscrowStatus.REFUNDING,
     );
     return this._doRefund(payment);
   }
@@ -148,6 +153,7 @@ export class PaymentsService {
       payment,
       OrderStatus.DISPUTED,
       'refund',
+      EscrowStatus.REFUNDING,
     );
     return this._doRefund(payment);
   }
@@ -156,6 +162,7 @@ export class PaymentsService {
     orderId: string,
     requiredOrderStatus: OrderStatus,
     action: string,
+    staleClaimStatus: EscrowStatus.RELEASING | EscrowStatus.REFUNDING,
   ): Promise<{ payment: Payment; order: Order }> {
     const payment = await this.paymentsRepository.findOne({
       where: { orderId },
@@ -167,6 +174,7 @@ export class PaymentsService {
       payment,
       requiredOrderStatus,
       action,
+      staleClaimStatus,
     );
     return { payment, order };
   }
@@ -175,8 +183,15 @@ export class PaymentsService {
     payment: Payment,
     requiredOrderStatus: OrderStatus,
     action: string,
+    staleClaimStatus: EscrowStatus.RELEASING | EscrowStatus.REFUNDING,
   ): Promise<Order> {
-    if (payment.escrowStatus !== EscrowStatus.HELD) {
+    if (
+      payment.escrowStatus !== EscrowStatus.HELD &&
+      !(
+        payment.escrowStatus === staleClaimStatus &&
+        this.isStaleEscrowClaim(payment)
+      )
+    ) {
       throw new BadRequestException(
         `Payment must be HELD to ${action} (current: ${payment.escrowStatus})`,
       );
@@ -192,6 +207,14 @@ export class PaymentsService {
     return order;
   }
 
+  private isStaleEscrowClaim(payment: Payment): boolean {
+    return (
+      payment.updatedAt instanceof Date &&
+      Date.now() - payment.updatedAt.getTime() >
+        PaymentsService.ESCROW_CLAIM_TIMEOUT_MS
+    );
+  }
+
   private async claimEscrowOperation(
     paymentId: string,
     claimStatus: EscrowStatus.RELEASING | EscrowStatus.REFUNDING,
@@ -202,14 +225,40 @@ export class PaymentsService {
         where: { id: paymentId },
         lock: { mode: 'pessimistic_write' },
       });
-      if (!locked || locked.escrowStatus !== EscrowStatus.HELD) {
+      if (!locked) {
         throw new BadRequestException(
-          `Payment must be HELD to ${action} (current: ${locked?.escrowStatus ?? 'missing'})`,
+          `Payment must be HELD to ${action} (current: missing)`,
+        );
+      }
+      if (
+        locked.escrowStatus !== EscrowStatus.HELD &&
+        !(locked.escrowStatus === claimStatus && this.isStaleEscrowClaim(locked))
+      ) {
+        throw new BadRequestException(
+          `Payment must be HELD to ${action} (current: ${locked.escrowStatus})`,
         );
       }
 
       locked.escrowStatus = claimStatus;
       return manager.save(locked);
+    });
+  }
+
+  private async rollbackEscrowClaim(
+    paymentId: string,
+    claimStatus: EscrowStatus.RELEASING | EscrowStatus.REFUNDING,
+  ): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      const locked = await manager.findOne(Payment, {
+        where: { id: paymentId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!locked || locked.escrowStatus !== claimStatus) {
+        return;
+      }
+
+      locked.escrowStatus = EscrowStatus.HELD;
+      await manager.save(locked);
     });
   }
 
@@ -245,7 +294,12 @@ export class PaymentsService {
       EscrowStatus.REFUNDING,
       'refund',
     );
-    await this.escrow.refundFunds(claimed.transactionRef);
+    try {
+      await this.escrow.refundFunds(claimed.transactionRef);
+    } catch (err) {
+      await this.rollbackEscrowClaim(claimed.id, EscrowStatus.REFUNDING);
+      throw err;
+    }
     const saved = await this.finalizeClaimedEscrowOperation(
       claimed.id,
       EscrowStatus.REFUNDING,
@@ -275,7 +329,12 @@ export class PaymentsService {
       EscrowStatus.RELEASING,
       'release',
     );
-    await this.escrow.releaseFunds(claimed.transactionRef);
+    try {
+      await this.escrow.releaseFunds(claimed.transactionRef);
+    } catch (err) {
+      await this.rollbackEscrowClaim(claimed.id, EscrowStatus.RELEASING);
+      throw err;
+    }
     const saved = await this.finalizeClaimedEscrowOperation(
       claimed.id,
       EscrowStatus.RELEASING,
@@ -305,7 +364,10 @@ export class PaymentsService {
       const { entities, raw } = await manager
         .createQueryBuilder(Payment, 'payment')
         .innerJoin('orders', 'order', 'order.id = payment.order_id')
-        .where('payment.escrow_status = :held', { held: EscrowStatus.HELD })
+        .where(
+          `(payment.escrow_status = :held OR (payment.escrow_status = :releasing AND payment.updated_at < NOW() - INTERVAL '15 minutes'))`,
+          { held: EscrowStatus.HELD, releasing: EscrowStatus.RELEASING },
+        )
         .andWhere('payment.auto_release_at IS NOT NULL')
         .andWhere('payment.auto_release_at <= NOW()')
         .andWhere('order.status = :delivered', { delivered: OrderStatus.DELIVERED })
@@ -345,6 +407,7 @@ export class PaymentsService {
           ),
         );
       } catch (err) {
+        await this.rollbackEscrowClaim(payment.id, EscrowStatus.RELEASING);
         this.logger.error(
           `Auto-release failed for payment ${payment.id}`,
           err instanceof Error ? err.stack : undefined,

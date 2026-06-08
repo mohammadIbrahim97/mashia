@@ -262,7 +262,7 @@ describe('PaymentsService', () => {
       );
     });
 
-    it('leaves release claim in progress when provider failure is ambiguous', async () => {
+    it('rolls release claims back to HELD when the provider fails', async () => {
       paymentsRepo.findOne.mockResolvedValue({ ...heldPayment });
       ordersRepo.findOne.mockResolvedValue(deliveredOrder);
       escrow.releaseFunds.mockRejectedValue(new Error('provider unavailable'));
@@ -274,17 +274,35 @@ describe('PaymentsService', () => {
       expect(txManager.save).toHaveBeenCalledWith(
         expect.objectContaining({ escrowStatus: EscrowStatus.RELEASING }),
       );
-      await expect(service.release(payerId, paymentId)).rejects.toThrow(
-        BadRequestException,
-      );
-
-      expect(escrow.releaseFunds).toHaveBeenCalledTimes(1);
-      expect(txManager.save).not.toHaveBeenCalledWith(
+      expect(txManager.save).toHaveBeenCalledWith(
         expect.objectContaining({ escrowStatus: EscrowStatus.HELD }),
       );
+      expect(escrow.releaseFunds).toHaveBeenCalledTimes(1);
       expect(emitter.emit).not.toHaveBeenCalledWith(
         'payment.released',
         expect.anything(),
+      );
+    });
+
+    it('retries a stale release claim instead of leaving it stuck', async () => {
+      const staleReleasing = {
+        ...heldPayment,
+        escrowStatus: EscrowStatus.RELEASING,
+        updatedAt: new Date(Date.now() - 16 * 60 * 1000),
+      };
+      paymentsRepo.findOne.mockResolvedValue(staleReleasing);
+      ordersRepo.findOne.mockResolvedValue(deliveredOrder);
+      escrow.releaseFunds.mockResolvedValue({
+        transactionRef: 'STUB-xyz',
+        status: EscrowStatus.RELEASED,
+      });
+
+      const result = await service.release(payerId, paymentId);
+
+      expect(result.escrowStatus).toBe(EscrowStatus.RELEASED);
+      expect(escrow.releaseFunds).toHaveBeenCalledWith('STUB-xyz');
+      expect(txManager.save).toHaveBeenCalledWith(
+        expect.objectContaining({ escrowStatus: EscrowStatus.RELEASED }),
       );
     });
 
@@ -394,7 +412,7 @@ describe('PaymentsService', () => {
       );
     });
 
-    it('leaves refund claim in progress when provider failure is ambiguous', async () => {
+    it('rolls refund claims back to HELD when the provider fails', async () => {
       paymentsRepo.findOne.mockResolvedValue({ ...heldPayment });
       ordersRepo.findOne.mockResolvedValue(disputedOrder);
       escrow.refundFunds.mockRejectedValue(new Error('provider unavailable'));
@@ -406,14 +424,10 @@ describe('PaymentsService', () => {
       expect(txManager.save).toHaveBeenCalledWith(
         expect.objectContaining({ escrowStatus: EscrowStatus.REFUNDING }),
       );
-      await expect(service.refund(paymentId)).rejects.toThrow(
-        BadRequestException,
-      );
-
-      expect(escrow.refundFunds).toHaveBeenCalledTimes(1);
-      expect(txManager.save).not.toHaveBeenCalledWith(
+      expect(txManager.save).toHaveBeenCalledWith(
         expect.objectContaining({ escrowStatus: EscrowStatus.HELD }),
       );
+      expect(escrow.refundFunds).toHaveBeenCalledTimes(1);
       expect(emitter.emit).not.toHaveBeenCalledWith(
         'payment.refunded',
         expect.anything(),
@@ -629,6 +643,10 @@ describe('PaymentsService', () => {
         ['payment'],
       );
       expect(qb.setOnLocked).toHaveBeenCalledWith('skip_locked');
+      expect(qb.where).toHaveBeenCalledWith(
+        `(payment.escrow_status = :held OR (payment.escrow_status = :releasing AND payment.updated_at < NOW() - INTERVAL '15 minutes'))`,
+        { held: EscrowStatus.HELD, releasing: EscrowStatus.RELEASING },
+      );
       expect(txManager.save).toHaveBeenCalledWith(
         expect.objectContaining({ escrowStatus: EscrowStatus.RELEASING }),
       );
@@ -642,7 +660,7 @@ describe('PaymentsService', () => {
       );
     });
 
-    it('leaves auto-release claim in progress when provider failure is ambiguous', async () => {
+    it('rolls auto-release claims back to HELD when the provider fails', async () => {
       const pastDate = new Date(Date.now() - 86400 * 1000);
       const eligible = {
         id: 'pay-1',
@@ -676,7 +694,7 @@ describe('PaymentsService', () => {
       expect(txManager.save).toHaveBeenCalledWith(
         expect.objectContaining({ escrowStatus: EscrowStatus.RELEASING }),
       );
-      expect(txManager.save).not.toHaveBeenCalledWith(
+      expect(txManager.save).toHaveBeenCalledWith(
         expect.objectContaining({ escrowStatus: EscrowStatus.HELD }),
       );
       expect(emitter.emit).not.toHaveBeenCalledWith(
