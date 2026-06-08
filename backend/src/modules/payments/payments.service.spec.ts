@@ -25,7 +25,11 @@ describe('PaymentsService', () => {
   let ordersRepo: jest.Mocked<Repository<Order>>;
   let escrow: jest.Mocked<EscrowService>;
   let emitter: { emit: jest.Mock };
-  let txManager: { createQueryBuilder: jest.Mock; save: jest.Mock };
+  let txManager: {
+    createQueryBuilder: jest.Mock;
+    findOne: jest.Mock;
+    save: jest.Mock;
+  };
   let dataSource: { transaction: jest.Mock };
 
   beforeEach(async () => {
@@ -44,6 +48,7 @@ describe('PaymentsService', () => {
     emitter = { emit: jest.fn() };
     txManager = {
       createQueryBuilder: jest.fn(),
+      findOne: jest.fn((_entity, options) => paymentsRepo.findOne(options)),
       save: jest.fn(async (p) => p),
     };
     dataSource = {
@@ -201,16 +206,37 @@ describe('PaymentsService', () => {
         transactionRef: 'STUB-xyz',
         status: EscrowStatus.RELEASED,
       });
-      paymentsRepo.save.mockImplementation(async (p) => p as Payment);
 
       const result = await service.release(payerId, paymentId);
 
       expect(result.escrowStatus).toBe(EscrowStatus.RELEASED);
       expect(result.releasedAt).toBeInstanceOf(Date);
+      expect(txManager.findOne).toHaveBeenCalledWith(Payment, {
+        where: { id: paymentId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      expect(txManager.save).toHaveBeenCalled();
       expect(emitter.emit).toHaveBeenCalledWith(
         'payment.released',
         expect.objectContaining({ paymentId, orderId: 'order-1' }),
       );
+    });
+
+    it('does not release funds if the locked payment is no longer HELD', async () => {
+      paymentsRepo.findOne.mockResolvedValueOnce({ ...heldPayment });
+      ordersRepo.findOne.mockResolvedValue(deliveredOrder);
+      txManager.findOne.mockResolvedValue({
+        ...heldPayment,
+        escrowStatus: EscrowStatus.REFUNDED,
+      });
+
+      await expect(service.release(payerId, paymentId)).rejects.toThrow(
+        BadRequestException,
+      );
+
+      expect(escrow.releaseFunds).not.toHaveBeenCalled();
+      expect(txManager.save).not.toHaveBeenCalled();
+      expect(emitter.emit).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException when caller is not the payer', async () => {
@@ -271,12 +297,16 @@ describe('PaymentsService', () => {
         transactionRef: 'STUB-xyz',
         status: EscrowStatus.REFUNDED,
       });
-      paymentsRepo.save.mockImplementation(async (p) => p as Payment);
 
       const result = await service.refund(paymentId);
 
       expect(result.escrowStatus).toBe(EscrowStatus.REFUNDED);
       expect(result.refundedAt).toBeInstanceOf(Date);
+      expect(txManager.findOne).toHaveBeenCalledWith(Payment, {
+        where: { id: paymentId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      expect(txManager.save).toHaveBeenCalled();
       expect(emitter.emit).toHaveBeenCalledWith(
         'payment.refunded',
         expect.objectContaining({ paymentId, orderId: 'order-1' }),
@@ -339,7 +369,6 @@ describe('PaymentsService', () => {
         transactionRef: 'STUB-xyz',
         status: EscrowStatus.RELEASED,
       });
-      paymentsRepo.save.mockImplementation(async (p) => p as Payment);
 
       const result = await service.forceReleaseByOrder(orderId);
 
@@ -410,7 +439,6 @@ describe('PaymentsService', () => {
         transactionRef: 'STUB-xyz',
         status: EscrowStatus.REFUNDED,
       });
-      paymentsRepo.save.mockImplementation(async (p) => p as Payment);
 
       const result = await service.refundByOrder(orderId);
 
