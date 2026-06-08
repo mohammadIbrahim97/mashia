@@ -39,6 +39,15 @@ import { AdminModule } from './modules/admin/admin.module';
             level: (label: string) => ({ level: label }),
           },
           timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
+          redact: {
+            paths: [
+              'req.headers.authorization',
+              'req.headers.cookie',
+              "req.headers['x-api-key']",
+              "res.headers['set-cookie']",
+            ],
+            censor: '[Redacted]',
+          },
           genReqId: (req: IncomingMessage, res: ServerResponse) => {
             const headerId = req.headers['x-request-id'];
             const id =
