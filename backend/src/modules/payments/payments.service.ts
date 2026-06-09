@@ -192,11 +192,65 @@ export class PaymentsService {
     return order;
   }
 
+  private async claimEscrowOperation(
+    paymentId: string,
+    claimStatus: EscrowStatus.RELEASING | EscrowStatus.REFUNDING,
+    action: string,
+  ): Promise<Payment> {
+    return this.dataSource.transaction(async (manager) => {
+      const locked = await manager.findOne(Payment, {
+        where: { id: paymentId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!locked || locked.escrowStatus !== EscrowStatus.HELD) {
+        throw new BadRequestException(
+          `Payment must be HELD to ${action} (current: ${locked?.escrowStatus ?? 'missing'})`,
+        );
+      }
+
+      locked.escrowStatus = claimStatus;
+      return manager.save(locked);
+    });
+  }
+
+  private async finalizeClaimedEscrowOperation(
+    paymentId: string,
+    claimStatus: EscrowStatus.RELEASING | EscrowStatus.REFUNDING,
+    finalStatus: EscrowStatus.RELEASED | EscrowStatus.REFUNDED,
+  ): Promise<Payment> {
+    return this.dataSource.transaction(async (manager) => {
+      const locked = await manager.findOne(Payment, {
+        where: { id: paymentId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!locked || locked.escrowStatus !== claimStatus) {
+        throw new BadRequestException(
+          `Payment must be ${claimStatus} to finalize escrow operation (current: ${locked?.escrowStatus ?? 'missing'})`,
+        );
+      }
+
+      locked.escrowStatus = finalStatus;
+      if (finalStatus === EscrowStatus.RELEASED) {
+        locked.releasedAt = new Date();
+      } else {
+        locked.refundedAt = new Date();
+      }
+      return manager.save(locked);
+    });
+  }
+
   private async _doRefund(payment: Payment): Promise<Payment> {
-    await this.escrow.refundFunds(payment.transactionRef);
-    payment.escrowStatus = EscrowStatus.REFUNDED;
-    payment.refundedAt = new Date();
-    const saved = await this.paymentsRepository.save(payment);
+    const claimed = await this.claimEscrowOperation(
+      payment.id,
+      EscrowStatus.REFUNDING,
+      'refund',
+    );
+    await this.escrow.refundFunds(claimed.transactionRef);
+    const saved = await this.finalizeClaimedEscrowOperation(
+      claimed.id,
+      EscrowStatus.REFUNDING,
+      EscrowStatus.REFUNDED,
+    );
 
     this.eventEmitter.emit(
       PaymentRefundedEvent.EVENT_NAME,
@@ -216,10 +270,17 @@ export class PaymentsService {
     payment: Payment,
     sellerId: string,
   ): Promise<Payment> {
-    await this.escrow.releaseFunds(payment.transactionRef);
-    payment.escrowStatus = EscrowStatus.RELEASED;
-    payment.releasedAt = new Date();
-    const saved = await this.paymentsRepository.save(payment);
+    const claimed = await this.claimEscrowOperation(
+      payment.id,
+      EscrowStatus.RELEASING,
+      'release',
+    );
+    await this.escrow.releaseFunds(claimed.transactionRef);
+    const saved = await this.finalizeClaimedEscrowOperation(
+      claimed.id,
+      EscrowStatus.RELEASING,
+      EscrowStatus.RELEASED,
+    );
 
     this.eventEmitter.emit(
       PaymentReleasedEvent.EVENT_NAME,
@@ -238,6 +299,7 @@ export class PaymentsService {
   @Cron('0 */15 * * * *')
   async processAutoReleases(): Promise<number> {
     const releasedEvents: PaymentReleasedEvent[] = [];
+    const rows: Array<{ payment: Payment; sellerId: string }> = [];
 
     await this.dataSource.transaction(async (manager) => {
       const { entities, raw } = await manager
@@ -254,29 +316,41 @@ export class PaymentsService {
 
       for (let i = 0; i < entities.length; i++) {
         const payment = entities[i];
-        const sellerId = raw[i].order_seller_id as string;
-        try {
-          await this.escrow.releaseFunds(payment.transactionRef);
-          payment.escrowStatus = EscrowStatus.RELEASED;
-          payment.releasedAt = new Date();
-          await manager.save(payment);
-          releasedEvents.push(
-            new PaymentReleasedEvent(
-              payment.id,
-              payment.orderId,
-              sellerId,
-              Number(payment.sellerAmount),
-              payment.currency,
-            ),
-          );
-        } catch (err) {
-          this.logger.error(
-            `Auto-release failed for payment ${payment.id}`,
-            err instanceof Error ? err.stack : undefined,
-          );
-        }
+        payment.escrowStatus = EscrowStatus.RELEASING;
+        const claimed = await manager.save(payment);
+        rows.push({
+          payment: claimed,
+          sellerId: raw[i].order_seller_id as string,
+        });
       }
     });
+
+    for (let i = 0; i < rows.length; i++) {
+      const payment = rows[i].payment;
+      const sellerId = rows[i].sellerId;
+      try {
+        await this.escrow.releaseFunds(payment.transactionRef);
+        const saved = await this.finalizeClaimedEscrowOperation(
+          payment.id,
+          EscrowStatus.RELEASING,
+          EscrowStatus.RELEASED,
+        );
+        releasedEvents.push(
+          new PaymentReleasedEvent(
+            saved.id,
+            saved.orderId,
+            sellerId,
+            Number(saved.sellerAmount),
+            saved.currency,
+          ),
+        );
+      } catch (err) {
+        this.logger.error(
+          `Auto-release failed for payment ${payment.id}`,
+          err instanceof Error ? err.stack : undefined,
+        );
+      }
+    }
 
     for (const event of releasedEvents) {
       this.eventEmitter.emit(PaymentReleasedEvent.EVENT_NAME, event);
@@ -473,13 +547,13 @@ export class PaymentsService {
         byCurrencyMap.set(row.currency, entry);
       }
       const bucket =
-        row.escrow_status === EscrowStatus.HELD
-          ? entry.held
-          : row.escrow_status === EscrowStatus.RELEASED
-            ? entry.released
-            : entry.refunded;
-      bucket.count = Number(row.count);
-      bucket.commission = Number(row.commission ?? 0);
+        row.escrow_status === EscrowStatus.RELEASED
+          ? entry.released
+          : row.escrow_status === EscrowStatus.REFUNDED
+            ? entry.refunded
+            : entry.held;
+      bucket.count += Number(row.count);
+      bucket.commission += Number(row.commission ?? 0);
     }
 
     return {

@@ -169,7 +169,12 @@ export class AdminService {
         'revenue_mtd',
       )
       .where('payment.escrow_status IN (:...revenueStatuses)', {
-        revenueStatuses: [EscrowStatus.HELD, EscrowStatus.RELEASED],
+        revenueStatuses: [
+          EscrowStatus.HELD,
+          EscrowStatus.RELEASING,
+          EscrowStatus.RELEASED,
+          EscrowStatus.REFUNDING,
+        ],
       })
       .groupBy('payment.currency')
       .setParameter('monthStart', monthStart)

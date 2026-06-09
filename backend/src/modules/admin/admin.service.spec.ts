@@ -148,7 +148,14 @@ describe('AdminService', () => {
       );
       expect(revenueQb.where).toHaveBeenCalledWith(
         'payment.escrow_status IN (:...revenueStatuses)',
-        { revenueStatuses: [EscrowStatus.HELD, EscrowStatus.RELEASED] },
+        {
+          revenueStatuses: [
+            EscrowStatus.HELD,
+            EscrowStatus.RELEASING,
+            EscrowStatus.RELEASED,
+            EscrowStatus.REFUNDING,
+          ],
+        },
       );
       expect(revenueQb.groupBy).toHaveBeenCalledWith('payment.currency');
       expect(revenueQb.setParameter).toHaveBeenCalledWith(

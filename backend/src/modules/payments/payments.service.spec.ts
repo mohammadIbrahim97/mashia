@@ -25,7 +25,11 @@ describe('PaymentsService', () => {
   let ordersRepo: jest.Mocked<Repository<Order>>;
   let escrow: jest.Mocked<EscrowService>;
   let emitter: { emit: jest.Mock };
-  let txManager: { createQueryBuilder: jest.Mock; save: jest.Mock };
+  let txManager: {
+    createQueryBuilder: jest.Mock;
+    findOne: jest.Mock;
+    save: jest.Mock;
+  };
   let dataSource: { transaction: jest.Mock };
 
   beforeEach(async () => {
@@ -42,9 +46,18 @@ describe('PaymentsService', () => {
       refundFunds: jest.fn(),
     } as any;
     emitter = { emit: jest.fn() };
+    let txPayment: Payment | null = null;
     txManager = {
       createQueryBuilder: jest.fn(),
-      save: jest.fn(async (p) => p),
+      findOne: jest.fn(async (_entity, options) => {
+        if (txPayment) return { ...txPayment };
+        const payment = await paymentsRepo.findOne(options);
+        return payment ? { ...payment } : payment;
+      }),
+      save: jest.fn(async (p) => {
+        txPayment = { ...p };
+        return { ...p };
+      }),
     };
     dataSource = {
       transaction: jest.fn(async (cb: (m: typeof txManager) => unknown) =>
@@ -201,15 +214,51 @@ describe('PaymentsService', () => {
         transactionRef: 'STUB-xyz',
         status: EscrowStatus.RELEASED,
       });
-      paymentsRepo.save.mockImplementation(async (p) => p as Payment);
-
       const result = await service.release(payerId, paymentId);
 
       expect(result.escrowStatus).toBe(EscrowStatus.RELEASED);
       expect(result.releasedAt).toBeInstanceOf(Date);
+      expect(txManager.save).toHaveBeenCalledWith(
+        expect.objectContaining({ escrowStatus: EscrowStatus.RELEASING }),
+      );
+      expect(txManager.save).toHaveBeenCalledWith(
+        expect.objectContaining({ escrowStatus: EscrowStatus.RELEASED }),
+      );
       expect(emitter.emit).toHaveBeenCalledWith(
         'payment.released',
         expect.objectContaining({ paymentId, orderId: 'order-1' }),
+      );
+    });
+
+    it('does not call escrow again after release succeeds but final save fails', async () => {
+      const held = { ...heldPayment };
+      const releasing = { ...heldPayment, escrowStatus: EscrowStatus.RELEASING };
+      paymentsRepo.findOne
+        .mockResolvedValueOnce(held)
+        .mockResolvedValueOnce(releasing);
+      ordersRepo.findOne.mockResolvedValue(deliveredOrder);
+      escrow.releaseFunds.mockResolvedValue({
+        transactionRef: 'STUB-xyz',
+        status: EscrowStatus.RELEASED,
+      });
+      txManager.findOne
+        .mockResolvedValueOnce(held)
+        .mockResolvedValueOnce(releasing);
+      txManager.save
+        .mockResolvedValueOnce(releasing)
+        .mockRejectedValueOnce(new Error('database commit failed'));
+
+      await expect(service.release(payerId, paymentId)).rejects.toThrow(
+        'database commit failed',
+      );
+      await expect(service.release(payerId, paymentId)).rejects.toThrow(
+        BadRequestException,
+      );
+
+      expect(escrow.releaseFunds).toHaveBeenCalledTimes(1);
+      expect(emitter.emit).not.toHaveBeenCalledWith(
+        'payment.released',
+        expect.anything(),
       );
     });
 
@@ -271,15 +320,51 @@ describe('PaymentsService', () => {
         transactionRef: 'STUB-xyz',
         status: EscrowStatus.REFUNDED,
       });
-      paymentsRepo.save.mockImplementation(async (p) => p as Payment);
-
       const result = await service.refund(paymentId);
 
       expect(result.escrowStatus).toBe(EscrowStatus.REFUNDED);
       expect(result.refundedAt).toBeInstanceOf(Date);
+      expect(txManager.save).toHaveBeenCalledWith(
+        expect.objectContaining({ escrowStatus: EscrowStatus.REFUNDING }),
+      );
+      expect(txManager.save).toHaveBeenCalledWith(
+        expect.objectContaining({ escrowStatus: EscrowStatus.REFUNDED }),
+      );
       expect(emitter.emit).toHaveBeenCalledWith(
         'payment.refunded',
         expect.objectContaining({ paymentId, orderId: 'order-1' }),
+      );
+    });
+
+    it('does not call escrow again after refund succeeds but final save fails', async () => {
+      const held = { ...heldPayment };
+      const refunding = { ...heldPayment, escrowStatus: EscrowStatus.REFUNDING };
+      paymentsRepo.findOne
+        .mockResolvedValueOnce(held)
+        .mockResolvedValueOnce(refunding);
+      ordersRepo.findOne.mockResolvedValue(disputedOrder);
+      escrow.refundFunds.mockResolvedValue({
+        transactionRef: 'STUB-xyz',
+        status: EscrowStatus.REFUNDED,
+      });
+      txManager.findOne
+        .mockResolvedValueOnce(held)
+        .mockResolvedValueOnce(refunding);
+      txManager.save
+        .mockResolvedValueOnce(refunding)
+        .mockRejectedValueOnce(new Error('database commit failed'));
+
+      await expect(service.refund(paymentId)).rejects.toThrow(
+        'database commit failed',
+      );
+      await expect(service.refund(paymentId)).rejects.toThrow(
+        BadRequestException,
+      );
+
+      expect(escrow.refundFunds).toHaveBeenCalledTimes(1);
+      expect(emitter.emit).not.toHaveBeenCalledWith(
+        'payment.refunded',
+        expect.anything(),
       );
     });
 
@@ -339,8 +424,6 @@ describe('PaymentsService', () => {
         transactionRef: 'STUB-xyz',
         status: EscrowStatus.RELEASED,
       });
-      paymentsRepo.save.mockImplementation(async (p) => p as Payment);
-
       const result = await service.forceReleaseByOrder(orderId);
 
       expect(paymentsRepo.findOne).toHaveBeenCalledWith({ where: { orderId } });
@@ -410,8 +493,6 @@ describe('PaymentsService', () => {
         transactionRef: 'STUB-xyz',
         status: EscrowStatus.REFUNDED,
       });
-      paymentsRepo.save.mockImplementation(async (p) => p as Payment);
-
       const result = await service.refundByOrder(orderId);
 
       expect(result.escrowStatus).toBe(EscrowStatus.REFUNDED);
@@ -482,6 +563,10 @@ describe('PaymentsService', () => {
         transactionRef: 'STUB-1',
         status: EscrowStatus.RELEASED,
       });
+      txManager.findOne.mockResolvedValue({
+        ...eligible,
+        escrowStatus: EscrowStatus.RELEASING,
+      });
 
       const count = await service.processAutoReleases();
 
@@ -492,11 +577,86 @@ describe('PaymentsService', () => {
         ['payment'],
       );
       expect(qb.setOnLocked).toHaveBeenCalledWith('skip_locked');
+      expect(txManager.save).toHaveBeenCalledWith(
+        expect.objectContaining({ escrowStatus: EscrowStatus.RELEASING }),
+      );
       expect(escrow.releaseFunds).toHaveBeenCalledWith('STUB-1');
-      expect(txManager.save).toHaveBeenCalled();
+      expect(txManager.save).toHaveBeenCalledWith(
+        expect.objectContaining({ escrowStatus: EscrowStatus.RELEASED }),
+      );
       expect(emitter.emit).toHaveBeenCalledWith(
         'payment.released',
         expect.objectContaining({ paymentId: 'pay-1' }),
+      );
+    });
+
+    it('does not auto-release again after escrow succeeds but final save fails', async () => {
+      const eligible = {
+        id: 'pay-1',
+        orderId: 'order-1',
+        payerId: 'buyer-1',
+        sellerAmount: 950,
+        currency: Currency.SAR,
+        escrowStatus: EscrowStatus.HELD,
+        transactionRef: 'STUB-1',
+        autoReleaseAt: new Date(Date.now() - 86400 * 1000),
+      } as Payment;
+
+      const firstQb: any = {
+        innerJoin: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        setLock: jest.fn().mockReturnThis(),
+        setOnLocked: jest.fn().mockReturnThis(),
+        getRawAndEntities: jest.fn().mockResolvedValue({
+          entities: [{ ...eligible }],
+          raw: [{ order_seller_id: 'seller-1' }],
+        }),
+      };
+      const retryQb: any = {
+        innerJoin: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        setLock: jest.fn().mockReturnThis(),
+        setOnLocked: jest.fn().mockReturnThis(),
+        getRawAndEntities: jest.fn().mockResolvedValue({
+          entities: [],
+          raw: [],
+        }),
+      };
+      txManager.createQueryBuilder
+        .mockReturnValueOnce(firstQb)
+        .mockReturnValueOnce(retryQb);
+      txManager.findOne.mockResolvedValue({
+        ...eligible,
+        escrowStatus: EscrowStatus.RELEASING,
+      });
+      txManager.save
+        .mockResolvedValueOnce({
+          ...eligible,
+          escrowStatus: EscrowStatus.RELEASING,
+        })
+        .mockRejectedValueOnce(new Error('database commit failed'));
+      escrow.releaseFunds.mockResolvedValue({
+        transactionRef: 'STUB-1',
+        status: EscrowStatus.RELEASED,
+      });
+      jest.spyOn((service as any).logger, 'error').mockImplementation();
+
+      const firstCount = await service.processAutoReleases();
+      const retryCount = await service.processAutoReleases();
+
+      expect(firstCount).toBe(0);
+      expect(retryCount).toBe(0);
+      expect(txManager.save).toHaveBeenCalledWith(
+        expect.objectContaining({ escrowStatus: EscrowStatus.RELEASING }),
+      );
+      expect(escrow.releaseFunds).toHaveBeenCalledTimes(1);
+      expect(emitter.emit).not.toHaveBeenCalledWith(
+        'payment.released',
+        expect.anything(),
       );
     });
   });
@@ -615,6 +775,12 @@ describe('PaymentsService', () => {
           commission: '3200',
         },
         {
+          currency: 'SAR',
+          escrow_status: EscrowStatus.REFUNDED,
+          count: '2',
+          commission: '700',
+        },
+        {
           currency: 'AED',
           escrow_status: EscrowStatus.HELD,
           count: '3',
@@ -628,9 +794,32 @@ describe('PaymentsService', () => {
       const sar = result.byCurrency.find((c) => c.currency === 'SAR')!;
       expect(sar.held).toEqual({ count: 12, commission: 6420 });
       expect(sar.released).toEqual({ count: 8, commission: 3200 });
-      expect(sar.refunded).toEqual({ count: 0, commission: 0 });
+      expect(sar.refunded).toEqual({ count: 2, commission: 700 });
       const aed = result.byCurrency.find((c) => c.currency === 'AED')!;
       expect(aed.held).toEqual({ count: 3, commission: 900 });
+    });
+
+    it('counts in-progress escrow operation states as held in summaries', async () => {
+      makeRawQb([
+        {
+          currency: 'SAR',
+          escrow_status: EscrowStatus.RELEASING,
+          count: '1',
+          commission: '100',
+        },
+        {
+          currency: 'SAR',
+          escrow_status: EscrowStatus.REFUNDING,
+          count: '2',
+          commission: '200',
+        },
+      ]);
+
+      const result = await service.getRevenueSummary({});
+
+      expect(result.byCurrency[0].held).toEqual({ count: 3, commission: 300 });
+      expect(result.byCurrency[0].released).toEqual({ count: 0, commission: 0 });
+      expect(result.byCurrency[0].refunded).toEqual({ count: 0, commission: 0 });
     });
 
     it('treats null commission sum as 0', async () => {
