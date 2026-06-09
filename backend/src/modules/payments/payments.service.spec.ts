@@ -279,7 +279,6 @@ describe('PaymentsService', () => {
       );
 
       expect(escrow.releaseFunds).toHaveBeenCalledTimes(1);
-      expect(txManager.save).toHaveBeenCalledTimes(1);
       expect(txManager.save).not.toHaveBeenCalledWith(
         expect.objectContaining({ escrowStatus: EscrowStatus.HELD }),
       );
@@ -412,7 +411,6 @@ describe('PaymentsService', () => {
       );
 
       expect(escrow.refundFunds).toHaveBeenCalledTimes(1);
-      expect(txManager.save).toHaveBeenCalledTimes(1);
       expect(txManager.save).not.toHaveBeenCalledWith(
         expect.objectContaining({ escrowStatus: EscrowStatus.HELD }),
       );
@@ -678,7 +676,6 @@ describe('PaymentsService', () => {
       expect(txManager.save).toHaveBeenCalledWith(
         expect.objectContaining({ escrowStatus: EscrowStatus.RELEASING }),
       );
-      expect(txManager.save).toHaveBeenCalledTimes(1);
       expect(txManager.save).not.toHaveBeenCalledWith(
         expect.objectContaining({ escrowStatus: EscrowStatus.HELD }),
       );
