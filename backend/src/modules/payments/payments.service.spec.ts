@@ -262,10 +262,15 @@ describe('PaymentsService', () => {
       );
     });
 
-    it('leaves release claim in progress when provider failure is ambiguous', async () => {
-      paymentsRepo.findOne.mockResolvedValue({ ...heldPayment });
+    it('does not call escrow again after release claim persists and provider rejects', async () => {
+      const held = { ...heldPayment };
+      const releasing = { ...heldPayment, escrowStatus: EscrowStatus.RELEASING };
+      paymentsRepo.findOne
+        .mockResolvedValueOnce(held)
+        .mockResolvedValueOnce(releasing);
       ordersRepo.findOne.mockResolvedValue(deliveredOrder);
       escrow.releaseFunds.mockRejectedValue(new Error('provider unavailable'));
+      txManager.findOne.mockResolvedValueOnce(held);
 
       await expect(service.release(payerId, paymentId)).rejects.toThrow(
         'provider unavailable',
@@ -394,10 +399,15 @@ describe('PaymentsService', () => {
       );
     });
 
-    it('leaves refund claim in progress when provider failure is ambiguous', async () => {
-      paymentsRepo.findOne.mockResolvedValue({ ...heldPayment });
+    it('does not call escrow again after refund claim persists and provider rejects', async () => {
+      const held = { ...heldPayment };
+      const refunding = { ...heldPayment, escrowStatus: EscrowStatus.REFUNDING };
+      paymentsRepo.findOne
+        .mockResolvedValueOnce(held)
+        .mockResolvedValueOnce(refunding);
       ordersRepo.findOne.mockResolvedValue(disputedOrder);
       escrow.refundFunds.mockRejectedValue(new Error('provider unavailable'));
+      txManager.findOne.mockResolvedValueOnce(held);
 
       await expect(service.refund(paymentId)).rejects.toThrow(
         'provider unavailable',
@@ -642,7 +652,7 @@ describe('PaymentsService', () => {
       );
     });
 
-    it('leaves auto-release claim in progress when provider failure is ambiguous', async () => {
+    it('does not call escrow again after auto-release claim persists and provider rejects', async () => {
       const pastDate = new Date(Date.now() - 86400 * 1000);
       const eligible = {
         id: 'pay-1',
@@ -662,23 +672,29 @@ describe('PaymentsService', () => {
         addSelect: jest.fn().mockReturnThis(),
         setLock: jest.fn().mockReturnThis(),
         setOnLocked: jest.fn().mockReturnThis(),
-        getRawAndEntities: jest.fn().mockResolvedValue({
-          entities: [{ ...eligible }],
-          raw: [{ order_seller_id: 'seller-1' }],
-        }),
+        getRawAndEntities: jest
+          .fn()
+          .mockResolvedValueOnce({
+            entities: [{ ...eligible }],
+            raw: [{ order_seller_id: 'seller-1' }],
+          })
+          .mockResolvedValueOnce({ entities: [], raw: [] }),
       };
       txManager.createQueryBuilder.mockReturnValue(qb);
       escrow.releaseFunds.mockRejectedValue(new Error('provider unavailable'));
 
       const count = await service.processAutoReleases();
+      const retryCount = await service.processAutoReleases();
 
       expect(count).toBe(0);
+      expect(retryCount).toBe(0);
       expect(txManager.save).toHaveBeenCalledWith(
         expect.objectContaining({ escrowStatus: EscrowStatus.RELEASING }),
       );
       expect(txManager.save).not.toHaveBeenCalledWith(
         expect.objectContaining({ escrowStatus: EscrowStatus.HELD }),
       );
+      expect(escrow.releaseFunds).toHaveBeenCalledTimes(1);
       expect(emitter.emit).not.toHaveBeenCalledWith(
         'payment.released',
         expect.anything(),
