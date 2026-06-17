@@ -68,7 +68,7 @@ export function MyListingsScreen({ navigation }: Props) {
     [loadMyListings],
   );
 
-  const renderItem = ({ item }: { item: Listing }) => (
+  const renderItem = useCallback(({ item }: { item: Listing }) => (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
       onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
@@ -118,7 +118,7 @@ export function MyListingsScreen({ navigation }: Props) {
         </Pressable>
       </View>
     </Pressable>
-  );
+  ), [navigation, onDelete]);
 
   const renderEmpty = () => {
     if (myListingsLoading) return null;

@@ -61,7 +61,7 @@ export function MyOrdersScreen({ navigation }: Props) {
     loadOrders(true);
   }, [loadOrders]);
 
-  const renderItem = ({ item }: { item: Order }) => (
+  const renderItem = useCallback(({ item }: { item: Order }) => (
     <Pressable
       style={styles.card}
       onPress={() => navigation.navigate('OrderDetail', { orderId: item.id })}
@@ -80,7 +80,7 @@ export function MyOrdersScreen({ navigation }: Props) {
         <Text style={styles.date}>{formatDate(item.createdAt)}</Text>
       </View>
     </Pressable>
-  );
+  ), [navigation]);
 
   const ListEmpty = () => (
     <View style={styles.empty}>
