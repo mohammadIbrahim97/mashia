@@ -1,52 +1,89 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { KycService } from './src/modules/kyc/kyc.service';
-import { UsersService } from './src/modules/users/users.service';
-import { S3Service } from './src/shared/s3/s3.service';
-import { UserRole } from './src/shared/enums';
-import { User } from './src/modules/users/user.entity';
-import { SubmittedKycFiles } from './src/modules/kyc/kyc.service';
+import { PaymentsService } from './src/modules/payments/payments.service';
+import { DataSource } from 'typeorm';
+import { EscrowService } from './src/modules/payments/escrow.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EscrowStatus } from '@shared/enums';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Payment } from './src/modules/payments/payment.entity';
+import { Order } from './src/modules/orders/order.entity';
 
-async function run() {
-  const mockUsersService = {
-    updateKycDocuments: async () => undefined,
-  };
+// Mock dependencies
+const mockPaymentsRepository = {
+  createQueryBuilder: () => ({}),
+};
 
-  const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+const mockOrdersRepository = {};
 
-  const mockS3Service = {
-    upload: async () => {
-      await delay(100); // Simulate network latency
-    },
-    delete: async () => undefined,
-  };
+const mockEscrowService = {
+  releaseFunds: async () => new Promise((resolve) => setTimeout(resolve, 50)), // 50ms simulated API delay
+};
 
+const mockEventEmitter = {
+  emit: () => {},
+};
+
+const mockDataSource = {
+  transaction: async (cb: any) => {
+    return cb({
+      createQueryBuilder: () => ({
+        innerJoin: () => ({
+          where: () => ({
+            andWhere: () => ({
+              andWhere: () => ({
+                andWhere: () => ({
+                  addSelect: () => ({
+                    setLock: () => ({
+                      setOnLocked: () => ({
+                        getRawAndEntities: async () => {
+                          // Mock 50 rows
+                          const entities = Array.from({ length: 50 }).map((_, i) => ({
+                            id: `payment-${i}`,
+                            transactionRef: `ref-${i}`,
+                            orderId: `order-${i}`,
+                            sellerAmount: 100,
+                            currency: 'USD',
+                            escrowStatus: EscrowStatus.HELD,
+                          }));
+                          const raw = Array.from({ length: 50 }).map((_, i) => ({
+                            order_seller_id: `seller-${i}`,
+                          }));
+                          return { entities, raw };
+                        }
+                      })
+                    })
+                  })
+                })
+              })
+            })
+          })
+        })
+      }),
+      save: async (entity: any) => entity,
+      findOne: async () => ({ escrowStatus: EscrowStatus.RELEASING }),
+    });
+  },
+};
+
+async function runBenchmark() {
   const module: TestingModule = await Test.createTestingModule({
     providers: [
-      KycService,
-      { provide: UsersService, useValue: mockUsersService },
-      { provide: S3Service, useValue: mockS3Service },
+      PaymentsService,
+      { provide: getRepositoryToken(Payment), useValue: mockPaymentsRepository },
+      { provide: getRepositoryToken(Order), useValue: mockOrdersRepository },
+      { provide: EscrowService, useValue: mockEscrowService },
+      { provide: EventEmitter2, useValue: mockEventEmitter },
+      { provide: DataSource, useValue: mockDataSource },
     ],
   }).compile();
 
-  const service = module.get<KycService>(KycService);
-
-  const user = {
-    id: 'user-1',
-    role: UserRole.SELLER,
-    kycStatus: 'none',
-  } as unknown as User;
-
-  const files: SubmittedKycFiles = {
-    nationalId: { buffer: Buffer.from('id'), mimeType: 'image/jpeg' },
-    selfie: { buffer: Buffer.from('selfie'), mimeType: 'image/jpeg' },
-    businessLicense: { buffer: Buffer.from('license'), mimeType: 'image/jpeg' },
-  };
+  const service = module.get<PaymentsService>(PaymentsService);
 
   const start = Date.now();
-  await service.submit(user, files);
-  const duration = Date.now() - start;
+  await service.processAutoReleases();
+  const end = Date.now();
 
-  console.log(`Baseline Sequential Duration: ${duration}ms`);
+  console.log(`Time taken: ${end - start}ms`);
 }
 
-run().catch(console.error);
+runBenchmark().catch(console.error);
