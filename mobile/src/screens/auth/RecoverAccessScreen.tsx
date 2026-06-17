@@ -37,9 +37,10 @@ export function RecoverAccessScreen({ navigation }: Props) {
   const [idNumber, setIdNumber] = useState('');
   const [country, setCountry] = useState<CountryOption>(COUNTRIES[0]);
   const [phoneLocal, setPhoneLocal] = useState('');
-  const [caseId] = useState(
-    () => `REC-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random().toString(36).slice(2, 4).toUpperCase()}`,
-  );
+  const [caseId] = useState(() => {
+    const uuid = crypto.randomUUID().replace(/-/g, '').toUpperCase();
+    return `REC-${uuid.slice(0, 4)}-${uuid.slice(4, 6)}`;
+  });
 
   const onBack = () => {
     if (step === 1) navigation.goBack();
