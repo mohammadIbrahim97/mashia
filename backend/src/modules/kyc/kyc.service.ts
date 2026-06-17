@@ -59,27 +59,21 @@ export class KycService {
       }
     } catch (err) {
       // Rollback: best-effort delete of anything already uploaded
-      for (const key of Object.values(uploadedKeys)) {
-        if (!key) continue;
-        try {
-          await this.s3Service.delete(key);
-        } catch {
-          // swallow — rollback is best effort
-        }
-      }
+      await Promise.allSettled(
+        Object.values(uploadedKeys)
+          .filter((key) => !!key)
+          .map((key) => this.s3Service.delete(key))
+      );
       throw err;
     }
 
     // After successful upload, delete any old docs from a prior submission
     if (user.kycDocuments) {
-      for (const oldKey of Object.values(user.kycDocuments)) {
-        if (!oldKey) continue;
-        try {
-          await this.s3Service.delete(oldKey);
-        } catch {
-          // swallow — stale file cleanup is best effort
-        }
-      }
+      await Promise.allSettled(
+        Object.values(user.kycDocuments)
+          .filter((oldKey) => !!oldKey)
+          .map((oldKey) => this.s3Service.delete(oldKey))
+      );
     }
 
     await this.usersService.updateKycDocuments(
