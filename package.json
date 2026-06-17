@@ -1,0 +1,5 @@
+{
+  "devDependencies": {
+    "@aws-sdk/client-sns": "^3.1070.0"
+  }
+}

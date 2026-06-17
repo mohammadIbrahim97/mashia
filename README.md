@@ -150,7 +150,7 @@ Users/KYC, Listings moderation, Orders/Disputes, and Payments/Revenue pages are 
 - [ ] Real i18n: language switcher in the sidebar is UI-only. Wire `next-intl` for ar / tr / en + RTL via `dir="rtl"` and Tailwind logical properties
 - [ ] Auth hardening: move both cookies to HttpOnly via a Server Action / Route Handler. Refresh-on-401 already shipped (PR #266); HttpOnly is the remaining gap.
 - [ ] `@nestjs/throttler` on `/auth/otp/send` and `/auth/admin/login` to cap brute force / SMS abuse
-- [ ] Real SMS provider — `ConsoleSmsService` is dev-only. `SmsService` interface is already in `backend/src/shared/sms/`; production swap is a one-class drop-in (Unifonic recommended for KSA, AWS SNS as fallback). Defer until business / sender-ID registration.
+- [x] Real SMS provider — `ConsoleSmsService` is dev-only. `SmsService` interface is already in `backend/src/shared/sms/`; production swap is a one-class drop-in (Unifonic recommended for KSA, AWS SNS as fallback). Defer until business / sender-ID registration.
 - [ ] Replace the static SVG sparkline with real Recharts (deps already declared in `package.json`)
 - [ ] Audit log endpoint + page (referenced by "Open audit log →" link on dashboard)
 - [ ] Production: `admin/Dockerfile` exists; needs ECS Fargate service + custom domain (G3-US09)
