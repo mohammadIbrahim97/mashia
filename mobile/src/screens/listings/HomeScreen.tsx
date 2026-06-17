@@ -59,7 +59,7 @@ export function HomeScreen({ navigation }: Props) {
     loadFeed(true);
   };
 
-  const renderCard = ({ item }: { item: Listing }) => (
+  const renderCard = useCallback(({ item }: { item: Listing }) => (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
       onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
@@ -93,7 +93,7 @@ export function HomeScreen({ navigation }: Props) {
         </Text>
       </View>
     </Pressable>
-  );
+  ), [navigation]);
 
   const renderEmpty = () => {
     if (feedLoading) return null;
