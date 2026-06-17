@@ -102,16 +102,7 @@ export class MessagingService {
     currentUserId: string,
     dto: CreateConversationDto,
   ): Promise<FindOrCreateResult> {
-    if (!this.hasExactlyTwoUniqueParticipants(dto.participantIds)) {
-      throw new BadRequestException(
-        'Conversations must have exactly two unique participants',
-      );
-    }
-    if (!dto.participantIds.includes(currentUserId)) {
-      throw new BadRequestException(
-        'Current user must be one of the participants',
-      );
-    }
+    this.validateConversationParticipants(currentUserId, dto);
 
     const sortedIds = [...dto.participantIds].sort();
     const listingId = dto.listingId ?? null;
@@ -126,6 +117,34 @@ export class MessagingService {
       return { created: false, conversation: existing };
     }
 
+    return this.createConversationHandlingRaceCondition(
+      sortedIds,
+      listingId,
+      orderId,
+    );
+  }
+
+  private validateConversationParticipants(
+    currentUserId: string,
+    dto: CreateConversationDto,
+  ): void {
+    if (!this.hasExactlyTwoUniqueParticipants(dto.participantIds)) {
+      throw new BadRequestException(
+        'Conversations must have exactly two unique participants',
+      );
+    }
+    if (!dto.participantIds.includes(currentUserId)) {
+      throw new BadRequestException(
+        'Current user must be one of the participants',
+      );
+    }
+  }
+
+  private async createConversationHandlingRaceCondition(
+    sortedIds: string[],
+    listingId: string | null,
+    orderId: string | null,
+  ): Promise<FindOrCreateResult> {
     const entity = this.conversationsRepository.create({
       participantIds: sortedIds,
       listingId,
