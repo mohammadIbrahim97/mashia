@@ -34,94 +34,130 @@ export function DevPreviewScreen() {
           <Wordmark size={56} />
         </View>
 
-        <Section label="01 · TYPOGRAPHY">
-          <Text style={[type.hDisplay, styles.fg1]}>
-            A green
-            <Text
-              style={[
-                type.hDisplay,
-                {
-                  fontStyle: 'italic',
-                  color: colors.qasiounGold,
-                  fontFamily: 'Fraunces-Italic-Variable',
-                },
-              ]}
-            >
-              {' '}thread.
-            </Text>
-          </Text>
-          <Text style={[type.h2, styles.fg1, { marginTop: spacing[3] }]}>
-            Display heading.
-          </Text>
-          <Text style={[type.body, styles.fg1, { marginTop: spacing[3] }]}>
-            Mashia connects verified sellers, buyers, and brokers across the
-            Gulf and Levant. Escrow on every order. Halal certificates baked
-            in.
-          </Text>
-          <Text style={[type.caption, styles.fg2, { marginTop: spacing[3] }]}>
-            Caption — secondary text.
-          </Text>
-        </Section>
-
-        <Section label="02 · COLOR">
-          <View style={styles.swatchRow}>
-            <Swatch color={colors.mashia[600]} label="Mashia 600" />
-            <Swatch color={colors.qasiounGold} label="Gold" />
-            <Swatch color={colors.basaltBlack} label="Basalt" />
-            <Swatch color={colors.parchment} label="Parchment" />
-          </View>
-        </Section>
-
-        <Section label="03 · BUTTONS">
-          <View style={{ gap: spacing[3] }}>
-            <Button kind="primary" icon="arrowRight">
-              Place order
-            </Button>
-            <Button kind="secondary">I already have an account</Button>
-            <Button kind="ghost">Recover access</Button>
-          </View>
-        </Section>
-
-        <Section label="04 · CHIPS">
-          <View style={styles.chipRow}>
-            <Chip kind="verified">Verified ✓</Chip>
-            <Chip kind="pending">Pending</Chip>
-            <Chip kind="info">Info</Chip>
-            <Chip kind="flagged">Flagged</Chip>
-            <Chip kind="neutral">Add</Chip>
-          </View>
-        </Section>
-
-        <Section label="05 · STEP INDICATOR">
-          <StepIndicator total={3} current={2} />
-        </Section>
-
-        <Section label="06 · ICONS">
-          <View style={styles.iconRow}>
-            {(
-              [
-                'arrowRight',
-                'chevronLeft',
-                'shield',
-                'check',
-                'image',
-                'message',
-                'shoppingBag',
-                'user',
-              ] as const
-            ).map((n) => (
-              <View key={n} style={styles.iconCell}>
-                <Icon name={n} />
-              </View>
-            ))}
-          </View>
-        </Section>
-
-        <Section label="07 · OVERLINE">
-          <Overline bullet>● 01 · YOUR NUMBER</Overline>
-        </Section>
+        <TypographySection />
+        <ColorSection />
+        <ButtonsSection />
+        <ChipsSection />
+        <StepIndicatorSection />
+        <IconsSection />
+        <OverlineSection />
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function TypographySection() {
+  return (
+    <Section label="01 · TYPOGRAPHY">
+      <Text style={[type.hDisplay, styles.fg1]}>
+        A green
+        <Text
+          style={[
+            type.hDisplay,
+            {
+              fontStyle: 'italic',
+              color: colors.qasiounGold,
+              fontFamily: 'Fraunces-Italic-Variable',
+            },
+          ]}
+        >
+          {' '}thread.
+        </Text>
+      </Text>
+      <Text style={[type.h2, styles.fg1, { marginTop: spacing[3] }]}>
+        Display heading.
+      </Text>
+      <Text style={[type.body, styles.fg1, { marginTop: spacing[3] }]}>
+        Mashia connects verified sellers, buyers, and brokers across the
+        Gulf and Levant. Escrow on every order. Halal certificates baked
+        in.
+      </Text>
+      <Text style={[type.caption, styles.fg2, { marginTop: spacing[3] }]}>
+        Caption — secondary text.
+      </Text>
+    </Section>
+  );
+}
+
+function ColorSection() {
+  return (
+    <Section label="02 · COLOR">
+      <View style={styles.swatchRow}>
+        <Swatch color={colors.mashia[600]} label="Mashia 600" />
+        <Swatch color={colors.qasiounGold} label="Gold" />
+        <Swatch color={colors.basaltBlack} label="Basalt" />
+        <Swatch color={colors.parchment} label="Parchment" />
+      </View>
+    </Section>
+  );
+}
+
+function ButtonsSection() {
+  return (
+    <Section label="03 · BUTTONS">
+      <View style={{ gap: spacing[3] }}>
+        <Button kind="primary" icon="arrowRight">
+          Place order
+        </Button>
+        <Button kind="secondary">I already have an account</Button>
+        <Button kind="ghost">Recover access</Button>
+      </View>
+    </Section>
+  );
+}
+
+function ChipsSection() {
+  return (
+    <Section label="04 · CHIPS">
+      <View style={styles.chipRow}>
+        <Chip kind="verified">Verified ✓</Chip>
+        <Chip kind="pending">Pending</Chip>
+        <Chip kind="info">Info</Chip>
+        <Chip kind="flagged">Flagged</Chip>
+        <Chip kind="neutral">Add</Chip>
+      </View>
+    </Section>
+  );
+}
+
+function StepIndicatorSection() {
+  return (
+    <Section label="05 · STEP INDICATOR">
+      <StepIndicator total={3} current={2} />
+    </Section>
+  );
+}
+
+function IconsSection() {
+  return (
+    <Section label="06 · ICONS">
+      <View style={styles.iconRow}>
+        {(
+          [
+            'arrowRight',
+            'chevronLeft',
+            'shield',
+            'check',
+            'image',
+            'message',
+            'shoppingBag',
+            'user',
+          ] as const
+        ).map((n) => (
+          <View key={n} style={styles.iconCell}>
+            <Icon name={n} />
+          </View>
+        ))}
+      </View>
+    </Section>
+  );
+}
+
+function OverlineSection() {
+  return (
+    <Section label="07 · OVERLINE">
+      <Overline bullet>● 01 · YOUR NUMBER</Overline>
+    </Section>
   );
 }
 
