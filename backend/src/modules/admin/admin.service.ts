@@ -96,6 +96,34 @@ export class AdminService {
     const monthStart = this.getUtcMonthStart();
     const revenueCurrency = this.getPrimaryRevenueCurrency();
 
+    const kpiCounts = await this.getKpiCounts(monthStart);
+    const displayRevenue = this.getCurrencyRevenue(kpiCounts.revenue, revenueCurrency);
+
+    return {
+      kpis: {
+        totalUsers: kpiCounts.totalUsers,
+        totalListings: kpiCounts.totalListings,
+        activeListings: kpiCounts.activeListings,
+        activeOrders: kpiCounts.activeOrders,
+        totalRevenue: displayRevenue.totalRevenue,
+        revenueMtd: displayRevenue.revenueMtd,
+        revenueCurrency,
+        revenueByCurrency: kpiCounts.revenue,
+        // Legacy aliases kept for backward compatibility with existing clients.
+        pendingKyc: kpiCounts.usersPendingKyc,
+        usersPendingKyc: kpiCounts.usersPendingKyc,
+        pendingCertificates: kpiCounts.certsPending,
+        certsPending: kpiCounts.certsPending,
+        openDisputes: kpiCounts.disputedOrders,
+        disputedOrders: kpiCounts.disputedOrders,
+        flaggedListings: kpiCounts.flaggedListings,
+        avgReleaseDays: 0,
+      },
+      activity: [],
+    };
+  }
+
+  private async getKpiCounts(monthStart: Date) {
     const [
       totalUsers,
       totalListings,
@@ -131,29 +159,17 @@ export class AdminService {
       }),
       this.getRevenueByCurrency(monthStart),
     ]);
-    const displayRevenue = this.getCurrencyRevenue(revenue, revenueCurrency);
 
     return {
-      kpis: {
-        totalUsers,
-        totalListings,
-        activeListings,
-        activeOrders,
-        totalRevenue: displayRevenue.totalRevenue,
-        revenueMtd: displayRevenue.revenueMtd,
-        revenueCurrency,
-        revenueByCurrency: revenue,
-        // Legacy aliases kept for backward compatibility with existing clients.
-        pendingKyc: usersPendingKyc,
-        usersPendingKyc,
-        pendingCertificates: certsPending,
-        certsPending,
-        openDisputes: disputedOrders,
-        disputedOrders,
-        flaggedListings,
-        avgReleaseDays: 0,
-      },
-      activity: [],
+      totalUsers,
+      totalListings,
+      activeListings,
+      activeOrders,
+      usersPendingKyc,
+      certsPending,
+      disputedOrders,
+      flaggedListings,
+      revenue,
     };
   }
 
