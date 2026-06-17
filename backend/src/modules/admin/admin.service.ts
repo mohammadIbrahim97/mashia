@@ -96,6 +96,38 @@ export class AdminService {
     const monthStart = this.getUtcMonthStart();
     const revenueCurrency = this.getPrimaryRevenueCurrency();
 
+    const [counts, revenue] = await Promise.all([
+      this.getDashboardCounts(),
+      this.getRevenueByCurrency(monthStart),
+    ]);
+
+    const displayRevenue = this.getCurrencyRevenue(revenue, revenueCurrency);
+
+    return {
+      kpis: {
+        totalUsers: counts.totalUsers,
+        totalListings: counts.totalListings,
+        activeListings: counts.activeListings,
+        activeOrders: counts.activeOrders,
+        totalRevenue: displayRevenue.totalRevenue,
+        revenueMtd: displayRevenue.revenueMtd,
+        revenueCurrency,
+        revenueByCurrency: revenue,
+        // Legacy aliases kept for backward compatibility with existing clients.
+        pendingKyc: counts.usersPendingKyc,
+        usersPendingKyc: counts.usersPendingKyc,
+        pendingCertificates: counts.certsPending,
+        certsPending: counts.certsPending,
+        openDisputes: counts.disputedOrders,
+        disputedOrders: counts.disputedOrders,
+        flaggedListings: counts.flaggedListings,
+        avgReleaseDays: 0,
+      },
+      activity: [],
+    };
+  }
+
+  private async getDashboardCounts() {
     const [
       totalUsers,
       totalListings,
@@ -105,7 +137,6 @@ export class AdminService {
       certsPending,
       disputedOrders,
       flaggedListings,
-      revenue,
     ] = await Promise.all([
       this.usersRepository.count(),
       this.listingsRepository.count(),
@@ -129,31 +160,17 @@ export class AdminService {
       this.listingsRepository.count({
         where: { status: ListingStatus.FLAGGED },
       }),
-      this.getRevenueByCurrency(monthStart),
     ]);
-    const displayRevenue = this.getCurrencyRevenue(revenue, revenueCurrency);
 
     return {
-      kpis: {
-        totalUsers,
-        totalListings,
-        activeListings,
-        activeOrders,
-        totalRevenue: displayRevenue.totalRevenue,
-        revenueMtd: displayRevenue.revenueMtd,
-        revenueCurrency,
-        revenueByCurrency: revenue,
-        // Legacy aliases kept for backward compatibility with existing clients.
-        pendingKyc: usersPendingKyc,
-        usersPendingKyc,
-        pendingCertificates: certsPending,
-        certsPending,
-        openDisputes: disputedOrders,
-        disputedOrders,
-        flaggedListings,
-        avgReleaseDays: 0,
-      },
-      activity: [],
+      totalUsers,
+      totalListings,
+      activeListings,
+      activeOrders,
+      usersPendingKyc,
+      certsPending,
+      disputedOrders,
+      flaggedListings,
     };
   }
 
