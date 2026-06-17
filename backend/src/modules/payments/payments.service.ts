@@ -325,9 +325,7 @@ export class PaymentsService {
       }
     });
 
-    for (let i = 0; i < rows.length; i++) {
-      const payment = rows[i].payment;
-      const sellerId = rows[i].sellerId;
+    const promises = rows.map(async ({ payment, sellerId }) => {
       try {
         await this.escrow.releaseFunds(payment.transactionRef);
         const saved = await this.finalizeClaimedEscrowOperation(
@@ -335,20 +333,26 @@ export class PaymentsService {
           EscrowStatus.RELEASING,
           EscrowStatus.RELEASED,
         );
-        releasedEvents.push(
-          new PaymentReleasedEvent(
-            saved.id,
-            saved.orderId,
-            sellerId,
-            Number(saved.sellerAmount),
-            saved.currency,
-          ),
+        return new PaymentReleasedEvent(
+          saved.id,
+          saved.orderId,
+          sellerId,
+          Number(saved.sellerAmount),
+          saved.currency,
         );
       } catch (err) {
         this.logger.error(
           `Auto-release failed for payment ${payment.id}`,
           err instanceof Error ? err.stack : undefined,
         );
+        throw err; // Re-throw to be caught by allSettled
+      }
+    });
+
+    const results = await Promise.allSettled(promises);
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value) {
+        releasedEvents.push(result.value);
       }
     }
 
