@@ -49,14 +49,20 @@ export class KycService {
     const uploadedKeys: Partial<Record<DocType, string>> = {};
 
     try {
-      for (const docType of docTypes) {
+      const uploadPromises = docTypes.map(async (docType) => {
         const file = files[docType];
-        if (!file) continue;
+        if (!file) return;
+
         const ext = MIME_TO_EXT[file.mimeType] ?? 'bin';
         const key = `kyc/${user.id}/${docType}-${randomUUID()}.${ext}`;
-        await this.s3Service.upload(key, file.buffer, file.mimeType);
+
+        // Record key immediately so rollback can try to delete it if any upload fails
         uploadedKeys[docType] = key;
-      }
+
+        await this.s3Service.upload(key, file.buffer, file.mimeType);
+      });
+
+      await Promise.all(uploadPromises);
     } catch (err) {
       // Rollback: best-effort delete of anything already uploaded
       for (const key of Object.values(uploadedKeys)) {

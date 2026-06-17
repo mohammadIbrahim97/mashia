@@ -221,8 +221,8 @@ describe('KycService', () => {
 
       await expect(service.submit(user, files)).rejects.toThrow('s3 down');
 
-      // The one file that succeeded should be deleted as rollback
-      expect(s3Service.delete).toHaveBeenCalledTimes(1);
+      // Due to Promise.all, both keys are recorded. The rollback will attempt to delete both keys.
+      expect(s3Service.delete).toHaveBeenCalledTimes(2);
       expect(usersService.updateKycDocuments).not.toHaveBeenCalled();
     });
   });
