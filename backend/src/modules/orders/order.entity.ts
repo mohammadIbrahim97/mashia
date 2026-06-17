@@ -13,9 +13,11 @@ import { Currency, OrderStatus } from '@shared/enums';
 
 @Entity('orders')
 export class Order {
+  // --- Identity ---
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  // --- Relations ---
   @ManyToOne(() => Listing, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'listing_id' })
   listing: Listing | null;
@@ -44,9 +46,18 @@ export class Order {
   @Column({ type: 'uuid', nullable: true, name: 'broker_id' })
   brokerId: string | null;
 
+  // --- Order Details ---
   @Column({ type: 'int' })
   quantity: number;
 
+  @Column({
+    type: 'enum',
+    enum: OrderStatus,
+    default: OrderStatus.PENDING,
+  })
+  status: OrderStatus;
+
+  // --- Pricing & Commission ---
   @Column({ type: 'decimal', precision: 12, scale: 2, name: 'unit_price' })
   unitPrice: number;
 
@@ -62,13 +73,7 @@ export class Order {
   @Column({ type: 'decimal', precision: 14, scale: 2, default: 0, name: 'commission_amount' })
   commissionAmount: number;
 
-  @Column({
-    type: 'enum',
-    enum: OrderStatus,
-    default: OrderStatus.PENDING,
-  })
-  status: OrderStatus;
-
+  // --- Delivery Details ---
   @Column({ name: 'delivery_country' })
   deliveryCountry: string;
 
@@ -78,6 +83,7 @@ export class Order {
   @Column({ type: 'text', name: 'delivery_address' })
   deliveryAddress: string;
 
+  // --- Timestamps ---
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
