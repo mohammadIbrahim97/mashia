@@ -155,13 +155,17 @@ export class UsersService {
     let kycDocumentUrls: Record<string, string> | null = null;
     if (user.kycDocuments) {
       kycDocumentUrls = {};
-      for (const [docType, key] of Object.entries(user.kycDocuments)) {
-        if (!key) continue;
-        kycDocumentUrls[docType] = await this.s3Service.getSignedReadUrl(
-          key,
-          KYC_DOC_URL_TTL_SECONDS,
-        );
-      }
+      const entries = Object.entries(user.kycDocuments).filter(
+        ([, key]) => !!key,
+      );
+      const urls = await Promise.all(
+        entries.map(([, key]) =>
+          this.s3Service.getSignedReadUrl(key, KYC_DOC_URL_TTL_SECONDS),
+        ),
+      );
+      entries.forEach(([docType], index) => {
+        kycDocumentUrls![docType] = urls[index];
+      });
     }
 
     return {
