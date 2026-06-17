@@ -17,6 +17,22 @@ import { colors, fonts, radii, spacing, type } from '@theme/index';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'PlaceOrder'>;
 
+const FieldWrapper = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <View style={styles.field}>
+    <Overline>{label}</Overline>
+    {children}
+  </View>
+);
+
+const TotalBox = ({ currency, total }: { currency: string; total: number }) => (
+  <View style={styles.totalBox}>
+    <Text style={styles.totalLabel}>Estimated total</Text>
+    <Text style={styles.totalValue}>
+      {currency} {total > 0 ? total.toLocaleString() : '—'}
+    </Text>
+  </View>
+);
+
 export function PlaceOrderScreen({ navigation, route }: Props) {
   const { listingId, pricePerHead, currency } = route.params;
 
@@ -65,8 +81,7 @@ export function PlaceOrderScreen({ navigation, route }: Props) {
         contentContainerStyle={styles.body}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.field}>
-          <Overline>QUANTITY (HEAD)</Overline>
+        <FieldWrapper label="QUANTITY (HEAD)">
           <TextInput
             style={styles.input}
             value={quantity}
@@ -75,19 +90,17 @@ export function PlaceOrderScreen({ navigation, route }: Props) {
             placeholder="1"
             placeholderTextColor={colors.muted}
           />
-        </View>
+        </FieldWrapper>
 
-        <View style={styles.field}>
-          <Overline>UNIT PRICE</Overline>
+        <FieldWrapper label="UNIT PRICE">
           <View style={styles.readOnly}>
             <Text style={styles.readOnlyText}>
               {currency} {pricePerHead.toLocaleString()}
             </Text>
           </View>
-        </View>
+        </FieldWrapper>
 
-        <View style={styles.field}>
-          <Overline>DELIVERY ADDRESS</Overline>
+        <FieldWrapper label="DELIVERY ADDRESS">
           <TextInput
             style={styles.input}
             value={deliveryAddress}
@@ -97,10 +110,9 @@ export function PlaceOrderScreen({ navigation, route }: Props) {
             multiline
             numberOfLines={2}
           />
-        </View>
+        </FieldWrapper>
 
-        <View style={styles.field}>
-          <Overline>NOTES (OPTIONAL)</Overline>
+        <FieldWrapper label="NOTES (OPTIONAL)">
           <TextInput
             style={[styles.input, styles.notesInput]}
             value={notes}
@@ -110,16 +122,11 @@ export function PlaceOrderScreen({ navigation, route }: Props) {
             multiline
             numberOfLines={3}
           />
-        </View>
+        </FieldWrapper>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <View style={styles.totalBox}>
-          <Text style={styles.totalLabel}>Estimated total</Text>
-          <Text style={styles.totalValue}>
-            {currency} {total > 0 ? total.toLocaleString() : '—'}
-          </Text>
-        </View>
+        <TotalBox currency={currency} total={total} />
       </ScrollView>
 
       <View style={styles.footer}>
