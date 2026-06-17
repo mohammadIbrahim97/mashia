@@ -10,6 +10,7 @@ import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import redisConfig from './config/redis.config';
 import s3Config from './config/s3.config';
+import smsConfig from './config/sms.config';
 import { RedisModule } from './shared/redis/redis.module';
 import { S3Module } from './shared/s3/s3.module';
 import { SmsModule } from './shared/sms/sms.module';
@@ -28,7 +29,7 @@ import { AdminModule } from './modules/admin/admin.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, databaseConfig, redisConfig, s3Config],
+      load: [appConfig, databaseConfig, redisConfig, s3Config, smsConfig],
     }),
     LoggerModule.forRootAsync({
       inject: [ConfigService],
