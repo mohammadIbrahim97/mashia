@@ -41,7 +41,7 @@ Three-sided marketplace: Sellers list sheep → Buyers browse and order → Escr
 - [ ] S3 bucket with server-side encryption in me-south-1 (#90 / #241)
 - [ ] ECR repository for backend Docker image (#242)
 - [ ] ECS Fargate service + ALB + health checks (#243)
-- [ ] GitHub Actions CD pipeline: Docker → ECR → ECS (#244 / #87)
+- [x] GitHub Actions CD pipeline: Docker → ECR → ECS (#244 / #87)
 - [ ] CloudFront CDN for media files (#92 / #246)
 - [ ] CloudWatch monitoring + log aggregation (#91 / #245)
 
