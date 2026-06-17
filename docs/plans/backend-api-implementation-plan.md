@@ -204,9 +204,9 @@ REDIS_HOST=localhost
 REDIS_PORT=6379
 
 # JWT
-JWT_SECRET=your-jwt-secret-change-in-production
+JWT_SECRET=<generate-a-secure-random-string>
 JWT_EXPIRATION=15m
-JWT_REFRESH_SECRET=your-refresh-secret-change-in-production
+JWT_REFRESH_SECRET=<generate-a-secure-random-string>
 JWT_REFRESH_EXPIRATION=7d
 
 # OTP
