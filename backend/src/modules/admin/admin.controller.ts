@@ -125,57 +125,67 @@ export class AdminController {
 
   private toAdminOrderDetail(order: Order, payment: Payment | null) {
     return {
-      order: {
-        id: order.id,
-        listingId: order.listingId,
-        listing: order.listing
-          ? { id: order.listing.id, title: order.listing.title }
-          : null,
-        buyerId: order.buyerId,
-        buyer: order.buyer
-          ? {
-              id: order.buyer.id,
-              fullName: order.buyer.fullName,
-              phone: order.buyer.phone,
-            }
-          : null,
-        sellerId: order.sellerId,
-        seller: order.seller
-          ? {
-              id: order.seller.id,
-              fullName: order.seller.fullName,
-              phone: order.seller.phone,
-            }
-          : null,
-        brokerId: order.brokerId,
-        quantity: order.quantity,
-        unitPrice: Number(order.unitPrice),
-        currency: order.currency,
-        totalPrice: Number(order.totalPrice),
-        commissionRate: Number(order.commissionRate),
-        commissionAmount: Number(order.commissionAmount),
-        status: order.status,
-        deliveryCountry: order.deliveryCountry,
-        deliveryCity: order.deliveryCity,
-        deliveryAddress: order.deliveryAddress,
-        createdAt: order.createdAt,
-        updatedAt: order.updatedAt,
-      },
-      payment: payment
-        ? {
-            id: payment.id,
-            amount: Number(payment.amount),
-            sellerAmount: Number(payment.sellerAmount),
-            commissionAmount: Number(payment.commissionAmount),
-            currency: payment.currency,
-            method: payment.method,
-            escrowStatus: payment.escrowStatus,
-            releasedAt: payment.releasedAt,
-            refundedAt: payment.refundedAt,
-            autoReleaseAt: payment.autoReleaseAt,
-            createdAt: payment.createdAt,
-          }
-        : null,
+      order: this.mapOrder(order),
+      payment: this.mapPayment(payment),
+    };
+  }
+
+  private mapOrder(order: Order) {
+    return {
+      id: order.id,
+      listingId: order.listingId,
+      listing: this.mapListing(order.listing),
+      buyerId: order.buyerId,
+      buyer: this.mapUser(order.buyer),
+      sellerId: order.sellerId,
+      seller: this.mapUser(order.seller),
+      brokerId: order.brokerId,
+      quantity: order.quantity,
+      unitPrice: Number(order.unitPrice),
+      currency: order.currency,
+      totalPrice: Number(order.totalPrice),
+      commissionRate: Number(order.commissionRate),
+      commissionAmount: Number(order.commissionAmount),
+      status: order.status,
+      deliveryCountry: order.deliveryCountry,
+      deliveryCity: order.deliveryCity,
+      deliveryAddress: order.deliveryAddress,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+    };
+  }
+
+  private mapUser(user: User | null | undefined) {
+    if (!user) return null;
+    return {
+      id: user.id,
+      fullName: user.fullName,
+      phone: user.phone,
+    };
+  }
+
+  private mapListing(listing: any) {
+    if (!listing) return null;
+    return {
+      id: listing.id,
+      title: listing.title,
+    };
+  }
+
+  private mapPayment(payment: Payment | null) {
+    if (!payment) return null;
+    return {
+      id: payment.id,
+      amount: Number(payment.amount),
+      sellerAmount: Number(payment.sellerAmount),
+      commissionAmount: Number(payment.commissionAmount),
+      currency: payment.currency,
+      method: payment.method,
+      escrowStatus: payment.escrowStatus,
+      releasedAt: payment.releasedAt,
+      refundedAt: payment.refundedAt,
+      autoReleaseAt: payment.autoReleaseAt,
+      createdAt: payment.createdAt,
     };
   }
 
