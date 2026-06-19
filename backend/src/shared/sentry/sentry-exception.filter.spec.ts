@@ -1,4 +1,4 @@
-import { ArgumentsHost, BadRequestException, HttpException } from '@nestjs/common';
+import { ArgumentsHost, BadRequestException, HttpException, InternalServerErrorException } from '@nestjs/common';
 import { BaseExceptionFilter } from '@nestjs/core';
 import * as Sentry from '@sentry/node';
 import { SentryExceptionFilter } from './sentry-exception.filter';
@@ -59,13 +59,25 @@ describe('SentryExceptionFilter', () => {
     });
   });
 
-  it('does not capture HttpException to Sentry', () => {
+  it('does not capture HttpException to Sentry if status < 500', () => {
     const err: HttpException = new BadRequestException('bad input');
     const host = buildHost({ id: 'req-3', method: 'POST', url: '/x' });
 
     filter.catch(err, host);
 
     expect(Sentry.captureException).not.toHaveBeenCalled();
+    expect(superCatch).toHaveBeenCalledWith(err, host);
+  });
+
+  it('captures HttpException to Sentry if status >= 500', () => {
+    const err: HttpException = new InternalServerErrorException('internal error');
+    const host = buildHost({ id: 'req-4', method: 'PUT', url: '/y' });
+
+    filter.catch(err, host);
+
+    expect(Sentry.captureException).toHaveBeenCalledWith(err, {
+      extra: { requestId: 'req-4', method: 'PUT', url: '/y' },
+    });
     expect(superCatch).toHaveBeenCalledWith(err, host);
   });
 });
