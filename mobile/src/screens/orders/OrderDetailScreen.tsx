@@ -14,6 +14,7 @@ import { AppBar, Button, Icon, Overline } from '@components/index';
 import { OrdersStackParamList } from '@navigation/types';
 import { useAuth } from '@hooks/useAuth';
 import { useOrders } from '@store/orders.store';
+import { type OrderDetail } from '@services/orders.service';
 import { colors, radii, spacing, type } from '@theme/index';
 
 type Props = NativeStackScreenProps<OrdersStackParamList, 'OrderDetail'>;
@@ -94,101 +95,12 @@ export function OrderDetailScreen({ navigation, route }: Props) {
         }
       />
       <ScrollView contentContainerStyle={styles.body}>
-        {/* Listing */}
-        <View style={styles.section}>
-          {selected.listing ? (
-            <View style={styles.listingRow}>
-              {selected.listing.images[0] ? (
-                <Image
-                  source={{ uri: selected.listing.images[0] }}
-                  style={styles.listingImage}
-                />
-              ) : (
-                <View style={[styles.listingImage, styles.listingImagePlaceholder]}>
-                  <Icon name="image" size={24} color={colors.muted} />
-                </View>
-              )}
-              <View style={styles.listingInfo}>
-                <Text style={styles.listingTitle}>{selected.listing.title}</Text>
-                <Text style={styles.listingBreed}>{selected.listing.breed}</Text>
-              </View>
-            </View>
-          ) : (
-            <Text style={styles.listingRemoved}>Listing removed</Text>
-          )}
-        </View>
-
-        {/* Parties */}
-        <View style={styles.section}>
-          <Overline>PARTIES</Overline>
-          <View style={styles.partyRow}>
-            <View style={styles.partyCol}>
-              <Text style={styles.partyLabel}>Buyer</Text>
-              <Text style={styles.partyName}>{selected.buyer.fullName}</Text>
-              <Text style={styles.partySub}>{selected.buyer.city}, {selected.buyer.country}</Text>
-            </View>
-            <View style={styles.partySpacer} />
-            <View style={styles.partyCol}>
-              <Text style={styles.partyLabel}>Seller</Text>
-              <Text style={styles.partyName}>{selected.seller.fullName}</Text>
-              <Text style={styles.partySub}>{selected.seller.city}, {selected.seller.country}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Financials */}
-        <View style={styles.section}>
-          <Overline>ORDER SUMMARY</Overline>
-          <View style={styles.table}>
-            <Row label="Quantity" value={`${selected.quantity} head`} />
-            <Row label="Unit price" value={`${selected.currency} ${selected.unitPrice.toLocaleString()}`} />
-            <Row label="Commission" value={`${selected.currency} ${selected.commissionAmount.toLocaleString()} (${(selected.commissionRate * 100).toFixed(1)}%)`} />
-            <Row label="Total" value={`${selected.currency} ${selected.totalPrice.toLocaleString()}`} bold />
-          </View>
-        </View>
-
-        {/* Delivery */}
-        <View style={styles.section}>
-          <Overline>DELIVERY</Overline>
-          <Text style={styles.addressText}>{selected.deliveryAddress}</Text>
-          {selected.notes ? (
-            <Text style={styles.notesText}>{selected.notes}</Text>
-          ) : null}
-        </View>
-
-        {/* Payment */}
-        {selected.payment ? (
-          <View style={styles.section}>
-            <Overline>PAYMENT</Overline>
-            <View style={styles.table}>
-              <Row label="Method" value={selected.payment.method.replace('_', ' ').toUpperCase()} />
-              <Row label="Escrow status" value={selected.payment.escrowStatus} />
-              <Row label="Amount" value={`${selected.payment.currency} ${selected.payment.amount.toLocaleString()}`} />
-            </View>
-          </View>
-        ) : null}
-
-        {/* Status timeline */}
-        <View style={styles.section}>
-          <Overline>STATUS TIMELINE</Overline>
-          <View style={styles.timeline}>
-            {ORDER_STATUSES.map((s, i) => {
-              const done = i <= currentStatusIndex;
-              return (
-                <View key={s} style={styles.timelineRow}>
-                  <Icon
-                    name={done ? 'checkCircle' : 'clock'}
-                    size={18}
-                    color={done ? colors.mashia[600] : colors.hairline}
-                  />
-                  <Text style={[styles.timelineLabel, done && styles.timelineLabelDone]}>
-                    {statusLabel(s)}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        </View>
+        <ListingSection listing={selected.listing} />
+        <PartiesSection buyer={selected.buyer} seller={selected.seller} />
+        <SummarySection selected={selected} />
+        <DeliverySection deliveryAddress={selected.deliveryAddress} notes={selected.notes} />
+        <PaymentSection payment={selected.payment} />
+        <StatusTimelineSection currentStatusIndex={currentStatusIndex} />
 
         {/* Order meta */}
         <View style={styles.section}>
@@ -197,58 +109,216 @@ export function OrderDetailScreen({ navigation, route }: Props) {
         </View>
       </ScrollView>
 
-      {role === 'seller' && selected.status === 'pending' ? (
-        <View style={styles.footer}>
-          <Button
-            kind="secondary"
-            full
-            loading={busy}
-            onPress={() => handleUpdateStatus('cancelled')}
-          >
-            Reject
-          </Button>
-          <View style={{ height: spacing[3] }} />
-          <Button
-            kind="primary"
-            full
-            loading={busy}
-            onPress={() => handleUpdateStatus('accepted')}
-          >
-            Accept Order
-          </Button>
-        </View>
-      ) : role === 'buyer' && selected.status === 'accepted' ? (
-        <View style={styles.footer}>
-          <Button
-            kind="primary"
-            full
-            onPress={() =>
-              navigation.navigate('PaymentMethod', {
-                orderId: selected.id,
-                totalPrice: selected.totalPrice,
-                currency: selected.currency,
-              })
-            }
-          >
-            Pay Now
-          </Button>
-        </View>
-      ) : role === 'buyer' && selected.status === 'delivered' ? (
-        <View style={styles.footer}>
-          <Button
-            kind="primary"
-            icon="check"
-            iconPosition="leading"
-            full
-            loading={busy}
-            onPress={() => handleUpdateStatus('completed')}
-          >
-            Confirm Delivery
-          </Button>
-        </View>
-      ) : null}
+      <FooterActions
+        role={role}
+        selected={selected}
+        busy={busy}
+        handleUpdateStatus={handleUpdateStatus}
+        navigation={navigation}
+      />
     </SafeAreaView>
   );
+}
+
+
+function ListingSection({ listing }: { listing: OrderDetail['listing'] }) {
+  return (
+    <View style={styles.section}>
+      {listing ? (
+        <View style={styles.listingRow}>
+          {listing.images[0] ? (
+            <Image
+              source={{ uri: listing.images[0] }}
+              style={styles.listingImage}
+            />
+          ) : (
+            <View style={[styles.listingImage, styles.listingImagePlaceholder]}>
+              <Icon name="image" size={24} color={colors.muted} />
+            </View>
+          )}
+          <View style={styles.listingInfo}>
+            <Text style={styles.listingTitle}>{listing.title}</Text>
+            <Text style={styles.listingBreed}>{listing.breed}</Text>
+          </View>
+        </View>
+      ) : (
+        <Text style={styles.listingRemoved}>Listing removed</Text>
+      )}
+    </View>
+  );
+}
+
+function PartiesSection({
+  buyer,
+  seller,
+}: {
+  buyer: OrderDetail['buyer'];
+  seller: OrderDetail['seller'];
+}) {
+  return (
+    <View style={styles.section}>
+      <Overline>PARTIES</Overline>
+      <View style={styles.partyRow}>
+        <View style={styles.partyCol}>
+          <Text style={styles.partyLabel}>Buyer</Text>
+          <Text style={styles.partyName}>{buyer.fullName}</Text>
+          <Text style={styles.partySub}>{buyer.city}, {buyer.country}</Text>
+        </View>
+        <View style={styles.partySpacer} />
+        <View style={styles.partyCol}>
+          <Text style={styles.partyLabel}>Seller</Text>
+          <Text style={styles.partyName}>{seller.fullName}</Text>
+          <Text style={styles.partySub}>{seller.city}, {seller.country}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function SummarySection({ selected }: { selected: OrderDetail }) {
+  return (
+    <View style={styles.section}>
+      <Overline>ORDER SUMMARY</Overline>
+      <View style={styles.table}>
+        <Row label="Quantity" value={`${selected.quantity} head`} />
+        <Row label="Unit price" value={`${selected.currency} ${selected.unitPrice.toLocaleString()}`} />
+        <Row label="Commission" value={`${selected.currency} ${selected.commissionAmount.toLocaleString()} (${(selected.commissionRate * 100).toFixed(1)}%)`} />
+        <Row label="Total" value={`${selected.currency} ${selected.totalPrice.toLocaleString()}`} bold />
+      </View>
+    </View>
+  );
+}
+
+function DeliverySection({
+  deliveryAddress,
+  notes,
+}: {
+  deliveryAddress: string;
+  notes: string | null;
+}) {
+  return (
+    <View style={styles.section}>
+      <Overline>DELIVERY</Overline>
+      <Text style={styles.addressText}>{deliveryAddress}</Text>
+      {notes ? <Text style={styles.notesText}>{notes}</Text> : null}
+    </View>
+  );
+}
+
+function PaymentSection({ payment }: { payment: OrderDetail['payment'] }) {
+  if (!payment) return null;
+  return (
+    <View style={styles.section}>
+      <Overline>PAYMENT</Overline>
+      <View style={styles.table}>
+        <Row label="Method" value={payment.method.replace('_', ' ').toUpperCase()} />
+        <Row label="Escrow status" value={payment.escrowStatus} />
+        <Row label="Amount" value={`${payment.currency} ${payment.amount.toLocaleString()}`} />
+      </View>
+    </View>
+  );
+}
+
+function StatusTimelineSection({ currentStatusIndex }: { currentStatusIndex: number }) {
+  return (
+    <View style={styles.section}>
+      <Overline>STATUS TIMELINE</Overline>
+      <View style={styles.timeline}>
+        {ORDER_STATUSES.map((s, i) => {
+          const done = i <= currentStatusIndex;
+          return (
+            <View key={s} style={styles.timelineRow}>
+              <Icon
+                name={done ? 'checkCircle' : 'clock'}
+                size={18}
+                color={done ? colors.mashia[600] : colors.hairline}
+              />
+              <Text style={[styles.timelineLabel, done && styles.timelineLabelDone]}>
+                {statusLabel(s)}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function FooterActions({
+  role,
+  selected,
+  busy,
+  handleUpdateStatus,
+  navigation,
+}: {
+  role: string | undefined;
+  selected: OrderDetail;
+  busy: boolean;
+  handleUpdateStatus: (status: string) => void;
+  navigation: Props['navigation'];
+}) {
+  if (role === 'seller' && selected.status === 'pending') {
+    return (
+      <View style={styles.footer}>
+        <Button
+          kind="secondary"
+          full
+          loading={busy}
+          onPress={() => handleUpdateStatus('cancelled')}
+        >
+          Reject
+        </Button>
+        <View style={{ height: spacing[3] }} />
+        <Button
+          kind="primary"
+          full
+          loading={busy}
+          onPress={() => handleUpdateStatus('accepted')}
+        >
+          Accept Order
+        </Button>
+      </View>
+    );
+  }
+
+  if (role === 'buyer' && selected.status === 'accepted') {
+    return (
+      <View style={styles.footer}>
+        <Button
+          kind="primary"
+          full
+          onPress={() =>
+            navigation.navigate('PaymentMethod', {
+              orderId: selected.id,
+              totalPrice: selected.totalPrice,
+              currency: selected.currency,
+            })
+          }
+        >
+          Pay Now
+        </Button>
+      </View>
+    );
+  }
+
+  if (role === 'buyer' && selected.status === 'delivered') {
+    return (
+      <View style={styles.footer}>
+        <Button
+          kind="primary"
+          icon="check"
+          iconPosition="leading"
+          full
+          loading={busy}
+          onPress={() => handleUpdateStatus('completed')}
+        >
+          Confirm Delivery
+        </Button>
+      </View>
+    );
+  }
+
+  return null;
 }
 
 function Row({
