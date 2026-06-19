@@ -33,14 +33,9 @@ export class PaymentsService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async initiate(buyerId: string, dto: InitiatePaymentDto): Promise<Payment> {
-    if (process.env.NODE_ENV === 'production') {
-      throw new ServiceUnavailableException(
-        'Payment initiation is unavailable until escrow integration is configured',
-      );
-    }
+  private async _validateOrderForInitiation(buyerId: string, orderId: string): Promise<Order> {
     const order = await this.ordersRepository.findOne({
-      where: { id: dto.orderId },
+      where: { id: orderId },
     });
     if (!order || order.buyerId !== buyerId) {
       throw new NotFoundException('Order not found');
@@ -50,6 +45,17 @@ export class PaymentsService {
         `Order must be ACCEPTED to initiate payment (current: ${order.status})`,
       );
     }
+    return order;
+  }
+
+  async initiate(buyerId: string, dto: InitiatePaymentDto): Promise<Payment> {
+    if (process.env.NODE_ENV === 'production') {
+      throw new ServiceUnavailableException(
+        'Payment initiation is unavailable until escrow integration is configured',
+      );
+    }
+
+    const order = await this._validateOrderForInitiation(buyerId, dto.orderId);
 
     const amount = Number(order.totalPrice);
     const commissionAmount = Number(order.commissionAmount);
@@ -61,32 +67,15 @@ export class PaymentsService {
       dto.method,
     );
 
-    const now = new Date();
-    const payment = this.paymentsRepository.create({
-      orderId: order.id,
-      payerId: buyerId,
+    const saved = await this._createAndSavePayment({
+      order,
+      buyerId,
       amount,
       commissionAmount,
       sellerAmount,
-      currency: order.currency,
       method: dto.method,
-      escrowStatus: EscrowStatus.HELD,
       transactionRef,
-      autoReleaseAt: null,
-      paidAt: now,
-      releasedAt: null,
-      refundedAt: null,
     });
-
-    let saved: Payment;
-    try {
-      saved = await this.paymentsRepository.save(payment);
-    } catch (err: any) {
-      if (err?.code === '23505') {
-        throw new ConflictException('Payment already exists for this order');
-      }
-      throw err;
-    }
 
     this.eventEmitter.emit(
       PaymentHeldEvent.EVENT_NAME,
@@ -102,6 +91,43 @@ export class PaymentsService {
     );
 
     return saved;
+  }
+
+  private async _createAndSavePayment(params: {
+    order: Order;
+    buyerId: string;
+    amount: number;
+    commissionAmount: number;
+    sellerAmount: number;
+    method: PaymentMethod;
+    transactionRef: string;
+  }): Promise<Payment> {
+    const { order, buyerId, amount, commissionAmount, sellerAmount, method, transactionRef } = params;
+    const now = new Date();
+    const payment = this.paymentsRepository.create({
+      orderId: order.id,
+      payerId: buyerId,
+      amount,
+      commissionAmount,
+      sellerAmount,
+      currency: order.currency,
+      method,
+      escrowStatus: EscrowStatus.HELD,
+      transactionRef,
+      autoReleaseAt: null,
+      paidAt: now,
+      releasedAt: null,
+      refundedAt: null,
+    });
+
+    try {
+      return await this.paymentsRepository.save(payment);
+    } catch (err: any) {
+      if (err?.code === '23505') {
+        throw new ConflictException('Payment already exists for this order');
+      }
+      throw err;
+    }
   }
 
   async release(userId: string, paymentId: string): Promise<Payment> {
