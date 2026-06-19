@@ -45,42 +45,9 @@ export class KycService {
 
     this.validateRoleRules(user.role, files);
 
-    const docTypes: DocType[] = ['nationalId', 'selfie', 'businessLicense'];
-    const uploadedKeys: Partial<Record<DocType, string>> = {};
+    const uploadedKeys = await this.uploadNewDocuments(user.id, files);
 
-    try {
-      const uploadPromises = docTypes.map(async (docType) => {
-        const file = files[docType];
-        if (!file) return;
-
-        const ext = MIME_TO_EXT[file.mimeType] ?? 'bin';
-        const key = `kyc/${user.id}/${docType}-${randomUUID()}.${ext}`;
-
-        // Record key immediately so rollback can try to delete it if any upload fails
-        uploadedKeys[docType] = key;
-
-        await this.s3Service.upload(key, file.buffer, file.mimeType);
-      });
-
-      await Promise.all(uploadPromises);
-    } catch (err) {
-      // Rollback: best-effort delete of anything already uploaded
-      await Promise.allSettled(
-        Object.values(uploadedKeys)
-          .filter((key) => !!key)
-          .map((key) => this.s3Service.delete(key))
-      );
-      throw err;
-    }
-
-    // After successful upload, delete any old docs from a prior submission
-    if (user.kycDocuments) {
-      await Promise.allSettled(
-        Object.values(user.kycDocuments)
-          .filter((oldKey) => !!oldKey)
-          .map((oldKey) => this.s3Service.delete(oldKey))
-      );
-    }
+    await this.deleteOldDocuments(user.kycDocuments);
 
     await this.usersService.updateKycDocuments(
       user.id,
@@ -98,6 +65,50 @@ export class KycService {
       },
       submittedAt: new Date(),
     };
+  }
+
+  private async uploadNewDocuments(
+    userId: string,
+    files: SubmittedKycFiles,
+  ): Promise<Partial<Record<DocType, string>>> {
+    const docTypes: DocType[] = ['nationalId', 'selfie', 'businessLicense'];
+    const uploadedKeys: Partial<Record<DocType, string>> = {};
+
+    try {
+      const uploadPromises = docTypes.map(async (docType) => {
+        const file = files[docType];
+        if (!file) return;
+
+        const ext = MIME_TO_EXT[file.mimeType] ?? 'bin';
+        const key = `kyc/${userId}/${docType}-${randomUUID()}.${ext}`;
+
+        // Record key immediately so rollback can try to delete it if any upload fails
+        uploadedKeys[docType] = key;
+
+        await this.s3Service.upload(key, file.buffer, file.mimeType);
+      });
+
+      await Promise.all(uploadPromises);
+      return uploadedKeys;
+    } catch (err) {
+      // Rollback: best-effort delete of anything already uploaded
+      await Promise.allSettled(
+        Object.values(uploadedKeys)
+          .filter((key) => !!key)
+          .map((key) => this.s3Service.delete(key)),
+      );
+      throw err;
+    }
+  }
+
+  private async deleteOldDocuments(oldDocuments: Record<string, string> | null): Promise<void> {
+    if (!oldDocuments) return;
+
+    await Promise.allSettled(
+      Object.values(oldDocuments)
+        .filter((oldKey) => !!oldKey)
+        .map((oldKey) => this.s3Service.delete(oldKey)),
+    );
   }
 
   getStatus(user: User): KycStatusResponseDto {
