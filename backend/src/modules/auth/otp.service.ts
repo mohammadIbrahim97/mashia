@@ -55,32 +55,15 @@ export class OtpService {
     }
 
     if (storedCode !== code) {
-      const verifyAttemptsKey = `otp:verify:attempts:${phone}:${storedCode}`;
-      const attempts = await this.redis.incr(verifyAttemptsKey);
-      const otpTtl = await this.redis.ttl(codeKey);
-
-      if (otpTtl > 0) {
-        await this.redis.expire(verifyAttemptsKey, otpTtl);
-      } else {
-        await this.redis.del(verifyAttemptsKey);
-        throw new BadRequestException('OTP expired or not found.');
-      }
-
-      if (attempts >= OtpService.MAX_ATTEMPTS) {
-        const currentCode = await this.redis.get(codeKey);
-
-        if (currentCode === storedCode) {
-          await this.redis.del(codeKey, verifyAttemptsKey);
-        } else {
-          await this.redis.del(verifyAttemptsKey);
-        }
-
-        throw new BadRequestException('OTP expired or not found.');
-      }
-
-      throw new BadRequestException('Invalid OTP.');
+      await this.handleFailedAttempt(phone, storedCode);
     }
 
+    await this.clearOtpState(phone, storedCode);
+    return true;
+  }
+
+  private async clearOtpState(phone: string, storedCode: string): Promise<void> {
+    const codeKey = `otp:code:${phone}`;
     const verifyAttemptsKey = `otp:verify:attempts:${phone}:${storedCode}`;
     const currentCode = await this.redis.get(codeKey);
 
@@ -89,8 +72,27 @@ export class OtpService {
     } else {
       await this.redis.del(verifyAttemptsKey);
     }
+  }
 
-    return true;
+  private async handleFailedAttempt(phone: string, storedCode: string): Promise<never> {
+    const codeKey = `otp:code:${phone}`;
+    const verifyAttemptsKey = `otp:verify:attempts:${phone}:${storedCode}`;
+    const attempts = await this.redis.incr(verifyAttemptsKey);
+    const otpTtl = await this.redis.ttl(codeKey);
+
+    if (otpTtl > 0) {
+      await this.redis.expire(verifyAttemptsKey, otpTtl);
+    } else {
+      await this.redis.del(verifyAttemptsKey);
+      throw new BadRequestException('OTP expired or not found.');
+    }
+
+    if (attempts >= OtpService.MAX_ATTEMPTS) {
+      await this.clearOtpState(phone, storedCode);
+      throw new BadRequestException('OTP expired or not found.');
+    }
+
+    throw new BadRequestException('Invalid OTP.');
   }
 
   /**
