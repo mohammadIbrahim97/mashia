@@ -227,19 +227,37 @@ export class MessagingGateway
       return userId ? { ok: true } : { ok: false, error: 'unauthorized' };
     }
 
+    try {
+      const ack = await this.processTypingAttempt(
+        client,
+        conversationId,
+        isTyping,
+        attempt,
+      );
+      resolvePending(ack);
+      return ack;
+    } catch (err) {
+      rejectPending(err);
+      throw err;
+    }
+  }
+
+  private async processTypingAttempt(
+    client: AuthSocket,
+    conversationId: string,
+    isTyping: boolean,
+    attempt: TypingAttempt,
+  ): Promise<TypingAck> {
     let userId: string | null;
     try {
       userId = await this.getActiveUserId(client);
     } catch (err) {
       this.restoreTypingState(client, conversationId, attempt.previous);
-      rejectPending(err);
       throw err;
     }
     if (!userId) {
       this.restoreTypingState(client, conversationId, attempt.previous);
-      const ack: TypingAck = { ok: false, error: 'unauthorized' };
-      resolvePending(ack);
-      return ack;
+      return { ok: false, error: 'unauthorized' };
     }
 
     try {
@@ -247,20 +265,14 @@ export class MessagingGateway
     } catch (err) {
       this.restoreTypingState(client, conversationId, attempt.previous);
       const error = this.mapServiceError(err);
-      if (error) {
-        const ack: TypingAck = { ok: false, error };
-        resolvePending(ack);
-        return ack;
-      }
-      rejectPending(err);
+      if (error) return { ok: false, error };
       throw err;
     }
 
     this.finishTypingAttempt(client, conversationId);
+    const room = `conversation:${conversationId}`;
     client.to(room).emit('userTyping', { conversationId, userId, isTyping });
-    const ack: TypingAck = { ok: true };
-    resolvePending(ack);
-    return ack;
+    return { ok: true };
   }
 
   @SubscribeMessage('markRead')
