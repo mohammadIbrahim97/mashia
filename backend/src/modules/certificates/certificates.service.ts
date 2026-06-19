@@ -19,6 +19,30 @@ export type AdminCertificateListQuery = {
   pageSize?: number;
 };
 
+export type AdminCertificateListItem = Pick<
+  Certificate,
+  | 'id'
+  | 'type'
+  | 'issuingAuthority'
+  | 'issueDate'
+  | 'expiryDate'
+  | 'status'
+  | 'fileUrl'
+  | 'sellerId'
+  | 'listingId'
+  | 'createdAt'
+> & {
+  sellerName: string | null;
+  listingTitle: string | null;
+};
+
+export type AdminCertificateListResult = {
+  items: AdminCertificateListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
 @Injectable()
 export class CertificatesService {
   constructor(
@@ -29,10 +53,7 @@ export class CertificatesService {
     private readonly s3Service: S3Service,
   ) {}
 
-  async create(
-    sellerId: string,
-    dto: UploadCertificateDto,
-  ): Promise<Certificate> {
+  private validateUploadDto(dto: UploadCertificateDto): void {
     if (new Date(dto.expiryDate) < new Date(dto.issueDate)) {
       throw new BadRequestException('expiryDate must be on or after issueDate');
     }
@@ -40,20 +61,34 @@ export class CertificatesService {
     if (!this.s3Service.isTrustedObjectUrl(dto.fileUrl, 'certificates')) {
       throw new BadRequestException('fileUrl must reference an uploaded certificate file');
     }
+  }
 
-    let listingId: string | null = null;
-    if (dto.listingId) {
-      const listing = await this.listingsRepository.findOne({
-        where: { id: dto.listingId },
-      });
-      if (!listing) {
-        throw new NotFoundException('Listing not found');
-      }
-      if (listing.sellerId !== sellerId) {
-        throw new ForbiddenException('Cannot attach certificate to another seller\'s listing');
-      }
-      listingId = listing.id;
+  private async validateAndGetListingId(sellerId: string, listingIdDto?: string): Promise<string | null> {
+    if (!listingIdDto) {
+      return null;
     }
+
+    const listing = await this.listingsRepository.findOne({
+      where: { id: listingIdDto },
+    });
+
+    if (!listing) {
+      throw new NotFoundException('Listing not found');
+    }
+    if (listing.sellerId !== sellerId) {
+      throw new ForbiddenException('Cannot attach certificate to another seller\'s listing');
+    }
+
+    return listing.id;
+  }
+
+  async create(
+    sellerId: string,
+    dto: UploadCertificateDto,
+  ): Promise<Certificate> {
+    this.validateUploadDto(dto);
+
+    const listingId = await this.validateAndGetListingId(sellerId, dto.listingId);
 
     const certificate = this.certificatesRepository.create({
       sellerId,
@@ -95,29 +130,7 @@ export class CertificatesService {
     return certificate;
   }
 
-  async findForAdmin(query: AdminCertificateListQuery): Promise<{
-    items: Array<
-      Pick<
-        Certificate,
-        | 'id'
-        | 'type'
-        | 'issuingAuthority'
-        | 'issueDate'
-        | 'expiryDate'
-        | 'status'
-        | 'fileUrl'
-        | 'sellerId'
-        | 'listingId'
-        | 'createdAt'
-      > & {
-        sellerName: string | null;
-        listingTitle: string | null;
-      }
-    >;
-    total: number;
-    page: number;
-    pageSize: number;
-  }> {
+  async findForAdmin(query: AdminCertificateListQuery): Promise<AdminCertificateListResult> {
     const page = query.page ?? 1;
     const pageSize = Math.min(query.pageSize ?? 20, 100);
 
@@ -154,17 +167,21 @@ export class CertificatesService {
     return { items, total, page, pageSize };
   }
 
-  async verify(
-    adminId: string,
-    id: string,
-    dto: VerifyCertificateDto,
-  ): Promise<Certificate> {
+  private validateVerifyDto(dto: VerifyCertificateDto): void {
     if (dto.status === CertificateStatus.PENDING) {
       throw new BadRequestException('Cannot transition to pending');
     }
     if (dto.status === CertificateStatus.REJECTED && !dto.rejectionReason) {
       throw new BadRequestException('rejectionReason is required when rejecting');
     }
+  }
+
+  async verify(
+    adminId: string,
+    id: string,
+    dto: VerifyCertificateDto,
+  ): Promise<Certificate> {
+    this.validateVerifyDto(dto);
 
     const certificate = await this.certificatesRepository.findOne({ where: { id } });
     if (!certificate) {
