@@ -22,6 +22,7 @@ import { errorMessage } from '@services/api';
 import { messagingService } from '@services/messaging.service';
 import { useAuth } from '@hooks/useAuth';
 import { useListings } from '@store/listings.store';
+import { ListingSeller } from '@services/listings.service';
 import { colors, fonts, radii, spacing, type } from '@theme/index';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -49,6 +50,76 @@ function kycChipKind(status: string): 'verified' | 'pending' | 'neutral' {
   return 'neutral';
 }
 
+function ListingSellerCard({ seller }: { seller: ListingSeller }) {
+  return (
+    <View style={styles.sellerCard}>
+      <View style={styles.sellerRow}>
+        <View style={styles.sellerAvatar}>
+          <Text style={styles.sellerInitial}>
+            {seller.fullName.charAt(0).toUpperCase()}
+          </Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.sellerName}>{seller.fullName}</Text>
+          <Text style={styles.sellerLocation}>
+            {seller.city}, {seller.country}
+          </Text>
+        </View>
+        {seller.kycStatus === 'verified' ? (
+          <Chip kind="verified">Verified</Chip>
+        ) : (
+          <Chip kind={kycChipKind(seller.kycStatus)}>
+            {seller.kycStatus.charAt(0).toUpperCase() +
+              seller.kycStatus.slice(1)}
+          </Chip>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function ListingImageCarousel({ images }: { images: string[] }) {
+  const [imageIndex, setImageIndex] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+
+  if (images.length === 0) {
+    return (
+      <View style={[styles.carouselImage, styles.imagePlaceholder]}>
+        <Icon name="image" size={48} color={colors.muted} />
+      </View>
+    );
+  }
+
+  return (
+    <View>
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={(e) => {
+          const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
+          setImageIndex(idx);
+        }}
+      >
+        {images.map((uri, i) => (
+          <Image key={i} source={{ uri }} style={styles.carouselImage} />
+        ))}
+      </ScrollView>
+      {images.length > 1 && (
+        <View style={styles.dotsRow}>
+          {images.map((_, i) => (
+            <View
+              key={i}
+              style={[styles.dot, i === imageIndex && styles.dotActive]}
+            />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 export function ListingDetailScreen({ navigation, route }: Props) {
   const { listingId } = route.params;
 
@@ -58,8 +129,6 @@ export function ListingDetailScreen({ navigation, route }: Props) {
   const userId = useAuth((s) => s.user?.id);
 
   const [msgBusy, setMsgBusy] = useState(false);
-  const [imageIndex, setImageIndex] = useState(0);
-  const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     loadDetail(listingId);
@@ -135,38 +204,7 @@ export function ListingDetailScreen({ navigation, route }: Props) {
       />
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        {images.length > 0 ? (
-          <View>
-            <ScrollView
-              ref={scrollRef}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onMomentumScrollEnd={(e) => {
-                const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
-                setImageIndex(idx);
-              }}
-            >
-              {images.map((uri, i) => (
-                <Image key={i} source={{ uri }} style={styles.carouselImage} />
-              ))}
-            </ScrollView>
-            {images.length > 1 && (
-              <View style={styles.dotsRow}>
-                {images.map((_, i) => (
-                  <View
-                    key={i}
-                    style={[styles.dot, i === imageIndex && styles.dotActive]}
-                  />
-                ))}
-              </View>
-            )}
-          </View>
-        ) : (
-          <View style={[styles.carouselImage, styles.imagePlaceholder]}>
-            <Icon name="image" size={48} color={colors.muted} />
-          </View>
-        )}
+        <ListingImageCarousel images={images} />
 
         <View style={styles.content}>
           <View style={styles.titleRow}>
@@ -260,29 +298,7 @@ export function ListingDetailScreen({ navigation, route }: Props) {
             )}
           </View>
 
-          <View style={styles.sellerCard}>
-            <View style={styles.sellerRow}>
-              <View style={styles.sellerAvatar}>
-                <Text style={styles.sellerInitial}>
-                  {listing.seller.fullName.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.sellerName}>{listing.seller.fullName}</Text>
-                <Text style={styles.sellerLocation}>
-                  {listing.seller.city}, {listing.seller.country}
-                </Text>
-              </View>
-              {listing.seller.kycStatus === 'verified' ? (
-                <Chip kind="verified">Verified</Chip>
-              ) : (
-                <Chip kind={kycChipKind(listing.seller.kycStatus)}>
-                  {listing.seller.kycStatus.charAt(0).toUpperCase() +
-                    listing.seller.kycStatus.slice(1)}
-                </Chip>
-              )}
-            </View>
-          </View>
+          <ListingSellerCard seller={listing.seller} />
         </View>
       </ScrollView>
 
