@@ -25,9 +25,10 @@ export function Header({ title, breadcrumb }: Props) {
         </div>
       </div>
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 px-3 py-2 bg-parchment border border-hairline rounded-md w-[280px]">
+        <div className="flex items-center gap-2 px-3 py-2 bg-parchment border border-hairline rounded-md w-[280px] focus-within:ring-2 focus-within:ring-mashia-600 focus-within:border-transparent transition-all">
           <Search size={16} strokeWidth={1.5} className="text-muted" />
           <input
+            aria-label="Search"
             placeholder="Search orders, users…"
             className="flex-1 bg-transparent border-none outline-none font-body text-[13px] text-ink"
           />
@@ -35,10 +36,18 @@ export function Header({ title, breadcrumb }: Props) {
             ⌘K
           </span>
         </div>
-        <Bell size={20} strokeWidth={1.5} className="text-ink cursor-pointer" />
-        <div className="w-8 h-8 rounded-full bg-mashia-600 text-paper flex items-center justify-center font-display font-semibold text-sm">
+        <button
+          aria-label="Notifications"
+          className="text-ink hover:text-mashia-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mashia-600 rounded-full p-1 -m-1 transition-colors cursor-pointer"
+        >
+          <Bell size={20} strokeWidth={1.5} />
+        </button>
+        <button
+          aria-label="User profile"
+          className="w-8 h-8 rounded-full bg-mashia-600 text-paper flex items-center justify-center font-display font-semibold text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mashia-600 focus-visible:ring-offset-2 transition-transform hover:scale-105 cursor-pointer"
+        >
           L
-        </div>
+        </button>
       </div>
     </header>
   );
