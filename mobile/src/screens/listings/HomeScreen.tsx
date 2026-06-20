@@ -28,6 +28,44 @@ const SORT_OPTIONS: { label: string; value: SortOption }[] = [
   { label: 'Price ↓', value: 'price_desc' },
 ];
 
+const ListingCard = React.memo(({ item, onPress }: { item: Listing; onPress: (id: string) => void }) => {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      onPress={() => onPress(item.id)}
+    >
+      {item.images.length > 0 ? (
+        <Image source={{ uri: item.images[0] }} style={styles.cardImage} />
+      ) : (
+        <View style={[styles.cardImage, styles.imagePlaceholder]}>
+          <Icon name="image" size={28} color={colors.muted} />
+        </View>
+      )}
+      <View style={styles.cardBody}>
+        <Text style={styles.cardBreed} numberOfLines={1}>
+          {item.breed.charAt(0).toUpperCase() + item.breed.slice(1)}
+        </Text>
+        <Text style={styles.cardTitle} numberOfLines={1}>
+          {item.title}
+        </Text>
+        <View style={styles.cardRow}>
+          <Icon name="package" size={13} color={colors.muted} />
+          <Text style={styles.cardMeta}>{item.quantity} head</Text>
+          <Text style={styles.cardDot}>·</Text>
+          <Icon name="truck" size={13} color={colors.muted} />
+          <Text style={styles.cardMeta}>
+            {item.originCity}, {item.originCountry}
+          </Text>
+        </View>
+        <Text style={styles.cardPrice}>
+          {item.currency} {item.pricePerHead.toLocaleString()}
+          <Text style={styles.cardPriceSub}>/head</Text>
+        </Text>
+      </View>
+    </Pressable>
+  );
+});
+
 export function HomeScreen({ navigation }: Props) {
   const feed = useListings((s) => s.feed);
   const feedLoading = useListings((s) => s.feedLoading);
@@ -59,41 +97,13 @@ export function HomeScreen({ navigation }: Props) {
     loadFeed(true);
   };
 
+  const handleCardPress = useCallback((id: string) => {
+    navigation.navigate('ListingDetail', { listingId: id });
+  }, [navigation]);
+
   const renderCard = useCallback(({ item }: { item: Listing }) => (
-    <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-      onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
-    >
-      {item.images.length > 0 ? (
-        <Image source={{ uri: item.images[0] }} style={styles.cardImage} />
-      ) : (
-        <View style={[styles.cardImage, styles.imagePlaceholder]}>
-          <Icon name="image" size={28} color={colors.muted} />
-        </View>
-      )}
-      <View style={styles.cardBody}>
-        <Text style={styles.cardBreed} numberOfLines={1}>
-          {item.breed.charAt(0).toUpperCase() + item.breed.slice(1)}
-        </Text>
-        <Text style={styles.cardTitle} numberOfLines={1}>
-          {item.title}
-        </Text>
-        <View style={styles.cardRow}>
-          <Icon name="package" size={13} color={colors.muted} />
-          <Text style={styles.cardMeta}>{item.quantity} head</Text>
-          <Text style={styles.cardDot}>·</Text>
-          <Icon name="truck" size={13} color={colors.muted} />
-          <Text style={styles.cardMeta}>
-            {item.originCity}, {item.originCountry}
-          </Text>
-        </View>
-        <Text style={styles.cardPrice}>
-          {item.currency} {item.pricePerHead.toLocaleString()}
-          <Text style={styles.cardPriceSub}>/head</Text>
-        </Text>
-      </View>
-    </Pressable>
-  ), [navigation]);
+    <ListingCard item={item} onPress={handleCardPress} />
+  ), [handleCardPress]);
 
   const renderEmpty = () => {
     if (feedLoading) return null;
