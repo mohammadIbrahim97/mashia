@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Listing } from './listing.entity';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { SearchListingsDto } from './dto/search-listings.dto';
@@ -62,16 +62,10 @@ export class ListingsService {
     return this.listingsRepository.save(listing);
   }
 
-  async findAll(
+  private applySearchFilters(
+    qb: SelectQueryBuilder<Listing>,
     query: SearchListingsDto,
-  ): Promise<{ data: Listing[]; total: number; page: number; limit: number }> {
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
-
-    const qb = this.listingsRepository
-      .createQueryBuilder('listing')
-      .where('listing.status = :status', { status: ListingStatus.ACTIVE });
-
+  ) {
     if (query.breed) {
       qb.andWhere('listing.breed = :breed', { breed: query.breed });
     }
@@ -100,8 +94,10 @@ export class ListingsService {
         healthStatus: query.healthStatus,
       });
     }
+  }
 
-    switch (query.sort) {
+  private applySearchSort(qb: SelectQueryBuilder<Listing>, sort?: string) {
+    switch (sort) {
       case 'price_asc':
         qb.orderBy('listing.pricePerHead', 'ASC');
         break;
@@ -111,6 +107,20 @@ export class ListingsService {
       default:
         qb.orderBy('listing.createdAt', 'DESC');
     }
+  }
+
+  async findAll(
+    query: SearchListingsDto,
+  ): Promise<{ data: Listing[]; total: number; page: number; limit: number }> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+
+    const qb = this.listingsRepository
+      .createQueryBuilder('listing')
+      .where('listing.status = :status', { status: ListingStatus.ACTIVE });
+
+    this.applySearchFilters(qb, query);
+    this.applySearchSort(qb, query.sort);
 
     qb.skip((page - 1) * limit).take(limit);
 
@@ -174,6 +184,46 @@ export class ListingsService {
 
   // ----- Admin-only views and actions -----
 
+  private applyAdminFilters(
+    qb: SelectQueryBuilder<Listing>,
+    query: AdminListingsQuery,
+  ) {
+    if (query.includeDeleted) {
+      qb.withDeleted();
+    }
+    if (query.status && query.status !== 'all') {
+      qb.andWhere('listing.status = :status', { status: query.status });
+    }
+    if (query.breed) {
+      qb.andWhere('listing.breed = :breed', { breed: query.breed });
+    }
+    if (query.q && query.q.trim()) {
+      qb.andWhere(
+        '(listing.title ILIKE :q OR seller.fullName ILIKE :q)',
+        { q: `%${query.q.trim()}%` },
+      );
+    }
+  }
+
+  private mapToAdminListItem(l: Listing): AdminListingListItem {
+    return {
+      id: l.id,
+      title: l.title,
+      breed: l.breed,
+      quantity: l.quantity,
+      pricePerHead: Number(l.pricePerHead),
+      currency: l.currency,
+      originCountry: l.originCountry,
+      originCity: l.originCity,
+      status: l.status,
+      healthStatus: l.healthStatus,
+      sellerId: l.sellerId,
+      sellerName: l.seller?.fullName ?? null,
+      createdAt: l.createdAt,
+      deletedAt: l.deletedAt,
+    };
+  }
+
   async findForAdmin(query: AdminListingsQuery): Promise<{
     items: AdminListingListItem[];
     total: number;
@@ -191,40 +241,13 @@ export class ListingsService {
       .skip((page - 1) * pageSize)
       .take(pageSize);
 
-    if (query.includeDeleted) {
-      qb.withDeleted();
-    }
-    if (query.status && query.status !== 'all') {
-      qb.andWhere('listing.status = :status', { status: query.status });
-    }
-    if (query.breed) {
-      qb.andWhere('listing.breed = :breed', { breed: query.breed });
-    }
-    if (query.q && query.q.trim()) {
-      qb.andWhere(
-        '(listing.title ILIKE :q OR seller.fullName ILIKE :q)',
-        { q: `%${query.q.trim()}%` },
-      );
-    }
+    this.applyAdminFilters(qb, query);
 
     const [rows, total] = await qb.getManyAndCount();
 
-    const items: AdminListingListItem[] = rows.map((l) => ({
-      id: l.id,
-      title: l.title,
-      breed: l.breed,
-      quantity: l.quantity,
-      pricePerHead: Number(l.pricePerHead),
-      currency: l.currency,
-      originCountry: l.originCountry,
-      originCity: l.originCity,
-      status: l.status,
-      healthStatus: l.healthStatus,
-      sellerId: l.sellerId,
-      sellerName: l.seller?.fullName ?? null,
-      createdAt: l.createdAt,
-      deletedAt: l.deletedAt,
-    }));
+    const items: AdminListingListItem[] = rows.map((l) =>
+      this.mapToAdminListItem(l),
+    );
     return { items, total, page, pageSize };
   }
 
