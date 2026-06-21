@@ -174,6 +174,26 @@ export class AuthService {
     const lockKey = `admin_totp_ticket_lock:${ticket}`;
     const lockToken = crypto.randomUUID();
 
+    await this.acquireTicketLock(lockKey, lockToken);
+
+    try {
+      const user = await this.getUserFromTicket(ticketKey);
+
+      await this.verifyTotpCodeAndHandleRateLimits(
+        code,
+        user.totpSecret!,
+        ticketKey,
+        attemptsKey,
+      );
+
+      const tokens = this.generateTokens(user);
+      return { ...tokens, user };
+    } finally {
+      await this.redis.eval(RELEASE_LOCK_SCRIPT, 1, lockKey, lockToken);
+    }
+  }
+
+  private async acquireTicketLock(lockKey: string, lockToken: string): Promise<void> {
     const lock = await this.redis.set(
       lockKey,
       lockToken,
@@ -184,38 +204,43 @@ export class AuthService {
     if (lock !== 'OK') {
       throw new UnauthorizedException('Ticket verification already in progress');
     }
+  }
 
-    try {
-      const userId = await this.redis.get(ticketKey);
-      if (!userId) {
+  private async getUserFromTicket(ticketKey: string): Promise<User> {
+    const userId = await this.redis.get(ticketKey);
+    if (!userId) {
+      throw new UnauthorizedException('Ticket expired or invalid');
+    }
+
+    const user = await this.usersService.findById(userId);
+    if (!user || !user.totpEnabled || !user.totpSecret) {
+      throw new UnauthorizedException('TOTP not enabled for this account');
+    }
+    this.assertActiveUser(user);
+
+    return user;
+  }
+
+  private async verifyTotpCodeAndHandleRateLimits(
+    code: string,
+    secret: string,
+    ticketKey: string,
+    attemptsKey: string,
+  ): Promise<void> {
+    const ok = authenticator.verify({ token: code, secret });
+    if (!ok) {
+      const attempts = await this.redis.incr(attemptsKey);
+      if (attempts === 1) {
+        await this.redis.expire(attemptsKey, ADMIN_TICKET_TTL_SECONDS);
+      }
+      if (attempts >= ADMIN_TOTP_MAX_ATTEMPTS) {
+        await this.redis.del(ticketKey, attemptsKey);
         throw new UnauthorizedException('Ticket expired or invalid');
       }
-
-      const user = await this.usersService.findById(userId);
-      if (!user || !user.totpEnabled || !user.totpSecret) {
-        throw new UnauthorizedException('TOTP not enabled for this account');
-      }
-      this.assertActiveUser(user);
-
-      const ok = authenticator.verify({ token: code, secret: user.totpSecret });
-      if (!ok) {
-        const attempts = await this.redis.incr(attemptsKey);
-        if (attempts === 1) {
-          await this.redis.expire(attemptsKey, ADMIN_TICKET_TTL_SECONDS);
-        }
-        if (attempts >= ADMIN_TOTP_MAX_ATTEMPTS) {
-          await this.redis.del(ticketKey, attemptsKey);
-          throw new UnauthorizedException('Ticket expired or invalid');
-        }
-        throw new UnauthorizedException('Invalid TOTP code');
-      }
-
-      await this.redis.del(ticketKey, attemptsKey);
-      const tokens = this.generateTokens(user);
-      return { ...tokens, user };
-    } finally {
-      await this.redis.eval(RELEASE_LOCK_SCRIPT, 1, lockKey, lockToken);
+      throw new UnauthorizedException('Invalid TOTP code');
     }
+
+    await this.redis.del(ticketKey, attemptsKey);
   }
 
   /**
