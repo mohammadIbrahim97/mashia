@@ -30,9 +30,10 @@ export function Header({ title, breadcrumb }: Props) {
           <input
             aria-label="Search"
             placeholder="Search orders, users…"
+            aria-label="Global search"
             className="flex-1 bg-transparent border-none outline-none font-body text-[13px] text-ink"
           />
-          <span className="font-mono text-[10px] text-muted px-1.5 py-px bg-paper border border-hairline rounded">
+          <span className="font-mono text-[10px] text-muted px-1.5 py-px bg-paper border border-hairline rounded" aria-hidden="true">
             ⌘K
           </span>
         </div>
