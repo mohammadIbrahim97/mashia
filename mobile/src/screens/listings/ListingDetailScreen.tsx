@@ -22,7 +22,7 @@ import { errorMessage } from '@services/api';
 import { messagingService } from '@services/messaging.service';
 import { useAuth } from '@hooks/useAuth';
 import { useListings } from '@store/listings.store';
-import { ListingSeller } from '@services/listings.service';
+import { Listing, ListingSeller } from '@services/listings.service';
 import { colors, fonts, radii, spacing, type } from '@theme/index';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -74,6 +74,74 @@ function ListingSellerCard({ seller }: { seller: ListingSeller }) {
           </Chip>
         )}
       </View>
+    </View>
+  );
+}
+
+function ListingStatsGrid({ listing }: { listing: Listing }) {
+  return (
+    <View style={styles.statsGrid}>
+      <View style={styles.stat}>
+        <Icon name="package" size={16} color={colors.muted} />
+        <Text style={styles.statLabel}>Quantity</Text>
+        <Text style={styles.statValue}>{listing.quantity} head</Text>
+      </View>
+      <View style={styles.stat}>
+        <Icon name="clock" size={16} color={colors.muted} />
+        <Text style={styles.statLabel}>Age</Text>
+        <Text style={styles.statValue}>{listing.ageMonths} mo</Text>
+      </View>
+      <View style={styles.stat}>
+        <Icon name="truck" size={16} color={colors.muted} />
+        <Text style={styles.statLabel}>Weight</Text>
+        <Text style={styles.statValue}>{listing.weightKg} kg</Text>
+      </View>
+      <View style={styles.stat}>
+        <Icon name="home" size={16} color={colors.muted} />
+        <Text style={styles.statLabel}>Origin</Text>
+        <Text style={styles.statValue} numberOfLines={1}>
+          {listing.originCity}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function ListingCertificateSection({
+  listing,
+  userId,
+  onViewCertificate,
+  onUploadCertificate,
+}: {
+  listing: Listing;
+  userId?: string;
+  onViewCertificate: (certificateId: string) => void;
+  onUploadCertificate: (listingId: string) => void;
+}) {
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Veterinary certificate</Text>
+      {listing.certificateId ? (
+        <Pressable
+          style={styles.certRow}
+          onPress={() => onViewCertificate(listing.certificateId!)}
+        >
+          <Icon name="fileText" size={18} color={colors.mashia[600]} />
+          <Text style={styles.certRowText}>View certificate</Text>
+          <Icon name="chevronRight" size={18} color={colors.muted} />
+        </Pressable>
+      ) : userId === listing.sellerId ? (
+        <Pressable
+          style={styles.certRow}
+          onPress={() => onUploadCertificate(listing.id)}
+        >
+          <Icon name="plus" size={18} color={colors.mashia[600]} />
+          <Text style={styles.certRowText}>Upload certificate</Text>
+          <Icon name="chevronRight" size={18} color={colors.muted} />
+        </Pressable>
+      ) : (
+        <Text style={styles.certEmpty}>No certificate uploaded yet.</Text>
+      )}
     </View>
   );
 }
@@ -226,30 +294,7 @@ export function ListingDetailScreen({ navigation, route }: Props) {
             <Text style={styles.priceSub}>/head</Text>
           </View>
 
-          <View style={styles.statsGrid}>
-            <View style={styles.stat}>
-              <Icon name="package" size={16} color={colors.muted} />
-              <Text style={styles.statLabel}>Quantity</Text>
-              <Text style={styles.statValue}>{listing.quantity} head</Text>
-            </View>
-            <View style={styles.stat}>
-              <Icon name="clock" size={16} color={colors.muted} />
-              <Text style={styles.statLabel}>Age</Text>
-              <Text style={styles.statValue}>{listing.ageMonths} mo</Text>
-            </View>
-            <View style={styles.stat}>
-              <Icon name="truck" size={16} color={colors.muted} />
-              <Text style={styles.statLabel}>Weight</Text>
-              <Text style={styles.statValue}>{listing.weightKg} kg</Text>
-            </View>
-            <View style={styles.stat}>
-              <Icon name="home" size={16} color={colors.muted} />
-              <Text style={styles.statLabel}>Origin</Text>
-              <Text style={styles.statValue} numberOfLines={1}>
-                {listing.originCity}
-              </Text>
-            </View>
-          </View>
+          <ListingStatsGrid listing={listing} />
 
           <View style={styles.originRow}>
             <Icon name="truck" size={14} color={colors.muted} />
@@ -265,38 +310,16 @@ export function ListingDetailScreen({ navigation, route }: Props) {
             </View>
           ) : null}
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Veterinary certificate</Text>
-            {listing.certificateId ? (
-              <Pressable
-                style={styles.certRow}
-                onPress={() =>
-                  navigation.navigate('CertificateDetail', {
-                    certificateId: listing.certificateId!,
-                  })
-                }
-              >
-                <Icon name="fileText" size={18} color={colors.mashia[600]} />
-                <Text style={styles.certRowText}>View certificate</Text>
-                <Icon name="chevronRight" size={18} color={colors.muted} />
-              </Pressable>
-            ) : userId === listing.sellerId ? (
-              <Pressable
-                style={styles.certRow}
-                onPress={() =>
-                  navigation.navigate('UploadCertificate', {
-                    listingId: listing.id,
-                  })
-                }
-              >
-                <Icon name="plus" size={18} color={colors.mashia[600]} />
-                <Text style={styles.certRowText}>Upload certificate</Text>
-                <Icon name="chevronRight" size={18} color={colors.muted} />
-              </Pressable>
-            ) : (
-              <Text style={styles.certEmpty}>No certificate uploaded yet.</Text>
-            )}
-          </View>
+          <ListingCertificateSection
+            listing={listing}
+            userId={userId}
+            onViewCertificate={(certificateId) =>
+              navigation.navigate('CertificateDetail', { certificateId })
+            }
+            onUploadCertificate={(listingId) =>
+              navigation.navigate('UploadCertificate', { listingId })
+            }
+          />
 
           <ListingSellerCard seller={listing.seller} />
         </View>
