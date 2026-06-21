@@ -3,6 +3,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { UserRole, KycStatus, PreferredLanguage } from '@shared/enums';
 import { User } from '../users/user.entity';
+import { ProfileResponseDto } from '../users/dto/profile-response.dto';
 import { TooManyRequestsException } from '@shared/exceptions/too-many-requests.exception';
 
 describe('AuthController', () => {
@@ -88,7 +89,7 @@ describe('AuthController', () => {
       const result = await controller.register(dto as any);
 
       expect(authService.register).toHaveBeenCalledWith(dto);
-      expect(result).toEqual({ ...mockTokens, user: mockUser });
+      expect(result).toEqual({ ...mockTokens, user: ProfileResponseDto.fromUser(mockUser) });
     });
   });
 
@@ -100,7 +101,7 @@ describe('AuthController', () => {
       });
 
       expect(authService.login).toHaveBeenCalledWith('+966501234567', '123456');
-      expect(result).toEqual({ ...mockTokens, user: mockUser });
+      expect(result).toEqual({ ...mockTokens, user: ProfileResponseDto.fromUser(mockUser) });
     });
   });
 
