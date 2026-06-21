@@ -70,24 +70,41 @@ export class S3Service implements OnModuleInit {
     const virtualHostedPath = `/${normalizedPrefix}`;
 
     if (this.endpoint) {
-      const endpointUrl = new URL(this.endpoint);
-      if (parsed.origin === endpointUrl.origin) {
-        return pathname.startsWith(pathStylePath);
-      }
-
-      if (!this.forcePathStyle) {
-        const virtualHostedEndpoint = new URL(this.endpoint);
-        virtualHostedEndpoint.hostname =
-          `${this.bucket}.${virtualHostedEndpoint.hostname}`;
-        return (
-          parsed.origin === virtualHostedEndpoint.origin &&
-          pathname.startsWith(virtualHostedPath)
-        );
-      }
-
-      return false;
+      return this.isTrustedCustomEndpointUrl(parsed, pathname, pathStylePath, virtualHostedPath);
     }
 
+    return this.isTrustedAwsUrl(parsed, pathname, pathStylePath, virtualHostedPath);
+  }
+
+  private isTrustedCustomEndpointUrl(
+    parsed: URL,
+    pathname: string,
+    pathStylePath: string,
+    virtualHostedPath: string,
+  ): boolean {
+    const endpointUrl = new URL(this.endpoint!);
+    if (parsed.origin === endpointUrl.origin) {
+      return pathname.startsWith(pathStylePath);
+    }
+
+    if (!this.forcePathStyle) {
+      const virtualHostedEndpoint = new URL(this.endpoint!);
+      virtualHostedEndpoint.hostname = `${this.bucket}.${virtualHostedEndpoint.hostname}`;
+      return (
+        parsed.origin === virtualHostedEndpoint.origin &&
+        pathname.startsWith(virtualHostedPath)
+      );
+    }
+
+    return false;
+  }
+
+  private isTrustedAwsUrl(
+    parsed: URL,
+    pathname: string,
+    pathStylePath: string,
+    virtualHostedPath: string,
+  ): boolean {
     const awsVirtualHostedOrigins = new Set([
       `https://${this.bucket}.s3.${this.region}.amazonaws.com`,
       `https://${this.bucket}.s3.amazonaws.com`,

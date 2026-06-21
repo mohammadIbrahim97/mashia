@@ -30,18 +30,7 @@ export class OrdersService {
   ) {}
 
   async create(buyerId: string, dto: CreateOrderDto): Promise<Order> {
-    const listing = await this.listingsRepository.findOne({
-      where: { id: dto.listingId },
-    });
-    if (!listing) {
-      throw new NotFoundException('Listing not found');
-    }
-    if (listing.status !== ListingStatus.ACTIVE) {
-      throw new BadRequestException('Listing is not available for orders');
-    }
-    if (listing.sellerId === buyerId) {
-      throw new ForbiddenException('Cannot order your own listing');
-    }
+    const listing = await this.getAndValidateListing(dto.listingId, buyerId);
 
     const commissionRate = DEFAULT_COMMISSION_RATE;
     const totalPrice = Math.round(dto.quantity * dto.unitPrice * 100) / 100;
@@ -77,6 +66,25 @@ export class OrdersService {
     return saved;
   }
 
+  private async getAndValidateListing(
+    listingId: string,
+    buyerId: string,
+  ): Promise<Listing> {
+    const listing = await this.listingsRepository.findOne({
+      where: { id: listingId },
+    });
+    if (!listing) {
+      throw new NotFoundException('Listing not found');
+    }
+    if (listing.status !== ListingStatus.ACTIVE) {
+      throw new BadRequestException('Listing is not available for orders');
+    }
+    if (listing.sellerId === buyerId) {
+      throw new ForbiddenException('Cannot order your own listing');
+    }
+    return listing;
+  }
+
   async updateStatus(
     orderId: string,
     userId: string,
@@ -93,43 +101,7 @@ export class OrdersService {
       throw new NotFoundException('Order not found');
     }
 
-    switch (order.status) {
-      case OrderStatus.PENDING:
-        if (newStatus === OrderStatus.ACCEPTED && isSeller) break;
-        if (newStatus === OrderStatus.CANCELLED) break;
-        throw new BadRequestException(
-          `Invalid transition from PENDING to ${newStatus}`,
-        );
-
-      case OrderStatus.PAID:
-        if (newStatus === OrderStatus.IN_TRANSIT && isSeller) break;
-        if (newStatus === OrderStatus.DISPUTED) break;
-        throw new BadRequestException(
-          `Invalid transition from PAID to ${newStatus}`,
-        );
-
-      case OrderStatus.IN_TRANSIT:
-        if (newStatus === OrderStatus.DELIVERED && isBuyer) break;
-        if (newStatus === OrderStatus.DISPUTED) break;
-        throw new BadRequestException(
-          `Invalid transition from IN_TRANSIT to ${newStatus}`,
-        );
-
-      case OrderStatus.DELIVERED:
-        if (newStatus === OrderStatus.DISPUTED) break;
-        throw new BadRequestException(
-          `Invalid transition from DELIVERED to ${newStatus}`,
-        );
-
-      case OrderStatus.ACCEPTED:
-      case OrderStatus.COMPLETED:
-      case OrderStatus.CANCELLED:
-      case OrderStatus.DISPUTED:
-      default:
-        throw new BadRequestException(
-          `Cannot transition from ${order.status} via this endpoint`,
-        );
-    }
+    this.validateStateTransition(order.status, newStatus, isBuyer, isSeller);
 
     order.status = newStatus;
     const saved = await this.ordersRepository.save(order);
@@ -177,6 +149,51 @@ export class OrdersService {
 
     order.status = target;
     return this.ordersRepository.save(order);
+  }
+
+  private validateStateTransition(
+    currentStatus: OrderStatus,
+    newStatus: OrderStatus,
+    isBuyer: boolean,
+    isSeller: boolean,
+  ): void {
+    switch (currentStatus) {
+      case OrderStatus.PENDING:
+        if (newStatus === OrderStatus.ACCEPTED && isSeller) return;
+        if (newStatus === OrderStatus.CANCELLED) return;
+        throw new BadRequestException(
+          `Invalid transition from PENDING to ${newStatus}`,
+        );
+
+      case OrderStatus.PAID:
+        if (newStatus === OrderStatus.IN_TRANSIT && isSeller) return;
+        if (newStatus === OrderStatus.DISPUTED) return;
+        throw new BadRequestException(
+          `Invalid transition from PAID to ${newStatus}`,
+        );
+
+      case OrderStatus.IN_TRANSIT:
+        if (newStatus === OrderStatus.DELIVERED && isBuyer) return;
+        if (newStatus === OrderStatus.DISPUTED) return;
+        throw new BadRequestException(
+          `Invalid transition from IN_TRANSIT to ${newStatus}`,
+        );
+
+      case OrderStatus.DELIVERED:
+        if (newStatus === OrderStatus.DISPUTED) return;
+        throw new BadRequestException(
+          `Invalid transition from DELIVERED to ${newStatus}`,
+        );
+
+      case OrderStatus.ACCEPTED:
+      case OrderStatus.COMPLETED:
+      case OrderStatus.CANCELLED:
+      case OrderStatus.DISPUTED:
+      default:
+        throw new BadRequestException(
+          `Cannot transition from ${currentStatus} via this endpoint`,
+        );
+    }
   }
 
   async findMyOrders(
