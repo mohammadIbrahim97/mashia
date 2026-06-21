@@ -8,11 +8,13 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './shared/interceptors/transform.interceptor';
+import helmet from 'helmet';
 import { SentryExceptionFilter } from './shared/sentry/sentry-exception.filter';
 import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.use(helmet());
   app.useLogger(app.get(Logger));
   app.useGlobalFilters(new SentryExceptionFilter(app.get(HttpAdapterHost).httpAdapter));
 
