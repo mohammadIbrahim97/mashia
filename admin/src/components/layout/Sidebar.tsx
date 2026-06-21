@@ -106,7 +106,10 @@ export function Sidebar() {
       </nav>
 
       <div className="px-3 py-3.5 border-t border-sand/15 flex flex-col gap-2">
-        <button className="flex items-center justify-between px-3 py-2 bg-transparent border border-sand/20 rounded-md cursor-pointer text-sand font-body text-xs">
+        <button
+          aria-label="Change Language"
+          className="flex items-center justify-between px-3 py-2 bg-transparent border border-sand/20 rounded-md cursor-pointer text-sand font-body text-xs hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-gold outline-none"
+        >
           <span>Language</span>
           <span className="font-mono text-[11px] tracking-mono uppercase text-gold flex items-center gap-1">
             EN <ChevronDown size={12} />
@@ -114,7 +117,8 @@ export function Sidebar() {
         </button>
         <button
           onClick={onSignOut}
-          className="flex items-center gap-2.5 px-3 py-2 bg-transparent border-none cursor-pointer text-sand font-body text-xs rounded-md hover:bg-white/[0.03]"
+          aria-label="Sign out"
+          className="flex items-center gap-2.5 px-3 py-2 bg-transparent border-none cursor-pointer text-sand font-body text-xs rounded-md hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-gold outline-none"
         >
           <div className="w-6 h-6 rounded-full bg-gold text-basalt flex items-center justify-center font-display font-semibold text-xs">
             {adminInitial}
