@@ -1,4 +1,5 @@
 import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -9,6 +10,7 @@ import { AdminLoginDto } from './dto/admin-login.dto';
 import { AdminTotpVerifyDto } from './dto/admin-totp-verify.dto';
 import { AdminTotpEnableDto } from './dto/admin-totp-enable.dto';
 import { User } from '../users/user.entity';
+import { ProfileResponseDto } from '../users/dto/profile-response.dto';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { RolesGuard } from '@shared/guards/roles.guard';
 import { Roles } from '@shared/decorators/roles.decorator';
@@ -20,12 +22,14 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('otp/send')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async sendOtp(@Body() dto: SendOtpDto): Promise<{ message: string }> {
     await this.authService.sendOtp(dto.phone);
     return { message: 'OTP sent' };
   }
 
   @Post('otp/verify')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async verifyOtp(
     @Body() dto: VerifyOtpDto,
   ): Promise<{ verified: boolean; userExists: boolean }> {
@@ -33,17 +37,21 @@ export class AuthController {
   }
 
   @Post('register')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async register(
     @Body() dto: RegisterDto,
-  ): Promise<{ accessToken: string; refreshToken: string; user: User }> {
-    return this.authService.register(dto);
+  ): Promise<{ accessToken: string; refreshToken: string; user: ProfileResponseDto }> {
+    const result = await this.authService.register(dto);
+    return { ...result, user: ProfileResponseDto.fromUser(result.user) };
   }
 
   @Post('login')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async login(
     @Body() dto: LoginDto,
-  ): Promise<{ accessToken: string; refreshToken: string; user: User }> {
-    return this.authService.login(dto.phone, dto.code);
+  ): Promise<{ accessToken: string; refreshToken: string; user: ProfileResponseDto }> {
+    const result = await this.authService.login(dto.phone, dto.code);
+    return { ...result, user: ProfileResponseDto.fromUser(result.user) };
   }
 
   @Post('refresh')
@@ -56,13 +64,20 @@ export class AuthController {
   // ----- Admin auth (email + password + optional TOTP) -----
 
   @Post('admin/login')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async adminLogin(@Body() dto: AdminLoginDto) {
-    return this.authService.adminLogin(dto.email, dto.password);
+    const result = await this.authService.adminLogin(dto.email, dto.password);
+    if ('requiresTotp' in result) {
+      return result;
+    }
+    return { ...result, user: ProfileResponseDto.fromUser(result.user) };
   }
 
   @Post('admin/totp/verify')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async adminTotpVerify(@Body() dto: AdminTotpVerifyDto) {
-    return this.authService.verifyAdminTotp(dto.ticket, dto.code);
+    const result = await this.authService.verifyAdminTotp(dto.ticket, dto.code);
+    return { ...result, user: ProfileResponseDto.fromUser(result.user) };
   }
 
   @Post('admin/totp/setup')
