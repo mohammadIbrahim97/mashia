@@ -30,6 +30,60 @@ function statusLabel(status: string): string {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
+// ⚡ Bolt Optimization:
+// Extracted MyListingCard and wrapped with React.memo to prevent unnecessary re-renders.
+// Callbacks are stabilized in parent.
+// Measured impact: Reduces re-renders of list items when navigation or deletion state changes.
+const MyListingCard = React.memo(({ item, onPress, onEdit, onDelete }: { item: Listing; onPress: (id: string) => void; onEdit: (id: string) => void; onDelete: (item: Listing) => void; }) => (
+  <Pressable
+    style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+    onPress={() => onPress(item.id)}
+  >
+    {item.images.length > 0 ? (
+      <Image source={{ uri: item.images[0] }} style={styles.cardImage} />
+    ) : (
+      <View style={[styles.cardImage, styles.imagePlaceholder]}>
+        <Icon name="image" size={24} color={colors.muted} />
+      </View>
+    )}
+    <View style={styles.cardBody}>
+      <View style={styles.cardTopRow}>
+        <Text style={styles.cardBreed}>
+          {item.breed.charAt(0).toUpperCase() + item.breed.slice(1)}
+        </Text>
+        <Chip kind={statusChipKind(item.status)}>{statusLabel(item.status)}</Chip>
+      </View>
+      <Text style={styles.cardTitle} numberOfLines={1}>
+        {item.title}
+      </Text>
+      <View style={styles.cardMeta}>
+        <Icon name="package" size={12} color={colors.muted} />
+        <Text style={styles.cardMetaText}>{item.quantity} head</Text>
+        <Text style={styles.cardDot}>·</Text>
+        <Text style={styles.cardMetaText}>
+          {item.currency} {item.pricePerHead.toLocaleString()}/head
+        </Text>
+      </View>
+    </View>
+    <View style={styles.cardActions}>
+      <Pressable
+        style={styles.actionBtn}
+        hitSlop={8}
+        onPress={() => onEdit(item.id)}
+      >
+        <Icon name="pencil" size={18} color={colors.muted} />
+      </Pressable>
+      <Pressable
+        style={styles.actionBtn}
+        hitSlop={8}
+        onPress={() => onDelete(item)}
+      >
+        <Icon name="trash" size={18} color={colors.statusFlagged} />
+      </Pressable>
+    </View>
+  </Pressable>
+));
+
 export function MyListingsScreen({ navigation }: Props) {
   const myListings = useListings((s) => s.myListings);
   const myListingsLoading = useListings((s) => s.myListingsLoading);
@@ -68,57 +122,22 @@ export function MyListingsScreen({ navigation }: Props) {
     [loadMyListings],
   );
 
+  const onCardPress = useCallback((listingId: string) => {
+    navigation.navigate('ListingDetail', { listingId });
+  }, [navigation]);
+
+  const onEditPress = useCallback((editId: string) => {
+    navigation.navigate('CreateListing', { editId });
+  }, [navigation]);
+
   const renderItem = useCallback(({ item }: { item: Listing }) => (
-    <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-      onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
-    >
-      {item.images.length > 0 ? (
-        <Image source={{ uri: item.images[0] }} style={styles.cardImage} />
-      ) : (
-        <View style={[styles.cardImage, styles.imagePlaceholder]}>
-          <Icon name="image" size={24} color={colors.muted} />
-        </View>
-      )}
-      <View style={styles.cardBody}>
-        <View style={styles.cardTopRow}>
-          <Text style={styles.cardBreed}>
-            {item.breed.charAt(0).toUpperCase() + item.breed.slice(1)}
-          </Text>
-          <Chip kind={statusChipKind(item.status)}>{statusLabel(item.status)}</Chip>
-        </View>
-        <Text style={styles.cardTitle} numberOfLines={1}>
-          {item.title}
-        </Text>
-        <View style={styles.cardMeta}>
-          <Icon name="package" size={12} color={colors.muted} />
-          <Text style={styles.cardMetaText}>{item.quantity} head</Text>
-          <Text style={styles.cardDot}>·</Text>
-          <Text style={styles.cardMetaText}>
-            {item.currency} {item.pricePerHead.toLocaleString()}/head
-          </Text>
-        </View>
-      </View>
-      <View style={styles.cardActions}>
-        <Pressable
-          style={styles.actionBtn}
-          hitSlop={8}
-          onPress={() =>
-            navigation.navigate('CreateListing', { editId: item.id })
-          }
-        >
-          <Icon name="pencil" size={18} color={colors.muted} />
-        </Pressable>
-        <Pressable
-          style={styles.actionBtn}
-          hitSlop={8}
-          onPress={() => onDelete(item)}
-        >
-          <Icon name="trash" size={18} color={colors.statusFlagged} />
-        </Pressable>
-      </View>
-    </Pressable>
-  ), [navigation, onDelete]);
+    <MyListingCard
+      item={item}
+      onPress={onCardPress}
+      onEdit={onEditPress}
+      onDelete={onDelete}
+    />
+  ), [onCardPress, onEditPress, onDelete]);
 
   const renderEmpty = () => {
     if (myListingsLoading) return null;
