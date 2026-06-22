@@ -1,6 +1,7 @@
 'use client';
 
 import { Search, Bell } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 type Props = {
   title: string;
@@ -8,6 +9,19 @@ type Props = {
 };
 
 export function Header({ title, breadcrumb }: Props) {
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', down);
+    return () => document.removeEventListener('keydown', down);
+  }, []);
+
   return (
     <header className="h-16 px-8 flex items-center justify-between border-b border-hairline bg-paper">
       <div>
@@ -28,7 +42,7 @@ export function Header({ title, breadcrumb }: Props) {
         <div className="flex items-center gap-2 px-3 py-2 bg-parchment border border-hairline rounded-md w-[280px] focus-within:ring-2 focus-within:ring-mashia-600 focus-within:border-transparent transition-all">
           <Search size={16} strokeWidth={1.5} className="text-muted" />
           <input
-            aria-label="Search"
+            ref={searchRef}
             placeholder="Search orders, users…"
             aria-label="Global search"
             className="flex-1 bg-transparent border-none outline-none font-body text-[13px] text-ink"
