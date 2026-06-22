@@ -10,7 +10,6 @@ import { AppModule } from './app.module';
 import { TransformInterceptor } from './shared/interceptors/transform.interceptor';
 import helmet from 'helmet';
 import { SentryExceptionFilter } from './shared/sentry/sentry-exception.filter';
-import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
