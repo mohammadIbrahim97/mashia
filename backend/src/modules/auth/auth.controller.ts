@@ -9,6 +9,7 @@ import { AdminLoginDto } from './dto/admin-login.dto';
 import { AdminTotpVerifyDto } from './dto/admin-totp-verify.dto';
 import { AdminTotpEnableDto } from './dto/admin-totp-enable.dto';
 import { User } from '../users/user.entity';
+import { ProfileResponseDto } from '../users/dto/profile-response.dto';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { RolesGuard } from '@shared/guards/roles.guard';
 import { Roles } from '@shared/decorators/roles.decorator';
@@ -35,15 +36,17 @@ export class AuthController {
   @Post('register')
   async register(
     @Body() dto: RegisterDto,
-  ): Promise<{ accessToken: string; refreshToken: string; user: User }> {
-    return this.authService.register(dto);
+  ): Promise<{ accessToken: string; refreshToken: string; user: ProfileResponseDto }> {
+    const result = await this.authService.register(dto);
+    return { ...result, user: ProfileResponseDto.fromUser(result.user) };
   }
 
   @Post('login')
   async login(
     @Body() dto: LoginDto,
-  ): Promise<{ accessToken: string; refreshToken: string; user: User }> {
-    return this.authService.login(dto.phone, dto.code);
+  ): Promise<{ accessToken: string; refreshToken: string; user: ProfileResponseDto }> {
+    const result = await this.authService.login(dto.phone, dto.code);
+    return { ...result, user: ProfileResponseDto.fromUser(result.user) };
   }
 
   @Post('refresh')
@@ -57,12 +60,17 @@ export class AuthController {
 
   @Post('admin/login')
   async adminLogin(@Body() dto: AdminLoginDto) {
-    return this.authService.adminLogin(dto.email, dto.password);
+    const result = await this.authService.adminLogin(dto.email, dto.password);
+    if ('user' in result && result.user) {
+      return { ...result, user: ProfileResponseDto.fromUser(result.user) };
+    }
+    return result;
   }
 
   @Post('admin/totp/verify')
   async adminTotpVerify(@Body() dto: AdminTotpVerifyDto) {
-    return this.authService.verifyAdminTotp(dto.ticket, dto.code);
+    const result = await this.authService.verifyAdminTotp(dto.ticket, dto.code);
+    return { ...result, user: ProfileResponseDto.fromUser(result.user) };
   }
 
   @Post('admin/totp/setup')
