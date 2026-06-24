@@ -5,6 +5,7 @@ import { UserRole, KycStatus, PreferredLanguage } from '@shared/enums';
 import { User } from '../users/user.entity';
 import { ProfileResponseDto } from '../users/dto/profile-response.dto';
 import { TooManyRequestsException } from '@shared/exceptions/too-many-requests.exception';
+import { ThrottlerStorage } from '@nestjs/throttler';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -48,7 +49,16 @@ describe('AuthController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
-      providers: [{ provide: AuthService, useValue: authService }],
+      providers: [
+        { provide: AuthService, useValue: authService },
+        { provide: 'THROTTLER:MODULE_OPTIONS', useValue: {} },
+        {
+          provide: ThrottlerStorage,
+          useValue: {
+            increment: jest.fn(),
+          },
+        },
+      ],
     }).compile();
 
     controller = module.get<AuthController>(AuthController);
