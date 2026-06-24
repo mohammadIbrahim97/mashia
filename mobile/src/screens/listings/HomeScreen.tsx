@@ -59,41 +59,13 @@ export function HomeScreen({ navigation }: Props) {
     loadFeed(true);
   };
 
+  const onCardPress = useCallback((listingId: string) => {
+    navigation.navigate('ListingDetail', { listingId });
+  }, [navigation]);
+
   const renderCard = useCallback(({ item }: { item: Listing }) => (
-    <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-      onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
-    >
-      {item.images.length > 0 ? (
-        <Image source={{ uri: item.images[0] }} style={styles.cardImage} />
-      ) : (
-        <View style={[styles.cardImage, styles.imagePlaceholder]}>
-          <Icon name="image" size={28} color={colors.muted} />
-        </View>
-      )}
-      <View style={styles.cardBody}>
-        <Text style={styles.cardBreed} numberOfLines={1}>
-          {item.breed.charAt(0).toUpperCase() + item.breed.slice(1)}
-        </Text>
-        <Text style={styles.cardTitle} numberOfLines={1}>
-          {item.title}
-        </Text>
-        <View style={styles.cardRow}>
-          <Icon name="package" size={13} color={colors.muted} />
-          <Text style={styles.cardMeta}>{item.quantity} head</Text>
-          <Text style={styles.cardDot}>·</Text>
-          <Icon name="truck" size={13} color={colors.muted} />
-          <Text style={styles.cardMeta}>
-            {item.originCity}, {item.originCountry}
-          </Text>
-        </View>
-        <Text style={styles.cardPrice}>
-          {item.currency} {item.pricePerHead.toLocaleString()}
-          <Text style={styles.cardPriceSub}>/head</Text>
-        </Text>
-      </View>
-    </Pressable>
-  ), [navigation]);
+    <ListingCard item={item} onPress={onCardPress} />
+  ), [onCardPress]);
 
   const renderEmpty = () => {
     if (feedLoading) return null;
@@ -195,6 +167,44 @@ export function HomeScreen({ navigation }: Props) {
     </SafeAreaView>
   );
 }
+
+const ListingCard = React.memo(({ item, onPress }: { item: Listing; onPress: (id: string) => void }) => {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      onPress={() => onPress(item.id)}
+    >
+      {item.images.length > 0 ? (
+        <Image source={{ uri: item.images[0] }} style={styles.cardImage} />
+      ) : (
+        <View style={[styles.cardImage, styles.imagePlaceholder]}>
+          <Icon name="image" size={28} color={colors.muted} />
+        </View>
+      )}
+      <View style={styles.cardBody}>
+        <Text style={styles.cardBreed} numberOfLines={1}>
+          {item.breed.charAt(0).toUpperCase() + item.breed.slice(1)}
+        </Text>
+        <Text style={styles.cardTitle} numberOfLines={1}>
+          {item.title}
+        </Text>
+        <View style={styles.cardRow}>
+          <Icon name="package" size={13} color={colors.muted} />
+          <Text style={styles.cardMeta}>{item.quantity} head</Text>
+          <Text style={styles.cardDot}>·</Text>
+          <Icon name="truck" size={13} color={colors.muted} />
+          <Text style={styles.cardMeta}>
+            {item.originCity}, {item.originCountry}
+          </Text>
+        </View>
+        <Text style={styles.cardPrice}>
+          {item.currency} {item.pricePerHead.toLocaleString()}
+          <Text style={styles.cardPriceSub}>/head</Text>
+        </Text>
+      </View>
+    </Pressable>
+  );
+});
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.paper },
