@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -216,7 +216,8 @@ export function ChatScreen({ navigation, route }: Props) {
     ]);
   }, [sendImage]);
 
-  const reversed = [...messages].reverse();
+  // ⚡ Bolt: Memoize array reversal to prevent O(n) operation on every keystroke re-render
+  const reversed = useMemo(() => [...messages].reverse(), [messages]);
 
   const renderItem = useCallback(
     ({ item }: { item: Message }) => {
@@ -316,8 +317,8 @@ export function ChatScreen({ navigation, route }: Props) {
           <Pressable
             style={({ pressed }) => [
               styles.sendBtn,
-              (!body.trim() || sending) && styles.sendBtnDisabled,
-              pressed && body.trim() && !sending && styles.sendBtnPressed,
+              (!body.trim() || sending) ? styles.sendBtnDisabled : null,
+              pressed && body.trim() && !sending ? styles.sendBtnPressed : null,
             ]}
             onPress={onSend}
             disabled={!body.trim() || sending}
