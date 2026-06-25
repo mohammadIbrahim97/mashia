@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useId } from 'react';
 import { Button } from './Button';
 import { Overline } from './Overline';
 
@@ -28,6 +28,7 @@ export function ConfirmDialog({
   onConfirm,
 }: Props) {
   const [reason, setReason] = useState('');
+  const titleId = useId();
 
   useEffect(() => {
     if (!open) setReason('');
@@ -47,10 +48,13 @@ export function ConfirmDialog({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className="bg-paper border border-hairline rounded-md w-[460px] p-7 shadow-3"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="font-display text-[22px] font-medium tracking-tight text-ink">
+        <div id={titleId} className="font-display text-[22px] font-medium tracking-tight text-ink">
           {title}
         </div>
         {body && (
