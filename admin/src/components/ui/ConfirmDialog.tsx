@@ -49,8 +49,11 @@ export function ConfirmDialog({
       <div
         className="bg-paper border border-hairline rounded-md w-[460px] p-7 shadow-3"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-dialog-title"
       >
-        <div className="font-display text-[22px] font-medium tracking-tight text-ink">
+        <div id="confirm-dialog-title" className="font-display text-[22px] font-medium tracking-tight text-ink">
           {title}
         </div>
         {body && (
@@ -58,8 +61,11 @@ export function ConfirmDialog({
         )}
         {requireReason && (
           <div className="mt-4">
-            <Overline>Reason · required</Overline>
+            <label htmlFor="reason-input">
+              <Overline>Reason · required</Overline>
+            </label>
             <textarea
+              id="reason-input"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
