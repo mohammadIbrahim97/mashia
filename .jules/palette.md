@@ -4,3 +4,7 @@
 ## 2024-05-23 - Interactive Element Focus States
 **Learning:** Many older interactive elements (like the global search and sidebar actions) lack distinct `focus-visible` or `focus-within` states and use generic `div` or non-semantic `button` elements without `aria-label` tags.
 **Action:** Always wrap visual icons that act as actions in semantic `<button>` tags with `aria-label`, and use the existing Tailwind palette (e.g., `focus-visible:ring-mashia-600` or `focus-visible:ring-gold`) to provide explicit keyboard navigation feedback.
+
+## 2024-06-27 - ConfirmDialog Accessibility
+**Learning:** The ConfirmDialog lacked standard dialog ARIA attributes (`role="dialog"`, `aria-modal="true"`), making it unclear to screen readers when a modal had opened. The 'reason' textarea lacked an explicit `<label>` association and clear focus visible styles for keyboard users, and the dialog could not be closed with the 'Escape' key.
+**Action:** Add `role="dialog"`, `aria-modal="true"`, and link the title via `aria-labelledby`. Explicitly associate labels with input fields using `id` and `htmlFor`. Ensure keyboard accessibility by adding a `keydown` event listener for the 'Escape' key to close the dialog, and add `focus-visible:ring-2` for clear keyboard focus states.

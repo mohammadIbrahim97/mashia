@@ -33,6 +33,18 @@ export function ConfirmDialog({
     if (!open) setReason('');
   }, [open]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && open) {
+        onClose();
+      }
+    };
+    if (open) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   const canConfirm = !busy && (!requireReason || reason.trim().length > 0);
@@ -47,10 +59,13 @@ export function ConfirmDialog({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dialog-title"
         className="bg-paper border border-hairline rounded-md w-[460px] p-7 shadow-3"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="font-display text-[22px] font-medium tracking-tight text-ink">
+        <div id="dialog-title" className="font-display text-[22px] font-medium tracking-tight text-ink">
           {title}
         </div>
         {body && (
@@ -58,13 +73,16 @@ export function ConfirmDialog({
         )}
         {requireReason && (
           <div className="mt-4">
-            <Overline>Reason · required</Overline>
+            <label htmlFor="reason-input">
+              <Overline>Reason · required</Overline>
+            </label>
             <textarea
+              id="reason-input"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
               placeholder="Explain why — visible to the user."
-              className="mt-1.5 w-full p-3 font-body text-[13px] text-ink bg-parchment border border-hairline rounded outline-none resize-y focus:border-mashia-600"
+              className="mt-1.5 w-full p-3 font-body text-[13px] text-ink bg-parchment border border-hairline rounded outline-none resize-y focus:border-mashia-600 focus-visible:ring-2 focus-visible:ring-mashia-600 focus-visible:ring-offset-1"
             />
           </div>
         )}
