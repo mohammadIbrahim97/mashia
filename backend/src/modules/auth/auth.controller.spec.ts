@@ -5,7 +5,7 @@ import { UserRole, KycStatus, PreferredLanguage } from '@shared/enums';
 import { User } from '../users/user.entity';
 import { ProfileResponseDto } from '../users/dto/profile-response.dto';
 import { TooManyRequestsException } from '@shared/exceptions/too-many-requests.exception';
-import { ThrottlerModule, ThrottlerGuard, ThrottlerStorage } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 
 describe('AuthController', () => {
   let controller: AuthController;
