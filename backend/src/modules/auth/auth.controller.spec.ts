@@ -5,6 +5,7 @@ import { UserRole, KycStatus, PreferredLanguage } from '@shared/enums';
 import { User } from '../users/user.entity';
 import { ProfileResponseDto } from '../users/dto/profile-response.dto';
 import { TooManyRequestsException } from '@shared/exceptions/too-many-requests.exception';
+import { ThrottlerModule, ThrottlerGuard, ThrottlerStorage } from '@nestjs/throttler';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -47,9 +48,17 @@ describe('AuthController', () => {
     } as unknown as jest.Mocked<AuthService>;
 
     const module: TestingModule = await Test.createTestingModule({
+      imports: [
+        ThrottlerModule.forRoot([{
+          ttl: 60000,
+          limit: 10,
+        }]),
+      ],
       controllers: [AuthController],
-      providers: [{ provide: AuthService, useValue: authService }],
-    }).compile();
+      providers: [
+        { provide: AuthService, useValue: authService },
+      ],
+    }).overrideGuard(ThrottlerGuard).useValue({ canActivate: () => true }).compile();
 
     controller = module.get<AuthController>(AuthController);
   });
