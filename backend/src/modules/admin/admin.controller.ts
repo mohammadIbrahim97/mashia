@@ -16,6 +16,7 @@ import { Roles } from '@shared/decorators/roles.decorator';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
 import { UserRole } from '@shared/enums';
 import { User } from '../users/user.entity';
+import { ProfileResponseDto } from '../users/dto/profile-response.dto';
 import { Order } from '../orders/order.entity';
 import { Payment } from '../payments/payment.entity';
 import { CertificatesService } from '../certificates/certificates.service';
@@ -76,21 +77,24 @@ export class AdminController {
     @CurrentUser() admin: User,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AdminKycDecisionDto,
-  ) {
-    return this.usersService.reviewKyc(admin.id, id, {
+  ): Promise<ProfileResponseDto> {
+    const user = await this.usersService.reviewKyc(admin.id, id, {
       decision: dto.decision,
       rejectionReason: dto.rejectionReason,
     });
+    return ProfileResponseDto.fromUser(user);
   }
 
   @Patch('users/:id/suspend')
-  async suspend(@Param('id', ParseUUIDPipe) id: string) {
-    return this.usersService.setSuspended(id, true);
+  async suspend(@Param('id', ParseUUIDPipe) id: string): Promise<ProfileResponseDto> {
+    const user = await this.usersService.setSuspended(id, true);
+    return ProfileResponseDto.fromUser(user);
   }
 
   @Patch('users/:id/unsuspend')
-  async unsuspend(@Param('id', ParseUUIDPipe) id: string) {
-    return this.usersService.setSuspended(id, false);
+  async unsuspend(@Param('id', ParseUUIDPipe) id: string): Promise<ProfileResponseDto> {
+    const user = await this.usersService.setSuspended(id, false);
+    return ProfileResponseDto.fromUser(user);
   }
 
   // ----- Orders (G3-US06) -----

@@ -8,3 +8,8 @@
 **Vulnerability:** The `User` entity, which includes `passwordHash` and `totpSecret`, was being returned directly from auth controllers (`register`, `login`, `adminLogin`, `adminTotpVerify`), exposing sensitive fields to clients.
 **Learning:** Returning raw TypeORM entities directly from controllers bypasses serialization, leaking internal database fields.
 **Prevention:** Always use dedicated Data Transfer Objects (DTOs), like `ProfileResponseDto.fromUser(user)`, to map and sanitize entities before returning them in API responses.
+## 2026-06-30 - Leaking raw User objects in Admin endpoints
+
+**Vulnerability:** Admin controller endpoints (`reviewKyc`, `suspend`, `unsuspend`) returned raw `User` objects directly from the TypeORM service layer, leaking sensitive fields like `passwordHash` and `totpSecret`.
+**Learning:** The project lacks a global `ClassSerializerInterceptor` or TypeORM `@Exclude()` annotations, requiring explicit DTO serialization (like `ProfileResponseDto.fromUser(user)`) at the controller boundary.
+**Prevention:** Always wrap returned entity objects from the service layer in a sanitized response DTO before sending them back to the client.
