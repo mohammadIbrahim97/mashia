@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ThrottlerStorage, getOptionsToken } from '@nestjs/throttler';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { UserRole, KycStatus, PreferredLanguage } from '@shared/enums';
@@ -48,7 +49,11 @@ describe('AuthController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
-      providers: [{ provide: AuthService, useValue: authService }],
+      providers: [
+        { provide: AuthService, useValue: authService },
+        { provide: ThrottlerStorage, useValue: { storage: {} } },
+        { provide: getOptionsToken(), useValue: { default: { limit: 5, ttl: 60000 } } },
+      ],
     }).compile();
 
     controller = module.get<AuthController>(AuthController);
