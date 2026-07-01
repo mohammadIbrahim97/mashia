@@ -148,6 +148,7 @@ export default function AdminPaymentsPage() {
 
       <div className="flex gap-2 mb-4 flex-wrap">
         <select
+          aria-label="Filter by payment method"
           value={method}
           onChange={(e) => {
             setMethod(e.target.value as PaymentMethod | 'all');
@@ -236,8 +237,9 @@ function RevenueBanner({
   return (
     <Card kicker="● COMMISSION EARNED" title="By currency × escrow state">
       <div className="flex flex-wrap items-center gap-3 mb-4">
-        <Overline>Range</Overline>
+        <Overline htmlFor="date-from">Range</Overline>
         <input
+          id="date-from"
           type="date"
           value={from}
           onChange={(e) => onFrom(e.target.value)}
@@ -245,6 +247,7 @@ function RevenueBanner({
         />
         <span className="text-muted text-[12px]">→</span>
         <input
+          aria-label="To date"
           type="date"
           value={to}
           onChange={(e) => onTo(e.target.value)}
