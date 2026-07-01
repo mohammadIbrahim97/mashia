@@ -138,12 +138,14 @@ export default function AdminUsersPage() {
 
       <div className="flex gap-2 mb-4 flex-wrap">
         <input
+          aria-label="Search users"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search name, phone, or email…"
           className="flex-1 min-w-[280px] px-3 py-2 bg-paper border border-hairline rounded-md font-body text-[13px] outline-none focus:border-mashia-600"
         />
         <select
+          aria-label="Filter by role"
           value={role}
           onChange={(e) => onRoleChange(e.target.value as Role | 'all')}
           className="px-3 py-2 bg-paper border border-hairline rounded-md font-body text-[13px] outline-none focus:border-mashia-600"

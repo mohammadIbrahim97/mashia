@@ -114,8 +114,9 @@ export default function LoginPage() {
         <div className="mt-7">
           {step === 'credentials' ? (
             <form onSubmit={onCredentialsSubmit}>
-              <Overline>Email</Overline>
+              <Overline htmlFor="email">Email</Overline>
               <input
+                id="email"
                 type="email"
                 autoComplete="email"
                 required
@@ -125,8 +126,9 @@ export default function LoginPage() {
                 className="mt-1.5 w-full px-3.5 py-3 font-body text-sm bg-parchment border border-hairline rounded outline-none focus:border-mashia-600 placeholder:text-muted"
               />
               <div className="mt-4">
-                <Overline>Password</Overline>
+                <Overline htmlFor="password">Password</Overline>
                 <input
+                  id="password"
                   type="password"
                   autoComplete="current-password"
                   required
@@ -146,10 +148,12 @@ export default function LoginPage() {
             </form>
           ) : (
             <form onSubmit={onTotpSubmit}>
-              <Overline>Authenticator code</Overline>
+              <Overline htmlFor="totp-code">Authenticator code</Overline>
               <div className="flex gap-2 mt-2">
                 {code.map((digit, i) => (
                   <input
+                    id={i === 0 ? "totp-code" : undefined}
+                    aria-label={i > 0 ? `Authenticator code digit ${i + 1}` : undefined}
                     key={i}
                     ref={(el) => {
                       codeRefs.current[i] = el;
