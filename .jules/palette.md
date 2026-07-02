@@ -4,3 +4,6 @@
 ## 2024-05-23 - Interactive Element Focus States
 **Learning:** Many older interactive elements (like the global search and sidebar actions) lack distinct `focus-visible` or `focus-within` states and use generic `div` or non-semantic `button` elements without `aria-label` tags.
 **Action:** Always wrap visual icons that act as actions in semantic `<button>` tags with `aria-label`, and use the existing Tailwind palette (e.g., `focus-visible:ring-mashia-600` or `focus-visible:ring-gold`) to provide explicit keyboard navigation feedback.
+## 2024-11-20 - Accessible Modals/Dialogs
+**Learning:** Custom dialogs in the application (like `ConfirmDialog`) lacked basic screen-reader support (missing `role="dialog"`, `aria-modal="true"`, and label references) and did not support keyboard interaction (Escape to close).
+**Action:** When working with modal overlays, always ensure `role="dialog"` is used, `aria-labelledby` points to the title, `aria-describedby` points to the body (if present), and add keyboard event listeners for the `Escape` key to trigger the `onClose` callback. Replace generic text wrappers (like `<Overline>`) with semantic `<label>` elements linked via `htmlFor` to form inputs.
