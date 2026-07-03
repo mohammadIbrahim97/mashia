@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -216,7 +216,11 @@ export function ChatScreen({ navigation, route }: Props) {
     ]);
   }, [sendImage]);
 
-  const reversed = [...messages].reverse();
+  // Performance Optimization: Memoize the derived array to maintain referential
+  // equality across renders unless `messages` change. This prevents expensive
+  // O(N) operations and full FlatList re-renders during high-frequency
+  // component updates (like user typing).
+  const reversed = useMemo(() => [...messages].reverse(), [messages]);
 
   const renderItem = useCallback(
     ({ item }: { item: Message }) => {
