@@ -1,4 +1,5 @@
 import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -17,15 +18,18 @@ import { CurrentUser } from '@shared/decorators/current-user.decorator';
 import { UserRole } from '@shared/enums';
 
 @Controller('auth')
+@UseGuards(ThrottlerGuard)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('otp/send')
   async sendOtp(@Body() dto: SendOtpDto): Promise<{ message: string }> {
     await this.authService.sendOtp(dto.phone);
     return { message: 'OTP sent' };
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('otp/verify')
   async verifyOtp(
     @Body() dto: VerifyOtpDto,
@@ -33,6 +37,7 @@ export class AuthController {
     return this.authService.verifyOtp(dto.phone, dto.code);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('register')
   async register(
     @Body() dto: RegisterDto,
@@ -41,6 +46,7 @@ export class AuthController {
     return { ...result, user: ProfileResponseDto.fromUser(result.user) };
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('login')
   async login(
     @Body() dto: LoginDto,
@@ -58,6 +64,7 @@ export class AuthController {
 
   // ----- Admin auth (email + password + optional TOTP) -----
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('admin/login')
   async adminLogin(@Body() dto: AdminLoginDto) {
     const result = await this.authService.adminLogin(dto.email, dto.password);
@@ -67,6 +74,7 @@ export class AuthController {
     return result;
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('admin/totp/verify')
   async adminTotpVerify(@Body() dto: AdminTotpVerifyDto) {
     const result = await this.authService.verifyAdminTotp(dto.ticket, dto.code);
