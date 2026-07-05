@@ -3,13 +3,22 @@ import { ReactNode } from 'react';
 type Props = {
   children: ReactNode;
   className?: string;
+  htmlFor?: string;
 };
 
-export function Overline({ children, className = '' }: Props) {
+export function Overline({ children, className = '', htmlFor }: Props) {
+  const classes = `font-mono text-[11px] tracking-mono-wide uppercase text-muted ${htmlFor ? 'block' : ''} ${className}`;
+
+  if (htmlFor) {
+    return (
+      <label htmlFor={htmlFor} className={classes}>
+        {children}
+      </label>
+    );
+  }
+
   return (
-    <div
-      className={`font-mono text-[11px] tracking-mono-wide uppercase text-muted ${className}`}
-    >
+    <div className={classes}>
       {children}
     </div>
   );
