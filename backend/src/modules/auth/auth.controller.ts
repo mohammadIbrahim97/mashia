@@ -1,4 +1,5 @@
 import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -34,6 +35,8 @@ export class AuthController {
   }
 
   @Post('register')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async register(
     @Body() dto: RegisterDto,
   ): Promise<{ accessToken: string; refreshToken: string; user: ProfileResponseDto }> {
@@ -42,6 +45,8 @@ export class AuthController {
   }
 
   @Post('login')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async login(
     @Body() dto: LoginDto,
   ): Promise<{ accessToken: string; refreshToken: string; user: ProfileResponseDto }> {
@@ -59,6 +64,8 @@ export class AuthController {
   // ----- Admin auth (email + password + optional TOTP) -----
 
   @Post('admin/login')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async adminLogin(@Body() dto: AdminLoginDto) {
     const result = await this.authService.adminLogin(dto.email, dto.password);
     if ('user' in result && result.user) {
@@ -68,6 +75,8 @@ export class AuthController {
   }
 
   @Post('admin/totp/verify')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async adminTotpVerify(@Body() dto: AdminTotpVerifyDto) {
     const result = await this.authService.verifyAdminTotp(dto.ticket, dto.code);
     return { ...result, user: ProfileResponseDto.fromUser(result.user) };
