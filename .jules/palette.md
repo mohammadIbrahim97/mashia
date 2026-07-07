@@ -4,3 +4,6 @@
 ## 2024-05-23 - Interactive Element Focus States
 **Learning:** Many older interactive elements (like the global search and sidebar actions) lack distinct `focus-visible` or `focus-within` states and use generic `div` or non-semantic `button` elements without `aria-label` tags.
 **Action:** Always wrap visual icons that act as actions in semantic `<button>` tags with `aria-label`, and use the existing Tailwind palette (e.g., `focus-visible:ring-mashia-600` or `focus-visible:ring-gold`) to provide explicit keyboard navigation feedback.
+## 2024-07-07 - ConfirmDialog Accessibility
+**Learning:** Custom modal components like ConfirmDialog and their internal forms (e.g., textareas) lack screen reader associations. A `textarea` without an explicitly linked `<label>` will not be announced properly, and a generic `<div>` used as a modal container doesn't announce itself as a dialog without ARIA roles.
+**Action:** Add `role="dialog"`, `aria-modal="true"`, and link the modal title with `aria-labelledby`. Ensure components like `Overline` can accept an `htmlFor` prop to conditionally render as a `<label>` to link form inputs with their visual text.

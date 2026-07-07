@@ -47,19 +47,24 @@ export function ConfirmDialog({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-dialog-title"
+        aria-describedby={body ? "confirm-dialog-desc" : undefined}
         className="bg-paper border border-hairline rounded-md w-[460px] p-7 shadow-3"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="font-display text-[22px] font-medium tracking-tight text-ink">
+        <div id="confirm-dialog-title" className="font-display text-[22px] font-medium tracking-tight text-ink">
           {title}
         </div>
         {body && (
-          <div className="mt-2 text-sm text-muted leading-[1.55]">{body}</div>
+          <div id="confirm-dialog-desc" className="mt-2 text-sm text-muted leading-[1.55]">{body}</div>
         )}
         {requireReason && (
           <div className="mt-4">
-            <Overline>Reason · required</Overline>
+            <Overline htmlFor="confirm-dialog-reason">Reason · required</Overline>
             <textarea
+              id="confirm-dialog-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
