@@ -5,6 +5,7 @@ import { UserRole, KycStatus, PreferredLanguage } from '@shared/enums';
 import { User } from '../users/user.entity';
 import { ProfileResponseDto } from '../users/dto/profile-response.dto';
 import { TooManyRequestsException } from '@shared/exceptions/too-many-requests.exception';
+import { ThrottlerGuard } from '@nestjs/throttler';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -49,7 +50,9 @@ describe('AuthController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [{ provide: AuthService, useValue: authService }],
-    }).compile();
+    })
+      .overrideGuard(ThrottlerGuard).useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<AuthController>(AuthController);
   });
