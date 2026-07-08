@@ -58,8 +58,9 @@ export function ConfirmDialog({
         )}
         {requireReason && (
           <div className="mt-4">
-            <Overline>Reason · required</Overline>
+            <Overline htmlFor="reason">Reason · required</Overline>
             <textarea
+              id="reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
