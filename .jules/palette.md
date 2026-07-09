@@ -4,3 +4,6 @@
 ## 2024-05-23 - Interactive Element Focus States
 **Learning:** Many older interactive elements (like the global search and sidebar actions) lack distinct `focus-visible` or `focus-within` states and use generic `div` or non-semantic `button` elements without `aria-label` tags.
 **Action:** Always wrap visual icons that act as actions in semantic `<button>` tags with `aria-label`, and use the existing Tailwind palette (e.g., `focus-visible:ring-mashia-600` or `focus-visible:ring-gold`) to provide explicit keyboard navigation feedback.
+## 2024-07-09 - Accessible Custom Labels and Multi-Inputs
+**Learning:** Custom typography components (like `Overline`) used as visual labels fail to provide screen reader accessibility unless they conditionally render semantic `<label>` elements with `htmlFor`. Furthermore, for multi-input fields like TOTP, a single group label cannot effectively associate with all inputs.
+**Action:** Enhance custom label components to support `htmlFor` props and use them. For multi-input arrays, apply an iterating `aria-label` (e.g., `aria-label={"Digit " + (i + 1)}`) to each field directly.
