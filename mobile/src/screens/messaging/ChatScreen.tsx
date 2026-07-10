@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -216,7 +216,8 @@ export function ChatScreen({ navigation, route }: Props) {
     ]);
   }, [sendImage]);
 
-  const reversed = [...messages].reverse();
+  // ⚡ Bolt: Memoize reversed messages array to prevent O(N) operations and full FlatList re-renders on every keystroke
+  const reversed = useMemo(() => [...messages].reverse(), [messages]);
 
   const renderItem = useCallback(
     ({ item }: { item: Message }) => {
