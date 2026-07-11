@@ -1,35 +1,31 @@
-'use client';
+"use client";
 
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { Overline } from '@/components/ui/Overline';
-import {
-  AdminUserDetail,
-  Role,
-  usersService,
-} from '@/services/users.service';
-import { errorMessage } from '@/services/api';
-import { fmtDate, reviewKind, reviewLabel } from '@/lib/format';
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Overline } from "@/components/ui/Overline";
+import { AdminUserDetail, Role, usersService } from "@/services/users.service";
+import { errorMessage } from "@/services/api";
+import { fmtDate, reviewKind, reviewLabel } from "@/lib/format";
 
 const ROLE_LABEL: Record<Role, string> = {
-  seller: 'Seller',
-  buyer: 'Buyer',
-  broker: 'Broker',
-  admin: 'Admin',
+  seller: "Seller",
+  buyer: "Buyer",
+  broker: "Broker",
+  admin: "Admin",
 };
 
 const DOC_LABEL: Record<string, string> = {
-  nationalId: 'National ID',
-  selfie: 'Selfie',
-  businessLicense: 'Business License',
+  nationalId: "National ID",
+  selfie: "Selfie",
+  businessLicense: "Business License",
 };
 
-type Dialog = 'approve' | 'reject' | 'suspend' | 'unsuspend' | null;
+type Dialog = "approve" | "reject" | "suspend" | "unsuspend" | null;
 
 export default function AdminUserDetailPage({
   params,
@@ -55,7 +51,7 @@ export default function AdminUserDetailPage({
         if (!cancelled) setUser(u);
       })
       .catch((err) => {
-        if (!cancelled) setError(errorMessage(err, 'Could not load user.'));
+        if (!cancelled) setError(errorMessage(err, "Could not load user."));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -92,19 +88,19 @@ export default function AdminUserDetailPage({
     return (
       <div className="p-8">
         <button
-          onClick={() => router.push('/users')}
+          onClick={() => router.push("/users")}
           className="text-muted text-[13px] mb-4 hover:text-ink"
         >
           ← Back to users
         </button>
         <div className="text-flagged text-[13px]">
-          {error ?? 'User not found.'}
+          {error ?? "User not found."}
         </div>
       </div>
     );
   }
 
-  const isPendingKyc = user.kycStatus === 'pending';
+  const isPendingKyc = user.kycStatus === "pending";
   const docEntries = user.kycDocumentUrls
     ? Object.entries(user.kycDocumentUrls)
     : [];
@@ -112,7 +108,7 @@ export default function AdminUserDetailPage({
   return (
     <div className="p-8">
       <button
-        onClick={() => router.push('/users')}
+        onClick={() => router.push("/users")}
         className="text-muted text-[13px] mb-4 hover:text-ink"
       >
         ← Back to users
@@ -133,25 +129,27 @@ export default function AdminUserDetailPage({
         <div className="flex gap-2">
           {isPendingKyc && (
             <>
-              <Button kind="danger" onClick={() => setDialog('reject')}>
+              <Button kind="danger" onClick={() => setDialog("reject")}>
                 Reject KYC
               </Button>
-              <Button onClick={() => setDialog('approve')}>Approve KYC →</Button>
+              <Button onClick={() => setDialog("approve")}>
+                Approve KYC →
+              </Button>
             </>
           )}
           {user.suspended ? (
-            <Button kind="secondary" onClick={() => setDialog('unsuspend')}>
+            <Button kind="secondary" onClick={() => setDialog("unsuspend")}>
               Unsuspend
             </Button>
           ) : (
-            <Button kind="secondary" onClick={() => setDialog('suspend')}>
+            <Button kind="secondary" onClick={() => setDialog("suspend")}>
               Suspend
             </Button>
           )}
         </div>
       </div>
 
-      {user.kycStatus === 'rejected' && user.kycRejectionReason && (
+      {user.kycStatus === "rejected" && user.kycRejectionReason && (
         <div className="mb-5 px-4 py-3 bg-[#F8E5E5] border border-[#EBC0C0] rounded-md">
           <Overline>KYC rejection reason</Overline>
           <div className="text-[13px] text-[#8A2828] mt-1">
@@ -161,7 +159,11 @@ export default function AdminUserDetailPage({
       )}
 
       <div className="grid grid-cols-[1fr_360px] gap-4">
-        <Card kicker="● KYC DOCUMENTS" title="Submitted by the trader" padding={20}>
+        <Card
+          kicker="● KYC DOCUMENTS"
+          title="Submitted by the trader"
+          padding={20}
+        >
           {docEntries.length === 0 ? (
             <div className="text-muted text-[13px]">
               No KYC documents submitted yet.
@@ -176,7 +178,7 @@ export default function AdminUserDetailPage({
                       src={url}
                       alt={`${DOC_LABEL[docType] ?? docType} document`}
                       fill
-                      style={{ objectFit: 'contain' }}
+                      style={{ objectFit: "contain" }}
                       unoptimized
                     />
                   </div>
@@ -196,7 +198,7 @@ export default function AdminUserDetailPage({
               <dd className="text-ink font-mono">{user.phone}</dd>
 
               <dt className="text-muted">Email</dt>
-              <dd className="text-ink">{user.email ?? '—'}</dd>
+              <dd className="text-ink">{user.email ?? "—"}</dd>
 
               <dt className="text-muted">Location</dt>
               <dd className="text-ink">
@@ -240,7 +242,7 @@ export default function AdminUserDetailPage({
       </div>
 
       <ConfirmDialog
-        open={dialog === 'approve'}
+        open={dialog === "approve"}
         title="Approve this user's KYC?"
         body="The trader will gain full marketplace access (place orders, post listings)."
         confirmLabel="Approve KYC"
@@ -248,14 +250,14 @@ export default function AdminUserDetailPage({
         onClose={() => setDialog(null)}
         onConfirm={() =>
           run(
-            () => usersService.reviewKyc(id, { decision: 'verified' }),
-            'Approval failed.',
+            () => usersService.reviewKyc(id, { decision: "verified" }),
+            "Approval failed.",
           )
         }
       />
 
       <ConfirmDialog
-        open={dialog === 'reject'}
+        open={dialog === "reject"}
         title="Reject this user's KYC?"
         body="The trader will see your reason and can re-submit their documents."
         confirmLabel="Reject"
@@ -268,34 +270,34 @@ export default function AdminUserDetailPage({
           return run(
             () =>
               usersService.reviewKyc(id, {
-                decision: 'rejected',
+                decision: "rejected",
                 rejectionReason: reason,
               }),
-            'Rejection failed.',
+            "Rejection failed.",
           );
         }}
       />
 
       <ConfirmDialog
-        open={dialog === 'suspend'}
+        open={dialog === "suspend"}
         title="Suspend this user?"
         body="They will be signed out immediately and unable to sign in until unsuspended."
         confirmLabel="Suspend"
         danger
         busy={busy}
         onClose={() => setDialog(null)}
-        onConfirm={() => run(() => usersService.suspend(id), 'Suspend failed.')}
+        onConfirm={() => run(() => usersService.suspend(id), "Suspend failed.")}
       />
 
       <ConfirmDialog
-        open={dialog === 'unsuspend'}
+        open={dialog === "unsuspend"}
         title="Unsuspend this user?"
         body="They will be able to sign in again."
         confirmLabel="Unsuspend"
         busy={busy}
         onClose={() => setDialog(null)}
         onConfirm={() =>
-          run(() => usersService.unsuspend(id), 'Unsuspend failed.')
+          run(() => usersService.unsuspend(id), "Unsuspend failed.")
         }
       />
     </div>

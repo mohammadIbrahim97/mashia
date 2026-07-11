@@ -1,18 +1,18 @@
-'use client';
+"use client";
 
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { Overline } from '@/components/ui/Overline';
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Overline } from "@/components/ui/Overline";
 import {
   AdminOrderDetail,
   OrderStatus,
   ordersService,
-} from '@/services/orders.service';
-import { errorMessage } from '@/services/api';
+} from "@/services/orders.service";
+import { errorMessage } from "@/services/api";
 import {
   escrowStatusKind,
   escrowStatusLabel,
@@ -20,18 +20,18 @@ import {
   fmtMoney,
   orderStatusKind,
   orderStatusLabel,
-} from '@/lib/format';
+} from "@/lib/format";
 
 const STEPS: { status: OrderStatus; label: string }[] = [
-  { status: 'pending', label: 'Order placed' },
-  { status: 'accepted', label: 'Accepted by seller' },
-  { status: 'paid', label: 'Payment held in escrow' },
-  { status: 'in_transit', label: 'In transit' },
-  { status: 'delivered', label: 'Delivered' },
-  { status: 'completed', label: 'Completed (payment released)' },
+  { status: "pending", label: "Order placed" },
+  { status: "accepted", label: "Accepted by seller" },
+  { status: "paid", label: "Payment held in escrow" },
+  { status: "in_transit", label: "In transit" },
+  { status: "delivered", label: "Delivered" },
+  { status: "completed", label: "Completed (payment released)" },
 ];
 
-type Dialog = 'release' | 'refund' | null;
+type Dialog = "release" | "refund" | null;
 
 export default function AdminOrderDetailPage({
   params,
@@ -58,7 +58,8 @@ export default function AdminOrderDetailPage({
         if (!cancelled) setDetail(d);
       })
       .catch((err) => {
-        if (!cancelled) setLoadError(errorMessage(err, 'Could not load order.'));
+        if (!cancelled)
+          setLoadError(errorMessage(err, "Could not load order."));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -96,30 +97,30 @@ export default function AdminOrderDetailPage({
     return (
       <div className="p-8">
         <button
-          onClick={() => router.push('/orders')}
+          onClick={() => router.push("/orders")}
           className="text-muted text-[13px] mb-4 hover:text-ink"
         >
           ← Back to orders
         </button>
         <div className="text-flagged text-[13px]">
-          {loadError ?? 'Order not found.'}
+          {loadError ?? "Order not found."}
         </div>
       </div>
     );
   }
 
   const { order, payment } = detail;
-  const isDisputed = order.status === 'disputed';
-  const canResolve = isDisputed && payment?.escrowStatus === 'held';
+  const isDisputed = order.status === "disputed";
+  const canResolve = isDisputed && payment?.escrowStatus === "held";
 
   const reachedIndex = STEPS.findIndex((s) => s.status === order.status);
   const isCancelledOrDisputed =
-    order.status === 'cancelled' || order.status === 'disputed';
+    order.status === "cancelled" || order.status === "disputed";
 
   return (
     <div className="p-8">
       <button
-        onClick={() => router.push('/orders')}
+        onClick={() => router.push("/orders")}
         className="text-muted text-[13px] mb-4 hover:text-ink"
       >
         ← Back to orders
@@ -134,14 +135,16 @@ export default function AdminOrderDetailPage({
               {orderStatusLabel(order.status)}
             </Badge>
           </h1>
-          <div className="text-[13px] text-muted mt-1 font-mono">{order.id}</div>
+          <div className="text-[13px] text-muted mt-1 font-mono">
+            {order.id}
+          </div>
         </div>
         {canResolve && (
           <div className="flex gap-2">
-            <Button kind="danger" onClick={() => setDialog('refund')}>
+            <Button kind="danger" onClick={() => setDialog("refund")}>
               Refund buyer
             </Button>
-            <Button onClick={() => setDialog('release')}>
+            <Button onClick={() => setDialog("release")}>
               Release to seller →
             </Button>
           </div>
@@ -179,17 +182,17 @@ export default function AdminOrderDetailPage({
                     <div
                       className={`w-2.5 h-2.5 rounded-full mt-1 border-2 ${
                         done || current
-                          ? 'bg-mashia-600 border-mashia-600'
-                          : 'bg-parchment border-hairline'
+                          ? "bg-mashia-600 border-mashia-600"
+                          : "bg-parchment border-hairline"
                       }`}
                     />
                     <div
                       className={`text-[13px] ${
                         current
-                          ? 'font-semibold text-ink'
+                          ? "font-semibold text-ink"
                           : done
-                            ? 'text-ink'
-                            : 'text-muted'
+                            ? "text-ink"
+                            : "text-muted"
                       }`}
                     >
                       {s.label}
@@ -201,9 +204,9 @@ export default function AdminOrderDetailPage({
                 <li className="grid grid-cols-[14px_1fr] gap-x-3.5 items-start">
                   <div
                     className={`w-2.5 h-2.5 rounded-full mt-1 border-2 ${
-                      order.status === 'disputed'
-                        ? 'bg-flagged border-flagged'
-                        : 'bg-muted border-muted'
+                      order.status === "disputed"
+                        ? "bg-flagged border-flagged"
+                        : "bg-muted border-muted"
                     }`}
                   />
                   <div className="text-[13px] font-semibold text-ink">
@@ -219,19 +222,19 @@ export default function AdminOrderDetailPage({
               <div>
                 <Overline>Buyer</Overline>
                 <div className="mt-1 text-[13px] font-medium text-ink">
-                  {order.buyer?.fullName ?? '—'}
+                  {order.buyer?.fullName ?? "—"}
                 </div>
                 <div className="text-muted font-mono text-[12px]">
-                  {order.buyer?.phone ?? '—'}
+                  {order.buyer?.phone ?? "—"}
                 </div>
               </div>
               <div>
                 <Overline>Seller</Overline>
                 <div className="mt-1 text-[13px] font-medium text-ink">
-                  {order.seller?.fullName ?? '—'}
+                  {order.seller?.fullName ?? "—"}
                 </div>
                 <div className="text-muted font-mono text-[12px]">
-                  {order.seller?.phone ?? '—'}
+                  {order.seller?.phone ?? "—"}
                 </div>
               </div>
             </div>
@@ -332,28 +335,26 @@ export default function AdminOrderDetailPage({
       </div>
 
       <ConfirmDialog
-        open={dialog === 'release'}
+        open={dialog === "release"}
         title="Release escrow to the seller?"
         body="You're siding with the seller. Funds will move from escrow to the seller's balance and the order will close as completed. This cannot be undone."
         confirmLabel="Release to seller"
         busy={busy}
         onClose={() => setDialog(null)}
         onConfirm={() =>
-          run(() => ordersService.release(id), 'Release failed.')
+          run(() => ordersService.release(id), "Release failed.")
         }
       />
 
       <ConfirmDialog
-        open={dialog === 'refund'}
+        open={dialog === "refund"}
         title="Refund the buyer?"
         body="You're siding with the buyer. Funds will be refunded and the order will close as cancelled. This cannot be undone."
         confirmLabel="Refund buyer"
         danger
         busy={busy}
         onClose={() => setDialog(null)}
-        onConfirm={() =>
-          run(() => ordersService.refund(id), 'Refund failed.')
-        }
+        onConfirm={() => run(() => ordersService.refund(id), "Refund failed.")}
       />
     </div>
   );

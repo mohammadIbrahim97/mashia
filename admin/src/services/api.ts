@@ -1,13 +1,10 @@
-import axios, {
-  AxiosError,
-  AxiosResponse,
-} from 'axios';
-import { session } from './session';
+import axios, { AxiosError, AxiosResponse } from "axios";
+import { session } from "./session";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ??
   process.env.NEXT_PUBLIC_API_URL ??
-  'http://localhost:3000/api/v1';
+  "http://localhost:3000/api/v1";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -17,7 +14,7 @@ export const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = session.getAccess();
   if (token) {
-    config.headers.set('Authorization', `Bearer ${token}`);
+    config.headers.set("Authorization", `Bearer ${token}`);
   }
   return config;
 });
@@ -27,8 +24,8 @@ api.interceptors.response.use(
   (err: AxiosError) => {
     if (err.response?.status === 401) {
       session.clear();
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
       }
     }
     return Promise.reject(err);
@@ -41,7 +38,7 @@ api.interceptors.response.use(
  */
 export function unwrap<T>(res: AxiosResponse): T {
   const body = res.data;
-  if (body && typeof body === 'object' && 'data' in body) {
+  if (body && typeof body === "object" && "data" in body) {
     return body.data as T;
   }
   return body as T;

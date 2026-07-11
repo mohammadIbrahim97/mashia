@@ -1,38 +1,38 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { Overline } from '@/components/ui/Overline';
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Overline } from "@/components/ui/Overline";
 import {
   AdminUserList,
   AdminUserListItem,
   Role,
   usersService,
-} from '@/services/users.service';
-import { errorMessage } from '@/services/api';
-import { fmtDate, reviewKind, reviewLabel } from '@/lib/format';
+} from "@/services/users.service";
+import { errorMessage } from "@/services/api";
+import { fmtDate, reviewKind, reviewLabel } from "@/lib/format";
 
-type Tab = 'pending' | 'verified' | 'rejected' | 'all';
+type Tab = "pending" | "verified" | "rejected" | "all";
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'pending', label: 'Pending KYC' },
-  { id: 'verified', label: 'Verified' },
-  { id: 'rejected', label: 'Rejected' },
-  { id: 'all', label: 'All' },
+  { id: "pending", label: "Pending KYC" },
+  { id: "verified", label: "Verified" },
+  { id: "rejected", label: "Rejected" },
+  { id: "all", label: "All" },
 ];
 
 const ROLE_LABEL: Record<Role, string> = {
-  seller: 'Seller',
-  buyer: 'Buyer',
-  broker: 'Broker',
-  admin: 'Admin',
+  seller: "Seller",
+  buyer: "Buyer",
+  broker: "Broker",
+  admin: "Admin",
 };
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
 const COL_TEMPLATE =
-  'grid grid-cols-[1.5fr_160px_100px_120px_120px_100px_120px]';
+  "grid grid-cols-[1.5fr_160px_100px_120px_120px_100px_120px]";
 
 function useDebounced<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -44,9 +44,9 @@ function useDebounced<T>(value: T, delay: number): T {
 }
 
 export default function AdminUsersPage() {
-  const [tab, setTab] = useState<Tab>('pending');
-  const [role, setRole] = useState<Role | 'all'>('all');
-  const [q, setQ] = useState('');
+  const [tab, setTab] = useState<Tab>("pending");
+  const [role, setRole] = useState<Role | "all">("all");
+  const [q, setQ] = useState("");
   const debouncedQ = useDebounced(q, SEARCH_DEBOUNCE_MS);
   const [page, setPage] = useState(1);
 
@@ -60,7 +60,7 @@ export default function AdminUsersPage() {
     setPage(1);
   };
 
-  const onRoleChange = (r: Role | 'all') => {
+  const onRoleChange = (r: Role | "all") => {
     if (r === role) return;
     setRole(r);
     setPage(1);
@@ -79,8 +79,8 @@ export default function AdminUsersPage() {
       page,
       pageSize: PAGE_SIZE,
     };
-    if (tab !== 'all') query.kycStatus = tab;
-    if (role !== 'all') query.role = role;
+    if (tab !== "all") query.kycStatus = tab;
+    if (role !== "all") query.role = role;
     if (debouncedQ.trim()) query.q = debouncedQ.trim();
     usersService
       .list(query)
@@ -88,7 +88,7 @@ export default function AdminUsersPage() {
         if (!cancelled) setData(res);
       })
       .catch((err) => {
-        if (!cancelled) setError(errorMessage(err, 'Could not load users.'));
+        if (!cancelled) setError(errorMessage(err, "Could not load users."));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -121,8 +121,8 @@ export default function AdminUsersPage() {
               onClick={() => onTabClick(t.id)}
               className={`px-4 py-2.5 font-body text-[13px] -mb-px border-b-2 transition-colors ${
                 active
-                  ? 'text-ink font-semibold border-mashia-600'
-                  : 'text-muted border-transparent hover:text-ink'
+                  ? "text-ink font-semibold border-mashia-600"
+                  : "text-muted border-transparent hover:text-ink"
               }`}
             >
               {t.label}
@@ -145,7 +145,7 @@ export default function AdminUsersPage() {
         />
         <select
           value={role}
-          onChange={(e) => onRoleChange(e.target.value as Role | 'all')}
+          onChange={(e) => onRoleChange(e.target.value as Role | "all")}
           className="px-3 py-2 bg-paper border border-hairline rounded-md font-body text-[13px] outline-none focus:border-mashia-600"
         >
           <option value="all">All roles</option>
@@ -159,7 +159,7 @@ export default function AdminUsersPage() {
         <div
           className={`${COL_TEMPLATE} px-5 py-3 border-b border-hairline bg-parchment`}
         >
-          {['Name', 'Phone', 'Role', 'Country', 'KYC', 'Status', 'Joined'].map(
+          {["Name", "Phone", "Role", "Country", "KYC", "Status", "Joined"].map(
             (h) => (
               <div
                 key={h}
@@ -243,7 +243,7 @@ function UsersTableBody({
           key={u.id}
           href={`/users/${u.id}`}
           className={`${COL_TEMPLATE} px-5 py-3.5 items-center text-[13px] cursor-pointer hover:bg-parchment/70 ${
-            i ? 'border-t border-hairline' : ''
+            i ? "border-t border-hairline" : ""
           }`}
         >
           <div className="text-ink font-medium truncate pr-3">

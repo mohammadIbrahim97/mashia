@@ -1,26 +1,26 @@
-'use client';
+"use client";
 
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { Overline } from '@/components/ui/Overline';
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Overline } from "@/components/ui/Overline";
 import {
   AdminListingDetail,
   listingsService,
-} from '@/services/listings.service';
-import { errorMessage } from '@/services/api';
+} from "@/services/listings.service";
+import { errorMessage } from "@/services/api";
 import {
   fmtDate,
   fmtMoney,
   listingStatusKind,
   listingStatusLabel,
-} from '@/lib/format';
+} from "@/lib/format";
 
-type Dialog = 'flag' | 'unflag' | 'remove' | null;
+type Dialog = "flag" | "unflag" | "remove" | null;
 
 export default function AdminListingDetailPage({
   params,
@@ -49,7 +49,7 @@ export default function AdminListingDetailPage({
       })
       .catch((err) => {
         if (!cancelled)
-          setLoadError(errorMessage(err, 'Could not load listing.'));
+          setLoadError(errorMessage(err, "Could not load listing."));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -69,7 +69,7 @@ export default function AdminListingDetailPage({
     try {
       const result = await action();
       if (onDelete) {
-        router.push('/listings');
+        router.push("/listings");
         return;
       }
       setListing(result as AdminListingDetail);
@@ -93,27 +93,27 @@ export default function AdminListingDetailPage({
     return (
       <div className="p-8">
         <button
-          onClick={() => router.push('/listings')}
+          onClick={() => router.push("/listings")}
           className="text-muted text-[13px] mb-4 hover:text-ink"
         >
           ← Back to listings
         </button>
         <div className="text-flagged text-[13px]">
-          {loadError ?? 'Listing not found.'}
+          {loadError ?? "Listing not found."}
         </div>
       </div>
     );
   }
 
   const isDeleted = !!listing.deletedAt;
-  const isFlagged = listing.status === 'flagged';
+  const isFlagged = listing.status === "flagged";
   const images = listing.images ?? [];
   const currentImage = images[imageIndex];
 
   return (
     <div className="p-8">
       <button
-        onClick={() => router.push('/listings')}
+        onClick={() => router.push("/listings")}
         className="text-muted text-[13px] mb-4 hover:text-ink"
       >
         ← Back to listings
@@ -129,19 +129,21 @@ export default function AdminListingDetailPage({
             </Badge>
             {isDeleted && <Badge kind="flagged">Removed</Badge>}
           </h1>
-          <div className="text-[13px] text-muted mt-1 font-mono">{listing.id}</div>
+          <div className="text-[13px] text-muted mt-1 font-mono">
+            {listing.id}
+          </div>
         </div>
         {!isDeleted && (
           <div className="flex gap-2">
-            <Button kind="danger" onClick={() => setDialog('remove')}>
+            <Button kind="danger" onClick={() => setDialog("remove")}>
               Remove
             </Button>
             {isFlagged ? (
-              <Button kind="secondary" onClick={() => setDialog('unflag')}>
+              <Button kind="secondary" onClick={() => setDialog("unflag")}>
                 Unflag
               </Button>
             ) : (
-              <Button kind="secondary" onClick={() => setDialog('flag')}>
+              <Button kind="secondary" onClick={() => setDialog("flag")}>
                 Flag
               </Button>
             )}
@@ -163,7 +165,11 @@ export default function AdminListingDetailPage({
 
       <div className="grid grid-cols-[1.4fr_1fr] gap-4">
         <div className="flex flex-col gap-4">
-          <Card kicker="● MEDIA" title={`Photos (${images.length})`} padding={20}>
+          <Card
+            kicker="● MEDIA"
+            title={`Photos (${images.length})`}
+            padding={20}
+          >
             {images.length === 0 ? (
               <div className="text-muted text-[13px]">No photos uploaded.</div>
             ) : (
@@ -174,7 +180,7 @@ export default function AdminListingDetailPage({
                       src={currentImage}
                       alt={`${listing.title} photo ${imageIndex + 1}`}
                       fill
-                      style={{ objectFit: 'contain' }}
+                      style={{ objectFit: "contain" }}
                       unoptimized
                     />
                   )}
@@ -186,14 +192,16 @@ export default function AdminListingDetailPage({
                         key={i}
                         onClick={() => setImageIndex(i)}
                         className={`aspect-square relative overflow-hidden rounded border-2 ${
-                          i === imageIndex ? 'border-mashia-600' : 'border-hairline'
+                          i === imageIndex
+                            ? "border-mashia-600"
+                            : "border-hairline"
                         }`}
                       >
                         <Image
                           src={url}
                           alt={`thumbnail ${i + 1}`}
                           fill
-                          style={{ objectFit: 'cover' }}
+                          style={{ objectFit: "cover" }}
                           unoptimized
                         />
                       </button>
@@ -246,22 +254,21 @@ export default function AdminListingDetailPage({
           <Card kicker="● SELLER" title="Owner">
             <dl className="grid grid-cols-[120px_1fr] gap-x-4 gap-y-2.5 text-[13px]">
               <dt className="text-muted">Name</dt>
-              <dd className="text-ink">{listing.seller?.fullName ?? '—'}</dd>
+              <dd className="text-ink">{listing.seller?.fullName ?? "—"}</dd>
 
               <dt className="text-muted">Phone</dt>
               <dd className="text-ink font-mono">
-                {listing.seller?.phone ?? '—'}
+                {listing.seller?.phone ?? "—"}
               </dd>
 
               <dt className="text-muted">Location</dt>
               <dd className="text-ink">
-                {listing.seller?.city ?? '—'},{' '}
-                {listing.seller?.country ?? '—'}
+                {listing.seller?.city ?? "—"}, {listing.seller?.country ?? "—"}
               </dd>
 
               <dt className="text-muted">KYC</dt>
               <dd className="text-ink capitalize">
-                {listing.seller?.kycStatus ?? '—'}
+                {listing.seller?.kycStatus ?? "—"}
               </dd>
             </dl>
             {listing.seller && (
@@ -269,9 +276,7 @@ export default function AdminListingDetailPage({
                 <Button
                   kind="ghost"
                   size="sm"
-                  onClick={() =>
-                    router.push(`/users/${listing.seller!.id}`)
-                  }
+                  onClick={() => router.push(`/users/${listing.seller!.id}`)}
                 >
                   View seller profile →
                 </Button>
@@ -305,30 +310,30 @@ export default function AdminListingDetailPage({
       </div>
 
       <ConfirmDialog
-        open={dialog === 'flag'}
+        open={dialog === "flag"}
         title="Flag this listing?"
         body="Flagging hides the listing from the buyer feed and marks it for follow-up. The seller is not removed."
         confirmLabel="Flag"
         danger
         busy={busy}
         onClose={() => setDialog(null)}
-        onConfirm={() => run(() => listingsService.flag(id), 'Flag failed.')}
+        onConfirm={() => run(() => listingsService.flag(id), "Flag failed.")}
       />
 
       <ConfirmDialog
-        open={dialog === 'unflag'}
+        open={dialog === "unflag"}
         title="Unflag this listing?"
         body="The listing will return to active status and reappear in the buyer feed."
         confirmLabel="Unflag"
         busy={busy}
         onClose={() => setDialog(null)}
         onConfirm={() =>
-          run(() => listingsService.unflag(id), 'Unflag failed.')
+          run(() => listingsService.unflag(id), "Unflag failed.")
         }
       />
 
       <ConfirmDialog
-        open={dialog === 'remove'}
+        open={dialog === "remove"}
         title="Remove this listing?"
         body="The listing will be soft-deleted and disappear from the marketplace. Existing orders linked to it remain intact. This cannot be undone from the dashboard."
         confirmLabel="Remove"
@@ -336,7 +341,7 @@ export default function AdminListingDetailPage({
         busy={busy}
         onClose={() => setDialog(null)}
         onConfirm={() =>
-          run(() => listingsService.remove(id), 'Remove failed.', true)
+          run(() => listingsService.remove(id), "Remove failed.", true)
         }
       />
     </div>
