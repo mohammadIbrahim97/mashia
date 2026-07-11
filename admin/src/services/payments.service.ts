@@ -1,7 +1,7 @@
-import { api, unwrap } from './api';
-import type { EscrowStatus } from '@/lib/format';
+import { api, unwrap } from "./api";
+import type { EscrowStatus } from "@/lib/format";
 
-export type PaymentMethod = 'stc_pay' | 'mada' | 'bank_transfer';
+export type PaymentMethod = "stc_pay" | "mada" | "bank_transfer";
 
 export type AdminPaymentListItem = {
   id: string;
@@ -40,7 +40,7 @@ export type RevenueSummary = {
 };
 
 export type ListQuery = {
-  escrowStatus?: EscrowStatus | 'all';
+  escrowStatus?: EscrowStatus | "all";
   method?: PaymentMethod;
   from?: string;
   to?: string;
@@ -50,12 +50,12 @@ export type ListQuery = {
 
 export const paymentsService = {
   async list(query: ListQuery = {}): Promise<AdminPaymentList> {
-    const res = await api.get('/admin/payments', { params: query });
+    const res = await api.get("/admin/payments", { params: query });
     return unwrap<AdminPaymentList>(res);
   },
 
   async revenue(from?: string, to?: string): Promise<RevenueSummary> {
-    const res = await api.get('/admin/revenue', {
+    const res = await api.get("/admin/revenue", {
       params: { from, to },
     });
     return unwrap<RevenueSummary>(res);

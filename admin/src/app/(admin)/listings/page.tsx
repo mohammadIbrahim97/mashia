@@ -1,50 +1,49 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { Overline } from '@/components/ui/Overline';
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Overline } from "@/components/ui/Overline";
 import {
   AdminListingList,
   AdminListingListItem,
   Breed,
   ListingStatus,
   listingsService,
-} from '@/services/listings.service';
-import { errorMessage } from '@/services/api';
+} from "@/services/listings.service";
+import { errorMessage } from "@/services/api";
 import {
   fmtDate,
   fmtMoney,
   listingStatusKind,
   listingStatusLabel,
-} from '@/lib/format';
+} from "@/lib/format";
 
-type Tab = 'flagged' | 'active' | 'sold' | 'all';
+type Tab = "flagged" | "active" | "sold" | "all";
 const TABS: { id: Tab; label: string; status?: ListingStatus }[] = [
-  { id: 'flagged', label: 'Flagged', status: 'flagged' },
-  { id: 'active', label: 'Active', status: 'active' },
-  { id: 'sold', label: 'Sold', status: 'sold' },
-  { id: 'all', label: 'All' },
+  { id: "flagged", label: "Flagged", status: "flagged" },
+  { id: "active", label: "Active", status: "active" },
+  { id: "sold", label: "Sold", status: "sold" },
+  { id: "all", label: "All" },
 ];
 
-const BREEDS: { value: Breed | 'all'; label: string }[] = [
-  { value: 'all', label: 'All breeds' },
-  { value: 'awassi', label: 'Awassi' },
-  { value: 'najdi', label: 'Najdi' },
-  { value: 'arabi', label: 'Arabi' },
-  { value: 'shami', label: 'Shami' },
-  { value: 'other', label: 'Other' },
+const BREEDS: { value: Breed | "all"; label: string }[] = [
+  { value: "all", label: "All breeds" },
+  { value: "awassi", label: "Awassi" },
+  { value: "najdi", label: "Najdi" },
+  { value: "arabi", label: "Arabi" },
+  { value: "shami", label: "Shami" },
+  { value: "other", label: "Other" },
 ];
 
 const PAGE_SIZE = 20;
-const COL_TEMPLATE =
-  'grid grid-cols-[1.6fr_100px_1.2fr_120px_100px_120px]';
+const COL_TEMPLATE = "grid grid-cols-[1.6fr_100px_1.2fr_120px_100px_120px]";
 
 export default function AdminListingsPage() {
-  const [tab, setTab] = useState<Tab>('flagged');
-  const [breed, setBreed] = useState<Breed | 'all'>('all');
-  const [q, setQ] = useState('');
+  const [tab, setTab] = useState<Tab>("flagged");
+  const [breed, setBreed] = useState<Breed | "all">("all");
+  const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
 
   const [data, setData] = useState<AdminListingList | null>(null);
@@ -67,7 +66,7 @@ export default function AdminListingsPage() {
       pageSize: PAGE_SIZE,
     };
     if (tabDef.status) query.status = tabDef.status;
-    if (breed !== 'all') query.breed = breed;
+    if (breed !== "all") query.breed = breed;
     if (q.trim()) query.q = q.trim();
 
     const t = setTimeout(() => {
@@ -78,7 +77,7 @@ export default function AdminListingsPage() {
         })
         .catch((err) => {
           if (!cancelled)
-            setError(errorMessage(err, 'Could not load listings.'));
+            setError(errorMessage(err, "Could not load listings."));
         })
         .finally(() => {
           if (!cancelled) setLoading(false);
@@ -90,9 +89,7 @@ export default function AdminListingsPage() {
     };
   }, [tab, breed, q, page]);
 
-  const totalPages = data
-    ? Math.max(1, Math.ceil(data.total / PAGE_SIZE))
-    : 1;
+  const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
 
   return (
     <div className="p-8">
@@ -115,8 +112,8 @@ export default function AdminListingsPage() {
               onClick={() => onTabClick(t.id)}
               className={`px-4 py-2.5 font-body text-[13px] -mb-px border-b-2 transition-colors ${
                 active
-                  ? 'text-ink font-semibold border-mashia-600'
-                  : 'text-muted border-transparent hover:text-ink'
+                  ? "text-ink font-semibold border-mashia-600"
+                  : "text-muted border-transparent hover:text-ink"
               }`}
             >
               {t.label}
@@ -143,7 +140,7 @@ export default function AdminListingsPage() {
         <select
           value={breed}
           onChange={(e) => {
-            setBreed(e.target.value as Breed | 'all');
+            setBreed(e.target.value as Breed | "all");
             setPage(1);
           }}
           className="px-3 py-2 bg-paper border border-hairline rounded-md font-body text-[13px] outline-none focus:border-mashia-600"
@@ -160,7 +157,7 @@ export default function AdminListingsPage() {
         <div
           className={`${COL_TEMPLATE} px-5 py-3 border-b border-hairline bg-parchment`}
         >
-          {['Title', 'Breed', 'Seller', 'Price/head', 'Status', 'Created'].map(
+          {["Title", "Breed", "Seller", "Price/head", "Status", "Created"].map(
             (h) => (
               <div
                 key={h}
@@ -244,7 +241,7 @@ function ListingsTableBody({
           key={l.id}
           href={`/listings/${l.id}`}
           className={`${COL_TEMPLATE} px-5 py-3.5 items-center text-[13px] cursor-pointer hover:bg-parchment/70 ${
-            i ? 'border-t border-hairline' : ''
+            i ? "border-t border-hairline" : ""
           }`}
         >
           <div className="text-ink font-medium truncate pr-3">
@@ -254,7 +251,7 @@ function ListingsTableBody({
             </div>
           </div>
           <div className="text-muted capitalize">{l.breed}</div>
-          <div className="text-ink truncate pr-3">{l.sellerName ?? '—'}</div>
+          <div className="text-ink truncate pr-3">{l.sellerName ?? "—"}</div>
           <div className="text-ink font-mono text-[12px]">
             {fmtMoney(l.pricePerHead, l.currency)}
           </div>

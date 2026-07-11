@@ -1,38 +1,42 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { Overline } from '@/components/ui/Overline';
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Overline } from "@/components/ui/Overline";
 import {
   AdminOrderList,
   AdminOrderListItem,
   OrderStatus,
   ordersService,
-} from '@/services/orders.service';
-import { errorMessage } from '@/services/api';
-import { fmtDate, fmtMoney, orderStatusKind, orderStatusLabel } from '@/lib/format';
+} from "@/services/orders.service";
+import { errorMessage } from "@/services/api";
+import {
+  fmtDate,
+  fmtMoney,
+  orderStatusKind,
+  orderStatusLabel,
+} from "@/lib/format";
 
-type Tab = 'disputed' | 'active' | 'pending' | 'done' | 'all';
+type Tab = "disputed" | "active" | "pending" | "done" | "all";
 const TABS: { id: Tab; label: string; statuses: OrderStatus[] }[] = [
-  { id: 'disputed', label: 'Disputed', statuses: ['disputed'] },
+  { id: "disputed", label: "Disputed", statuses: ["disputed"] },
   {
-    id: 'active',
-    label: 'Active',
-    statuses: ['paid', 'in_transit', 'delivered'],
+    id: "active",
+    label: "Active",
+    statuses: ["paid", "in_transit", "delivered"],
   },
-  { id: 'pending', label: 'Pending', statuses: ['pending', 'accepted'] },
-  { id: 'done', label: 'Done', statuses: ['completed', 'cancelled'] },
-  { id: 'all', label: 'All', statuses: [] },
+  { id: "pending", label: "Pending", statuses: ["pending", "accepted"] },
+  { id: "done", label: "Done", statuses: ["completed", "cancelled"] },
+  { id: "all", label: "All", statuses: [] },
 ];
 
 const PAGE_SIZE = 20;
-const COL_TEMPLATE =
-  'grid grid-cols-[1fr_1fr_1.4fr_140px_120px_120px]';
+const COL_TEMPLATE = "grid grid-cols-[1fr_1fr_1.4fr_140px_120px_120px]";
 
 export default function AdminOrdersPage() {
-  const [tab, setTab] = useState<Tab>('disputed');
+  const [tab, setTab] = useState<Tab>("disputed");
   const [page, setPage] = useState(1);
 
   const [data, setData] = useState<AdminOrderList | null>(null);
@@ -61,7 +65,7 @@ export default function AdminOrdersPage() {
         if (!cancelled) setData(res);
       })
       .catch((err) => {
-        if (!cancelled) setError(errorMessage(err, 'Could not load orders.'));
+        if (!cancelled) setError(errorMessage(err, "Could not load orders."));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -95,8 +99,8 @@ export default function AdminOrdersPage() {
               onClick={() => onTabClick(t.id)}
               className={`px-4 py-2.5 font-body text-[13px] -mb-px border-b-2 transition-colors ${
                 active
-                  ? 'text-ink font-semibold border-mashia-600'
-                  : 'text-muted border-transparent hover:text-ink'
+                  ? "text-ink font-semibold border-mashia-600"
+                  : "text-muted border-transparent hover:text-ink"
               }`}
             >
               {t.label}
@@ -114,7 +118,7 @@ export default function AdminOrdersPage() {
         <div
           className={`${COL_TEMPLATE} px-5 py-3 border-b border-hairline bg-parchment`}
         >
-          {['Buyer', 'Seller', 'Listing', 'Total', 'Status', 'Created'].map(
+          {["Buyer", "Seller", "Listing", "Total", "Status", "Created"].map(
             (h) => (
               <div
                 key={h}
@@ -198,11 +202,11 @@ function OrdersTableBody({
           key={o.id}
           href={`/orders/${o.id}`}
           className={`${COL_TEMPLATE} px-5 py-3.5 items-center text-[13px] cursor-pointer hover:bg-parchment/70 ${
-            i ? 'border-t border-hairline' : ''
+            i ? "border-t border-hairline" : ""
           }`}
         >
-          <div className="text-ink truncate pr-3">{o.buyerName ?? '—'}</div>
-          <div className="text-ink truncate pr-3">{o.sellerName ?? '—'}</div>
+          <div className="text-ink truncate pr-3">{o.buyerName ?? "—"}</div>
+          <div className="text-ink truncate pr-3">{o.sellerName ?? "—"}</div>
           <div className="text-muted truncate pr-3">
             {o.listingTitle ?? <span className="italic">(deleted)</span>}
           </div>

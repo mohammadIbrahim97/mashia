@@ -1,45 +1,44 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
-import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Overline } from '@/components/ui/Overline';
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Overline } from "@/components/ui/Overline";
 import {
   AdminPaymentList,
   AdminPaymentListItem,
   PaymentMethod,
   paymentsService,
   RevenueSummary,
-} from '@/services/payments.service';
-import { errorMessage } from '@/services/api';
+} from "@/services/payments.service";
+import { errorMessage } from "@/services/api";
 import {
   EscrowStatus,
   escrowStatusKind,
   escrowStatusLabel,
   fmtDate,
   fmtMoney,
-} from '@/lib/format';
+} from "@/lib/format";
 
-type Tab = 'held' | 'released' | 'refunded' | 'all';
+type Tab = "held" | "released" | "refunded" | "all";
 const TABS: { id: Tab; label: string; status?: EscrowStatus }[] = [
-  { id: 'held', label: 'Held', status: 'held' },
-  { id: 'released', label: 'Released', status: 'released' },
-  { id: 'refunded', label: 'Refunded', status: 'refunded' },
-  { id: 'all', label: 'All' },
+  { id: "held", label: "Held", status: "held" },
+  { id: "released", label: "Released", status: "released" },
+  { id: "refunded", label: "Refunded", status: "refunded" },
+  { id: "all", label: "All" },
 ];
 
-const METHODS: { value: PaymentMethod | 'all'; label: string }[] = [
-  { value: 'all', label: 'All methods' },
-  { value: 'stc_pay', label: 'STC Pay' },
-  { value: 'mada', label: 'Mada' },
-  { value: 'bank_transfer', label: 'Bank transfer' },
+const METHODS: { value: PaymentMethod | "all"; label: string }[] = [
+  { value: "all", label: "All methods" },
+  { value: "stc_pay", label: "STC Pay" },
+  { value: "mada", label: "Mada" },
+  { value: "bank_transfer", label: "Bank transfer" },
 ];
 
 const PAGE_SIZE = 20;
-const COL_TEMPLATE =
-  'grid grid-cols-[120px_1fr_1fr_140px_140px_110px_120px]';
+const COL_TEMPLATE = "grid grid-cols-[120px_1fr_1fr_140px_140px_110px_120px]";
 
 function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -53,8 +52,8 @@ function defaultRange(): { from: string; to: string } {
 }
 
 export default function AdminPaymentsPage() {
-  const [tab, setTab] = useState<Tab>('held');
-  const [method, setMethod] = useState<PaymentMethod | 'all'>('all');
+  const [tab, setTab] = useState<Tab>("held");
+  const [method, setMethod] = useState<PaymentMethod | "all">("all");
   const initialRange = useMemo(defaultRange, []);
   const [from, setFrom] = useState(initialRange.from);
   const [to, setTo] = useState(initialRange.to);
@@ -83,7 +82,7 @@ export default function AdminPaymentsPage() {
       to: to || undefined,
     };
     if (tabDef.status) listQuery.escrowStatus = tabDef.status;
-    if (method !== 'all') listQuery.method = method;
+    if (method !== "all") listQuery.method = method;
 
     Promise.all([
       paymentsService.list(listQuery),
@@ -95,8 +94,7 @@ export default function AdminPaymentsPage() {
         setRevenue(rev);
       })
       .catch((err) => {
-        if (!cancelled)
-          setError(errorMessage(err, 'Could not load payments.'));
+        if (!cancelled) setError(errorMessage(err, "Could not load payments."));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -120,7 +118,13 @@ export default function AdminPaymentsPage() {
         </div>
       </div>
 
-      <RevenueBanner revenue={revenue} from={from} to={to} onFrom={setFrom} onTo={setTo} />
+      <RevenueBanner
+        revenue={revenue}
+        from={from}
+        to={to}
+        onFrom={setFrom}
+        onTo={setTo}
+      />
 
       <div className="flex border-b border-hairline mb-4 mt-6">
         {TABS.map((t) => {
@@ -131,8 +135,8 @@ export default function AdminPaymentsPage() {
               onClick={() => onTabClick(t.id)}
               className={`px-4 py-2.5 font-body text-[13px] -mb-px border-b-2 transition-colors ${
                 active
-                  ? 'text-ink font-semibold border-mashia-600'
-                  : 'text-muted border-transparent hover:text-ink'
+                  ? "text-ink font-semibold border-mashia-600"
+                  : "text-muted border-transparent hover:text-ink"
               }`}
             >
               {t.label}
@@ -150,7 +154,7 @@ export default function AdminPaymentsPage() {
         <select
           value={method}
           onChange={(e) => {
-            setMethod(e.target.value as PaymentMethod | 'all');
+            setMethod(e.target.value as PaymentMethod | "all");
             setPage(1);
           }}
           className="px-3 py-2 bg-paper border border-hairline rounded-md font-body text-[13px] outline-none focus:border-mashia-600"
@@ -168,13 +172,13 @@ export default function AdminPaymentsPage() {
           className={`${COL_TEMPLATE} px-5 py-3 border-b border-hairline bg-parchment`}
         >
           {[
-            'Buyer',
-            'Seller',
-            'Order',
-            'Amount',
-            'Commission',
-            'Method',
-            'Created',
+            "Buyer",
+            "Seller",
+            "Order",
+            "Amount",
+            "Commission",
+            "Method",
+            "Created",
           ].map((h) => (
             <div
               key={h}
@@ -256,7 +260,12 @@ function RevenueBanner({
       ) : revenue.byCurrency.length === 0 ? (
         <div className="text-muted text-[13px]">No payments in this range.</div>
       ) : (
-        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+        <div
+          className="grid gap-3"
+          style={{
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          }}
+        >
           {revenue.byCurrency.map((c) => {
             const total =
               c.held.commission + c.released.commission + c.refunded.commission;
@@ -278,12 +287,12 @@ function RevenueBanner({
                   </dd>
                   <dt className="text-muted">Released</dt>
                   <dd className="text-mashia-700 font-mono">
-                    {fmtMoney(c.released.commission, c.currency)} ·{' '}
+                    {fmtMoney(c.released.commission, c.currency)} ·{" "}
                     {c.released.count}
                   </dd>
                   <dt className="text-muted">Refunded</dt>
                   <dd className="text-ink font-mono">
-                    {fmtMoney(c.refunded.commission, c.currency)} ·{' '}
+                    {fmtMoney(c.refunded.commission, c.currency)} ·{" "}
                     {c.refunded.count}
                   </dd>
                 </dl>
@@ -333,11 +342,11 @@ function PaymentsTableBody({
           key={p.id}
           href={`/orders/${p.orderId}`}
           className={`${COL_TEMPLATE} px-5 py-3.5 items-center text-[13px] cursor-pointer hover:bg-parchment/70 ${
-            i ? 'border-t border-hairline' : ''
+            i ? "border-t border-hairline" : ""
           }`}
         >
-          <div className="text-ink truncate pr-3">{p.payerName ?? '—'}</div>
-          <div className="text-ink truncate pr-3">{p.sellerName ?? '—'}</div>
+          <div className="text-ink truncate pr-3">{p.payerName ?? "—"}</div>
+          <div className="text-ink truncate pr-3">{p.sellerName ?? "—"}</div>
           <div>
             <Badge kind={escrowStatusKind(p.escrowStatus)}>
               {escrowStatusLabel(p.escrowStatus)}
@@ -350,7 +359,7 @@ function PaymentsTableBody({
             {fmtMoney(p.commissionAmount, p.currency)}
           </div>
           <div className="text-muted font-mono text-[11px] uppercase">
-            {p.method.replace(/_/g, ' ')}
+            {p.method.replace(/_/g, " ")}
           </div>
           <div className="font-mono text-[11px] text-muted">
             {fmtDate(p.createdAt)}
