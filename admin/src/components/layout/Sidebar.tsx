@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutGrid,
   Users,
@@ -12,8 +12,8 @@ import {
   FileText,
   LogOut,
   ChevronDown,
-} from 'lucide-react';
-import { session } from '@/services/session';
+} from "lucide-react";
+import { session } from "@/services/session";
 
 type Item = {
   href: string;
@@ -21,22 +21,22 @@ type Item = {
   us: string;
   Icon: typeof LayoutGrid;
   badge?: number;
-  badgeKind?: 'warn' | 'danger';
+  badgeKind?: "warn" | "danger";
 };
 
 const ITEMS: Item[] = [
-  { href: '/dashboard', label: 'Dashboard', us: 'G3-US02', Icon: LayoutGrid },
-  { href: '/users', label: 'Users', us: 'G3-US03', Icon: Users },
-  { href: '/listings', label: 'Listings', us: 'G3-US04', Icon: ListChecks },
-  { href: '/certificates', label: 'Certificates', us: 'G3-US05', Icon: Shield },
-  { href: '/orders', label: 'Orders', us: 'G3-US06', Icon: ShoppingBag },
-  { href: '/payments', label: 'Payments', us: 'G3-US07', Icon: FileText },
+  { href: "/dashboard", label: "Dashboard", us: "G3-US02", Icon: LayoutGrid },
+  { href: "/users", label: "Users", us: "G3-US03", Icon: Users },
+  { href: "/listings", label: "Listings", us: "G3-US04", Icon: ListChecks },
+  { href: "/certificates", label: "Certificates", us: "G3-US05", Icon: Shield },
+  { href: "/orders", label: "Orders", us: "G3-US06", Icon: ShoppingBag },
+  { href: "/payments", label: "Payments", us: "G3-US07", Icon: FileText },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [adminName, setAdminName] = useState('Admin');
+  const [adminName, setAdminName] = useState("Admin");
 
   useEffect(() => {
     const user = session.getUser();
@@ -45,18 +45,21 @@ export function Sidebar() {
     }
   }, []);
 
-  const adminInitial = adminName.trim().charAt(0).toUpperCase() || 'A';
+  const adminInitial = adminName.trim().charAt(0).toUpperCase() || "A";
 
   const onSignOut = () => {
     session.clear();
-    router.push('/login');
+    router.push("/login");
   };
   return (
     <aside className="w-60 bg-basalt text-sand h-full flex flex-col py-5 shrink-0">
       <div className="px-5 pb-5 border-b border-sand/15">
         <div className="font-display text-2xl font-light tracking-tight text-paper">
           Mash
-          <em className="italic text-gold not-italic" style={{ fontStyle: 'italic' }}>
+          <em
+            className="italic text-gold not-italic"
+            style={{ fontStyle: "italic" }}
+          >
             ia
           </em>
           <span className="text-gold">.</span>
@@ -68,25 +71,29 @@ export function Sidebar() {
 
       <nav className="px-3 py-3.5 flex flex-col gap-0.5 flex-1">
         {ITEMS.map((it) => {
-          const sel = pathname === it.href || pathname.startsWith(`${it.href}/`);
-          const dotColor = it.badgeKind === 'danger' ? 'bg-[#E89595]' : 'bg-gold';
+          const sel =
+            pathname === it.href || pathname.startsWith(`${it.href}/`);
+          const dotColor =
+            it.badgeKind === "danger" ? "bg-[#E89595]" : "bg-gold";
           return (
             <Link
               key={it.href}
               href={it.href}
               className={`grid grid-cols-[20px_1fr_auto] items-center gap-3 px-3 py-2.5 rounded-md text-left border-l-2 transition-colors ${
                 sel
-                  ? 'bg-white/[0.06] text-paper border-gold'
-                  : 'text-sand border-transparent hover:bg-white/[0.03]'
+                  ? "bg-white/[0.06] text-paper border-gold"
+                  : "text-sand border-transparent hover:bg-white/[0.03]"
               }`}
             >
               <it.Icon
                 size={18}
                 strokeWidth={1.5}
-                className={sel ? 'text-gold' : 'text-sand'}
+                className={sel ? "text-gold" : "text-sand"}
               />
               <div className="min-w-0">
-                <div className={`font-body text-[13px] ${sel ? 'font-semibold' : 'font-normal'}`}>
+                <div
+                  className={`font-body text-[13px] ${sel ? "font-semibold" : "font-normal"}`}
+                >
                   {it.label}
                 </div>
                 <div className="font-mono text-[9px] tracking-mono-wide opacity-50 mt-0.5">

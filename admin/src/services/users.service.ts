@@ -1,7 +1,7 @@
-import { api, unwrap } from './api';
+import { api, unwrap } from "./api";
 
-export type Role = 'seller' | 'buyer' | 'broker' | 'admin';
-export type KycStatus = 'pending' | 'verified' | 'rejected';
+export type Role = "seller" | "buyer" | "broker" | "admin";
+export type KycStatus = "pending" | "verified" | "rejected";
 
 export type AdminUserListItem = {
   id: string;
@@ -42,7 +42,7 @@ export type ListQuery = {
 
 export const usersService = {
   async list(query: ListQuery = {}): Promise<AdminUserList> {
-    const res = await api.get('/admin/users', { params: query });
+    const res = await api.get("/admin/users", { params: query });
     return unwrap<AdminUserList>(res);
   },
 
@@ -54,8 +54,8 @@ export const usersService = {
   async reviewKyc(
     id: string,
     body:
-      | { decision: 'verified' }
-      | { decision: 'rejected'; rejectionReason: string },
+      | { decision: "verified" }
+      | { decision: "rejected"; rejectionReason: string },
   ): Promise<AdminUserDetail> {
     const res = await api.patch(`/admin/users/${id}/kyc`, body);
     return unwrap<AdminUserDetail>(res);

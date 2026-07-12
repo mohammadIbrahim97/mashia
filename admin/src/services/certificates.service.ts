@@ -1,7 +1,7 @@
-import { api, unwrap } from './api';
+import { api, unwrap } from "./api";
 
-export type CertificateType = 'vaccination' | 'health' | 'origin';
-export type CertificateStatus = 'pending' | 'verified' | 'rejected';
+export type CertificateType = "vaccination" | "health" | "origin";
+export type CertificateStatus = "pending" | "verified" | "rejected";
 
 export type AdminCertificateListItem = {
   id: string;
@@ -43,14 +43,14 @@ export type Certificate = {
 };
 
 export type ListQuery = {
-  status?: CertificateStatus | 'all';
+  status?: CertificateStatus | "all";
   page?: number;
   pageSize?: number;
 };
 
 export const certificatesService = {
   async list(query: ListQuery = {}): Promise<AdminCertificateList> {
-    const res = await api.get('/admin/certificates', { params: query });
+    const res = await api.get("/admin/certificates", { params: query });
     return unwrap<AdminCertificateList>(res);
   },
 
@@ -61,7 +61,9 @@ export const certificatesService = {
 
   async verify(
     id: string,
-    body: { status: 'verified' } | { status: 'rejected'; rejectionReason: string },
+    body:
+      | { status: "verified" }
+      | { status: "rejected"; rejectionReason: string },
   ): Promise<Certificate> {
     const res = await api.patch(`/certificates/${id}/verify`, body);
     return unwrap<Certificate>(res);
