@@ -1,16 +1,16 @@
-import { api, unwrap } from './api';
+import { api, unwrap } from "./api";
 
 export type OrderStatus =
-  | 'pending'
-  | 'accepted'
-  | 'paid'
-  | 'in_transit'
-  | 'delivered'
-  | 'completed'
-  | 'disputed'
-  | 'cancelled';
+  | "pending"
+  | "accepted"
+  | "paid"
+  | "in_transit"
+  | "delivered"
+  | "completed"
+  | "disputed"
+  | "cancelled";
 
-export type EscrowStatus = 'held' | 'released' | 'refunded';
+export type EscrowStatus = "held" | "released" | "refunded";
 
 export type AdminOrderListItem = {
   id: string;
@@ -81,7 +81,7 @@ export type ListQuery = {
 
 export const ordersService = {
   async list(query: ListQuery = {}): Promise<AdminOrderList> {
-    const res = await api.get('/admin/orders', { params: query });
+    const res = await api.get("/admin/orders", { params: query });
     return unwrap<AdminOrderList>(res);
   },
 

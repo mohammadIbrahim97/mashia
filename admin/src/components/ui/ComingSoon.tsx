@@ -1,5 +1,5 @@
-import { Construction } from 'lucide-react';
-import { Overline } from './Overline';
+import { Construction } from "lucide-react";
+import { Overline } from "./Overline";
 
 type Props = {
   section: string;
@@ -22,7 +22,11 @@ export function ComingSoon({ section, us }: Props) {
       </div>
       <div className="bg-paper border border-hairline rounded-md p-16 text-center">
         <div className="inline-flex w-14 h-14 rounded-full bg-mashia-50 items-center justify-center mb-3">
-          <Construction size={24} strokeWidth={1.5} className="text-mashia-700" />
+          <Construction
+            size={24}
+            strokeWidth={1.5}
+            className="text-mashia-700"
+          />
         </div>
         <div className="font-display text-lg font-medium text-ink">
           {section} screen is on the roadmap
