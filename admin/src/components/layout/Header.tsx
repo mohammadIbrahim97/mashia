@@ -28,7 +28,6 @@ export function Header({ title, breadcrumb }: Props) {
         <div className="flex items-center gap-2 px-3 py-2 bg-parchment border border-hairline rounded-md w-[280px] focus-within:ring-2 focus-within:ring-mashia-600 focus-within:border-transparent transition-all">
           <Search size={16} strokeWidth={1.5} className="text-muted" />
           <input
-            aria-label="Search"
             placeholder="Search orders, users…"
             aria-label="Global search"
             className="flex-1 bg-transparent border-none outline-none font-body text-[13px] text-ink"
