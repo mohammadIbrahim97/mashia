@@ -1,18 +1,18 @@
-'use client';
+"use client";
 
-import { useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
-import { Button } from '@/components/ui/Button';
-import { Overline } from '@/components/ui/Overline';
+import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { Overline } from "@/components/ui/Overline";
 import {
   authService,
   isLoginSuccess,
   LoginSuccess,
-} from '@/services/auth.service';
-import { errorMessage } from '@/services/api';
-import { session } from '@/services/session';
+} from "@/services/auth.service";
+import { errorMessage } from "@/services/api";
+import { session } from "@/services/session";
 
-type Step = 'credentials' | 'totp';
+type Step = "credentials" | "totp";
 
 function persistSession(s: LoginSuccess) {
   session.set(s.accessToken, {
@@ -24,12 +24,12 @@ function persistSession(s: LoginSuccess) {
 export default function LoginPage() {
   const router = useRouter();
 
-  const [step, setStep] = useState<Step>('credentials');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [step, setStep] = useState<Step>("credentials");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const [ticket, setTicket] = useState<string | null>(null);
-  const [code, setCode] = useState(['', '', '', '', '', '']);
+  const [code, setCode] = useState(["", "", "", "", "", ""]);
   const codeRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const [busy, setBusy] = useState(false);
@@ -43,14 +43,14 @@ export default function LoginPage() {
       const res = await authService.login(email, password);
       if (isLoginSuccess(res)) {
         persistSession(res);
-        router.push('/dashboard');
+        router.push("/dashboard");
       } else {
         setTicket(res.ticket);
-        setStep('totp');
+        setStep("totp");
         setTimeout(() => codeRefs.current[0]?.focus(), 0);
       }
     } catch (err) {
-      setError(errorMessage(err, 'Sign-in failed.'));
+      setError(errorMessage(err, "Sign-in failed."));
     } finally {
       setBusy(false);
     }
@@ -67,9 +67,9 @@ export default function LoginPage() {
   const onTotpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ticket) return;
-    const fullCode = code.join('');
+    const fullCode = code.join("");
     if (fullCode.length !== 6) {
-      setError('Enter all 6 digits.');
+      setError("Enter all 6 digits.");
       return;
     }
     setError(null);
@@ -77,18 +77,18 @@ export default function LoginPage() {
     try {
       const res = await authService.verifyTotp(ticket, fullCode);
       persistSession(res);
-      router.push('/dashboard');
+      router.push("/dashboard");
     } catch (err) {
-      setError(errorMessage(err, 'Invalid code.'));
+      setError(errorMessage(err, "Invalid code."));
     } finally {
       setBusy(false);
     }
   };
 
   const onBackToCredentials = () => {
-    setStep('credentials');
+    setStep("credentials");
     setTicket(null);
-    setCode(['', '', '', '', '', '']);
+    setCode(["", "", "", "", "", ""]);
     setError(null);
   };
 
@@ -98,7 +98,7 @@ export default function LoginPage() {
         className="absolute inset-0 pointer-events-none"
         style={{
           backgroundImage:
-            'radial-gradient(circle at 30% 30%, rgba(0,115,57,0.06) 0, transparent 40%), radial-gradient(circle at 80% 70%, rgba(201,151,74,0.07) 0, transparent 40%)',
+            "radial-gradient(circle at 30% 30%, rgba(0,115,57,0.06) 0, transparent 40%), radial-gradient(circle at 80% 70%, rgba(201,151,74,0.07) 0, transparent 40%)",
         }}
       />
       <div className="relative w-[380px] bg-paper border border-hairline rounded-md p-8 shadow-1">
@@ -112,10 +112,11 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-7">
-          {step === 'credentials' ? (
+          {step === "credentials" ? (
             <form onSubmit={onCredentialsSubmit}>
-              <Overline>Email</Overline>
+              <Overline htmlFor="email">Email</Overline>
               <input
+                id="email"
                 type="email"
                 autoComplete="email"
                 required
@@ -125,8 +126,9 @@ export default function LoginPage() {
                 className="mt-1.5 w-full px-3.5 py-3 font-body text-sm bg-parchment border border-hairline rounded outline-none focus:border-mashia-600 placeholder:text-muted"
               />
               <div className="mt-4">
-                <Overline>Password</Overline>
+                <Overline htmlFor="password">Password</Overline>
                 <input
+                  id="password"
                   type="password"
                   autoComplete="current-password"
                   required
@@ -140,7 +142,7 @@ export default function LoginPage() {
               )}
               <div className="mt-5">
                 <Button type="submit" className="w-full" disabled={busy}>
-                  {busy ? 'Signing in…' : 'Sign in →'}
+                  {busy ? "Signing in…" : "Sign in →"}
                 </Button>
               </div>
             </form>
@@ -154,13 +156,14 @@ export default function LoginPage() {
                     ref={(el) => {
                       codeRefs.current[i] = el;
                     }}
+                    aria-label={"Digit " + (i + 1)}
                     maxLength={1}
                     inputMode="numeric"
                     autoComplete="one-time-code"
                     value={digit}
                     onChange={(e) => handleCodeChange(i, e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Backspace' && !digit && i > 0)
+                      if (e.key === "Backspace" && !digit && i > 0)
                         codeRefs.current[i - 1]?.focus();
                     }}
                     className="w-11 text-center font-display text-[22px] bg-parchment border border-hairline rounded outline-none focus:border-mashia-600"
@@ -184,7 +187,7 @@ export default function LoginPage() {
                   ← Back
                 </Button>
                 <Button type="submit" disabled={busy}>
-                  {busy ? 'Verifying…' : 'Verify →'}
+                  {busy ? "Verifying…" : "Verify →"}
                 </Button>
               </div>
             </form>
