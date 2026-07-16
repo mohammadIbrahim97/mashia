@@ -1,3 +1,6 @@
 ## 2026-06-17 - React Native FlatList Memoization
 **Learning:** React Native lists (`FlatList`) in this codebase were causing unnecessary re-renders because `renderItem` functions were created inline or unmemoized in the parent components.
 **Action:** When implementing new lists or optimizing existing ones, ensure `renderItem` (or similar list item render functions) are wrapped in `useCallback` with correct dependency arrays to prevent full list re-renders.
+## 2024-11-20 - React Native FlatList Derived Data Re-render Bottleneck
+**Learning:** In React Native `FlatList` implementations, passing an unmemoized derived array (e.g., `[...data].reverse()`) directly to the `data` prop causes significant performance issues when the parent component updates frequently (like on every keystroke in a Chat input). This happens because `reverse()` forces an O(N) operation and creates a new array reference every render, defeating `FlatList`'s internal shallow equality checks and triggering unnecessary list reconciliations.
+**Action:** Always wrap derived data arrays passed to `FlatList` (like reversals, filters, or sorts) in `useMemo` to maintain referential equality across renders, unless the derived data's dependencies have actually changed.
