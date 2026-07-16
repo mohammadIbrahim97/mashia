@@ -4,3 +4,6 @@
 ## 2024-05-23 - Interactive Element Focus States
 **Learning:** Many older interactive elements (like the global search and sidebar actions) lack distinct `focus-visible` or `focus-within` states and use generic `div` or non-semantic `button` elements without `aria-label` tags.
 **Action:** Always wrap visual icons that act as actions in semantic `<button>` tags with `aria-label`, and use the existing Tailwind palette (e.g., `focus-visible:ring-mashia-600` or `focus-visible:ring-gold`) to provide explicit keyboard navigation feedback.
+## 2024-07-16 - Custom Label Components and Multi-Input Form Accessibility
+**Learning:** In the Mashia admin dashboard, custom typography components like `Overline` are often used visually as labels for form inputs, but initially rendered as generic `<div>`s, breaking screen reader association. Furthermore, multi-input fields (like the 6-digit TOTP code) cannot effectively share a single label.
+**Action:** When using custom typography for form labels, ensure they conditionally render semantic `<label>` elements and associate them with their respective inputs using `htmlFor` and `id` attributes. For multi-input fields, iterate over each input and apply an `aria-label` (e.g., `aria-label={"Digit " + (i + 1)}`) to maintain individual accessibility for each part of the field.
