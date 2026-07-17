@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useId } from 'react';
 import { Button } from './Button';
 import { Overline } from './Overline';
 
@@ -28,6 +28,7 @@ export function ConfirmDialog({
   onConfirm,
 }: Props) {
   const [reason, setReason] = useState('');
+  const reasonId = useId();
 
   useEffect(() => {
     if (!open) setReason('');
@@ -58,8 +59,9 @@ export function ConfirmDialog({
         )}
         {requireReason && (
           <div className="mt-4">
-            <Overline>Reason · required</Overline>
+            <Overline htmlFor={reasonId}>Reason · required</Overline>
             <textarea
+              id={reasonId}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
