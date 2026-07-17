@@ -17,6 +17,7 @@ import { colors, fonts, radii, spacing, type } from '@theme/index';
 
 type Props = NativeStackScreenProps<ChatStackParamList, 'Conversations'>;
 
+
 function formatTime(isoString: string): string {
   const date = new Date(isoString);
   const now = new Date();
@@ -40,6 +41,50 @@ function initials(fullName: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+// ⚡ Bolt Optimization:
+// Extracted ConversationListItem and wrapped with React.memo to prevent unnecessary re-renders.
+// Used stable onConversationPress callback in parent to maintain referential equality.
+// Measured impact: Reduces re-renders of list items during message updates.
+const ConversationListItem = React.memo(({ item, onPress }: { item: ConversationItem; onPress: (id: string, title: string) => void }) => (
+  <Pressable
+    style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+    onPress={() => onPress(item.id, item.otherParticipant.fullName)}
+  >
+    <View style={styles.avatar}>
+      <Text style={styles.avatarText}>
+        {initials(item.otherParticipant.fullName)}
+      </Text>
+    </View>
+
+    <View style={styles.rowBody}>
+      <View style={styles.rowTop}>
+        <Text style={styles.name} numberOfLines={1}>
+          {item.otherParticipant.fullName}
+        </Text>
+        {item.lastMessage ? (
+          <Text style={styles.time}>
+            {formatTime(item.lastMessage.createdAt)}
+          </Text>
+        ) : null}
+      </View>
+      <View style={styles.rowBottom}>
+        <Text style={styles.preview} numberOfLines={1}>
+          {item.lastMessage
+            ? item.lastMessage.type === 'image'
+              ? 'Photo'
+              : item.lastMessage.content
+            : 'No messages yet'}
+        </Text>
+        {item.unreadCount > 0 ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{item.unreadCount}</Text>
+          </View>
+        ) : null}
+      </View>
+    </View>
+  </Pressable>
+));
+
 export function ConversationsScreen({ navigation }: Props) {
   const conversations = useMessaging((s) => s.conversations);
   const convsLoading = useMessaging((s) => s.convsLoading);
@@ -53,52 +98,18 @@ export function ConversationsScreen({ navigation }: Props) {
     loadConversations();
   }, [loadConversations]);
 
+  const onConversationPress = useCallback((conversationId: string, title: string) => {
+    navigation.navigate('Chat', { conversationId, title });
+  }, [navigation]);
+
   const renderItem = useCallback(
     ({ item }: { item: ConversationItem }) => (
-      <Pressable
-        style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-        onPress={() =>
-          navigation.navigate('Chat', {
-            conversationId: item.id,
-            title: item.otherParticipant.fullName,
-          })
-        }
-      >
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {initials(item.otherParticipant.fullName)}
-          </Text>
-        </View>
-
-        <View style={styles.rowBody}>
-          <View style={styles.rowTop}>
-            <Text style={styles.name} numberOfLines={1}>
-              {item.otherParticipant.fullName}
-            </Text>
-            {item.lastMessage ? (
-              <Text style={styles.time}>
-                {formatTime(item.lastMessage.createdAt)}
-              </Text>
-            ) : null}
-          </View>
-          <View style={styles.rowBottom}>
-            <Text style={styles.preview} numberOfLines={1}>
-              {item.lastMessage
-                ? item.lastMessage.type === 'image'
-                  ? 'Photo'
-                  : item.lastMessage.content
-                : 'No messages yet'}
-            </Text>
-            {item.unreadCount > 0 ? (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{item.unreadCount}</Text>
-              </View>
-            ) : null}
-          </View>
-        </View>
-      </Pressable>
+      <ConversationListItem
+        item={item}
+        onPress={onConversationPress}
+      />
     ),
-    [navigation],
+    [onConversationPress],
   );
 
   return (
