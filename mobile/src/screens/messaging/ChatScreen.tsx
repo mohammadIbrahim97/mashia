@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -216,7 +216,9 @@ export function ChatScreen({ navigation, route }: Props) {
     ]);
   }, [sendImage]);
 
-  const reversed = [...messages].reverse();
+  // ⚡ Bolt: Memoize the reversed messages array to preserve referential equality
+  // and prevent expensive O(N) operations and unnecessary re-renders of the FlatList during frequent component updates (like typing).
+  const reversed = useMemo(() => [...messages].reverse(), [messages]);
 
   const renderItem = useCallback(
     ({ item }: { item: Message }) => {
