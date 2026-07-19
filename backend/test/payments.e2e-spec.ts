@@ -77,7 +77,7 @@ describe('Payments (e2e)', () => {
 
       // Allow the async PaymentStatusListener (@OnEvent) to finish before
       // asserting the order status transition.
-      await new Promise((r) => setImmediate(r));
+      await new Promise((r) => setTimeout(r, 100));
 
       const updatedOrder = await ordersRepo.findOne({
         where: { id: order.id },
@@ -107,7 +107,7 @@ describe('Payments (e2e)', () => {
       // Poll until the payment.held listener finishes the ACCEPTED → PAID transition
       let orderAfterInit = await ordersRepo.findOne({ where: { id: order.id } });
       for (let i = 0; i < 20 && orderAfterInit?.status !== OrderStatus.PAID; i++) {
-        await new Promise((r) => setImmediate(r));
+        await new Promise((r) => setTimeout(r, 100));
         orderAfterInit = await ordersRepo.findOne({ where: { id: order.id } });
       }
 
@@ -136,7 +136,7 @@ describe('Payments (e2e)', () => {
       // Poll until the payment.released listener finishes the DELIVERED → COMPLETED transition
       let updatedOrder = await ordersRepo.findOne({ where: { id: orderId } });
       for (let i = 0; i < 20 && updatedOrder?.status !== OrderStatus.COMPLETED; i++) {
-        await new Promise((r) => setImmediate(r));
+        await new Promise((r) => setTimeout(r, 100));
         updatedOrder = await ordersRepo.findOne({ where: { id: orderId } });
       }
       expect(updatedOrder?.status).toBe(OrderStatus.COMPLETED);
@@ -171,7 +171,7 @@ describe('Payments (e2e)', () => {
         .set('Authorization', `Bearer ${buyerToken}`)
         .send({ orderId: order.id, method: PaymentMethod.MADA });
 
-      await new Promise((r) => setImmediate(r));
+      await new Promise((r) => setTimeout(r, 100));
       // Order is PAID (listener moved it after initiate), not DELIVERED
 
       const res = await request(app.getHttpServer())
@@ -201,7 +201,7 @@ describe('Payments (e2e)', () => {
       // Wait for payment.held listener to finish ACCEPTED → PAID
       let current = await ordersRepo.findOne({ where: { id: order.id } });
       for (let i = 0; i < 20 && current?.status !== OrderStatus.PAID; i++) {
-        await new Promise((r) => setImmediate(r));
+        await new Promise((r) => setTimeout(r, 100));
         current = await ordersRepo.findOne({ where: { id: order.id } });
       }
 
@@ -232,7 +232,7 @@ describe('Payments (e2e)', () => {
         i < 20 && updatedOrder?.status !== OrderStatus.CANCELLED;
         i++
       ) {
-        await new Promise((r) => setImmediate(r));
+        await new Promise((r) => setTimeout(r, 100));
         updatedOrder = await ordersRepo.findOne({ where: { id: orderId } });
       }
       expect(updatedOrder?.status).toBe(OrderStatus.CANCELLED);
@@ -269,7 +269,7 @@ describe('Payments (e2e)', () => {
       // Wait for payment.held listener to finish
       let current = await ordersRepo.findOne({ where: { id: order.id } });
       for (let i = 0; i < 20 && current?.status !== OrderStatus.PAID; i++) {
-        await new Promise((r) => setImmediate(r));
+        await new Promise((r) => setTimeout(r, 100));
         current = await ordersRepo.findOne({ where: { id: order.id } });
       }
 
@@ -294,7 +294,7 @@ describe('Payments (e2e)', () => {
         i < 20 && updatedOrder?.status !== OrderStatus.COMPLETED;
         i++
       ) {
-        await new Promise((r) => setImmediate(r));
+        await new Promise((r) => setTimeout(r, 100));
         updatedOrder = await ordersRepo.findOne({ where: { id: order.id } });
       }
       expect(updatedOrder?.status).toBe(OrderStatus.COMPLETED);
@@ -317,7 +317,7 @@ describe('Payments (e2e)', () => {
 
       let current = await ordersRepo.findOne({ where: { id: order.id } });
       for (let i = 0; i < 20 && current?.status !== OrderStatus.PAID; i++) {
-        await new Promise((r) => setImmediate(r));
+        await new Promise((r) => setTimeout(r, 100));
         current = await ordersRepo.findOne({ where: { id: order.id } });
       }
 
@@ -417,7 +417,7 @@ describe('Payments (e2e)', () => {
       // Wait for held listener: ACCEPTED → PAID
       let current = await ordersRepo.findOne({ where: { id: order.id } });
       for (let i = 0; i < 20 && current?.status !== OrderStatus.PAID; i++) {
-        await new Promise((r) => setImmediate(r));
+        await new Promise((r) => setTimeout(r, 100));
         current = await ordersRepo.findOne({ where: { id: order.id } });
       }
 
@@ -439,7 +439,7 @@ describe('Payments (e2e)', () => {
       // Poll for autoReleaseAt to be set
       let payment = await paymentsRepo.findOne({ where: { id: initRes.body.id } });
       for (let i = 0; i < 20 && payment?.autoReleaseAt === null; i++) {
-        await new Promise((r) => setImmediate(r));
+        await new Promise((r) => setTimeout(r, 100));
         payment = await paymentsRepo.findOne({ where: { id: initRes.body.id } });
       }
 
