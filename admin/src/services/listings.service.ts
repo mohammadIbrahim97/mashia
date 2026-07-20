@@ -1,8 +1,8 @@
-import { api, unwrap } from './api';
+import { api, unwrap } from "./api";
 
-export type ListingStatus = 'active' | 'sold' | 'expired' | 'flagged';
-export type HealthStatus = 'certified' | 'pending' | 'unchecked';
-export type Breed = 'awassi' | 'najdi' | 'arabi' | 'shami' | 'other';
+export type ListingStatus = "active" | "sold" | "expired" | "flagged";
+export type HealthStatus = "certified" | "pending" | "unchecked";
+export type Breed = "awassi" | "najdi" | "arabi" | "shami" | "other";
 
 export type AdminListingListItem = {
   id: string;
@@ -60,7 +60,7 @@ export type AdminListingDetail = {
 };
 
 export type ListQuery = {
-  status?: ListingStatus | 'all';
+  status?: ListingStatus | "all";
   breed?: Breed;
   q?: string;
   includeDeleted?: boolean;
@@ -70,7 +70,7 @@ export type ListQuery = {
 
 export const listingsService = {
   async list(query: ListQuery = {}): Promise<AdminListingList> {
-    const res = await api.get('/admin/listings', { params: query });
+    const res = await api.get("/admin/listings", { params: query });
     return unwrap<AdminListingList>(res);
   },
 

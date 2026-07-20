@@ -1,23 +1,23 @@
-'use client';
+"use client";
 
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { Overline } from '@/components/ui/Overline';
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Overline } from "@/components/ui/Overline";
 import {
   Certificate,
   certificatesService,
-} from '@/services/certificates.service';
-import { errorMessage } from '@/services/api';
-import { fmtDate, reviewKind, reviewLabel } from '@/lib/format';
+} from "@/services/certificates.service";
+import { errorMessage } from "@/services/api";
+import { fmtDate, reviewKind, reviewLabel } from "@/lib/format";
 
 const TYPE_LABEL: Record<string, string> = {
-  vaccination: 'Vaccination',
-  health: 'Health',
-  origin: 'Origin',
+  vaccination: "Vaccination",
+  health: "Health",
+  origin: "Origin",
 };
 
 export default function AdminCertificateDetailPage({
@@ -46,7 +46,8 @@ export default function AdminCertificateDetailPage({
         if (!cancelled) setCert(c);
       })
       .catch((err) => {
-        if (!cancelled) setError(errorMessage(err, 'Could not load certificate.'));
+        if (!cancelled)
+          setError(errorMessage(err, "Could not load certificate."));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -59,11 +60,13 @@ export default function AdminCertificateDetailPage({
   const onApprove = async () => {
     setBusy(true);
     try {
-      const updated = await certificatesService.verify(id, { status: 'verified' });
+      const updated = await certificatesService.verify(id, {
+        status: "verified",
+      });
       setCert(updated);
       setShowApprove(false);
     } catch (err) {
-      setError(errorMessage(err, 'Approval failed.'));
+      setError(errorMessage(err, "Approval failed."));
       setShowApprove(false);
     } finally {
       setBusy(false);
@@ -75,13 +78,13 @@ export default function AdminCertificateDetailPage({
     setBusy(true);
     try {
       const updated = await certificatesService.verify(id, {
-        status: 'rejected',
+        status: "rejected",
         rejectionReason: reason,
       });
       setCert(updated);
       setShowReject(false);
     } catch (err) {
-      setError(errorMessage(err, 'Rejection failed.'));
+      setError(errorMessage(err, "Rejection failed."));
       setShowReject(false);
     } finally {
       setBusy(false);
@@ -100,24 +103,24 @@ export default function AdminCertificateDetailPage({
     return (
       <div className="p-8">
         <button
-          onClick={() => router.push('/certificates')}
+          onClick={() => router.push("/certificates")}
           className="text-muted text-[13px] mb-4 hover:text-ink"
         >
           ← Back to certificates
         </button>
         <div className="text-flagged text-[13px]">
-          {error ?? 'Certificate not found.'}
+          {error ?? "Certificate not found."}
         </div>
       </div>
     );
   }
 
-  const isPending = cert.status === 'pending';
+  const isPending = cert.status === "pending";
 
   return (
     <div className="p-8">
       <button
-        onClick={() => router.push('/certificates')}
+        onClick={() => router.push("/certificates")}
         className="text-muted text-[13px] mb-4 hover:text-ink"
       >
         ← Back to certificates
@@ -128,11 +131,11 @@ export default function AdminCertificateDetailPage({
           <Overline>● G3-US05 · CERTIFICATE</Overline>
           <h1 className="font-display text-[28px] font-medium tracking-tight mt-1 text-ink flex items-center gap-3">
             {TYPE_LABEL[cert.type] ?? cert.type} certificate
-            <Badge kind={reviewKind(cert.status)}>{reviewLabel(cert.status)}</Badge>
+            <Badge kind={reviewKind(cert.status)}>
+              {reviewLabel(cert.status)}
+            </Badge>
           </h1>
-          <div className="text-[13px] text-muted mt-1 font-mono">
-            {cert.id}
-          </div>
+          <div className="text-[13px] text-muted mt-1 font-mono">{cert.id}</div>
         </div>
         {isPending && (
           <div className="flex gap-2">
@@ -144,7 +147,7 @@ export default function AdminCertificateDetailPage({
         )}
       </div>
 
-      {cert.status === 'rejected' && cert.rejectionReason && (
+      {cert.status === "rejected" && cert.rejectionReason && (
         <div className="mb-5 px-4 py-3 bg-[#F8E5E5] border border-[#EBC0C0] rounded-md">
           <Overline>Rejection reason</Overline>
           <div className="text-[13px] text-[#8A2828] mt-1">
@@ -201,7 +204,9 @@ export default function AdminCertificateDetailPage({
               {cert.verifiedAt && (
                 <>
                   <dt className="text-muted">Reviewed</dt>
-                  <dd className="text-ink font-mono">{fmtDate(cert.verifiedAt)}</dd>
+                  <dd className="text-ink font-mono">
+                    {fmtDate(cert.verifiedAt)}
+                  </dd>
                 </>
               )}
             </dl>
@@ -216,7 +221,7 @@ export default function AdminCertificateDetailPage({
 
               <dt className="text-muted">Listing ID</dt>
               <dd className="text-ink font-mono text-[11px] truncate">
-                {cert.listingId ?? '— unlinked —'}
+                {cert.listingId ?? "— unlinked —"}
               </dd>
             </dl>
           </Card>

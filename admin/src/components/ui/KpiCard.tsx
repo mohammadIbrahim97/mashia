@@ -1,13 +1,13 @@
-import { ReactNode } from 'react';
-import { Overline } from './Overline';
+import { ReactNode } from "react";
+import { Overline } from "./Overline";
 
-type Tone = 'neutral' | 'accent' | 'warn' | 'danger';
+type Tone = "neutral" | "accent" | "warn" | "danger";
 
 const TONE: Record<Tone, { ring: string; dot: string }> = {
-  neutral: { ring: 'border-hairline', dot: 'bg-muted' },
-  accent: { ring: 'border-mashia-200', dot: 'bg-mashia-600' },
-  warn: { ring: 'border-[#E8CB8E]', dot: 'bg-gold' },
-  danger: { ring: 'border-[#EBC0C0]', dot: 'bg-flagged' },
+  neutral: { ring: "border-hairline", dot: "bg-muted" },
+  accent: { ring: "border-mashia-200", dot: "bg-mashia-600" },
+  warn: { ring: "border-[#E8CB8E]", dot: "bg-gold" },
+  danger: { ring: "border-[#EBC0C0]", dot: "bg-flagged" },
 };
 
 type Props = {
@@ -24,7 +24,7 @@ export function KpiCard({
   value,
   unit,
   hint,
-  tone = 'neutral',
+  tone = "neutral",
   onClick,
 }: Props) {
   const t = TONE[tone];
@@ -33,7 +33,7 @@ export function KpiCard({
     <div
       onClick={onClick}
       className={`bg-paper border ${t.ring} rounded-md p-[18px] flex flex-col gap-2.5 min-h-[118px] transition-shadow duration-150 ${
-        interactive ? 'cursor-pointer hover:shadow-1' : ''
+        interactive ? "cursor-pointer hover:shadow-1" : ""
       }`}
     >
       <div className="flex items-center gap-1.5">

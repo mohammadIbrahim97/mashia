@@ -1,9 +1,9 @@
-import axios from 'axios';
-import { api, unwrap } from './api';
-import { usersService } from './users.service';
-import { listingsService } from './listings.service';
-import { ordersService } from './orders.service';
-import { paymentsService } from './payments.service';
+import axios from "axios";
+import { api, unwrap } from "./api";
+import { usersService } from "./users.service";
+import { listingsService } from "./listings.service";
+import { ordersService } from "./orders.service";
+import { paymentsService } from "./payments.service";
 
 export type DashboardKpis = {
   totalUsers: number;
@@ -30,8 +30,8 @@ export type DashboardActivityItem = {
   timestamp: string;
   tag: string;
   text: string;
-  href?: '/users' | '/listings' | '/orders' | '/certificates';
-  kind: 'verified' | 'pending' | 'flagged' | 'info' | 'neutral';
+  href?: "/users" | "/listings" | "/orders" | "/certificates";
+  kind: "verified" | "pending" | "flagged" | "info" | "neutral";
 };
 
 export type DashboardResponse = {
@@ -42,7 +42,7 @@ export type DashboardResponse = {
 export const adminService = {
   async getDashboard(): Promise<DashboardResponse> {
     try {
-      const res = await api.get('/admin/dashboard');
+      const res = await api.get("/admin/dashboard");
       return unwrap<DashboardResponse>(res);
     } catch (err) {
       // Backward-compatible fallback for backends that don't implement
@@ -51,18 +51,28 @@ export const adminService = {
         throw err;
       }
 
-      const [usersAll, usersPending, listingsActive, listingsFlagged, ordersAll, ordersDisputed, revenue] = await Promise.all([
+      const [
+        usersAll,
+        usersPending,
+        listingsActive,
+        listingsFlagged,
+        ordersAll,
+        ordersDisputed,
+        revenue,
+      ] = await Promise.all([
         usersService.list({ page: 1, pageSize: 1 }),
-        usersService.list({ kycStatus: 'pending', page: 1, pageSize: 1 }),
-        listingsService.list({ status: 'active', page: 1, pageSize: 1 }),
-        listingsService.list({ status: 'flagged', page: 1, pageSize: 1 }),
+        usersService.list({ kycStatus: "pending", page: 1, pageSize: 1 }),
+        listingsService.list({ status: "active", page: 1, pageSize: 1 }),
+        listingsService.list({ status: "flagged", page: 1, pageSize: 1 }),
         ordersService.list({ page: 1, pageSize: 1 }),
-        ordersService.list({ status: ['disputed'], page: 1, pageSize: 1 }),
+        ordersService.list({ status: ["disputed"], page: 1, pageSize: 1 }),
         paymentsService.revenue(),
       ]);
 
-      const sarRevenue = revenue.byCurrency.find((r) => r.currency === 'SAR');
-      const revenueMtd = sarRevenue ? sarRevenue.held.commission + sarRevenue.released.commission : 0;
+      const sarRevenue = revenue.byCurrency.find((r) => r.currency === "SAR");
+      const revenueMtd = sarRevenue
+        ? sarRevenue.held.commission + sarRevenue.released.commission
+        : 0;
       const revenueByCurrency = revenue.byCurrency.map((r) => ({
         currency: r.currency,
         totalRevenue: r.held.commission + r.released.commission,
@@ -76,7 +86,7 @@ export const adminService = {
           activeOrders: ordersAll.total ?? 0,
           totalRevenue: revenueMtd,
           revenueMtd,
-          revenueCurrency: 'SAR',
+          revenueCurrency: "SAR",
           revenueByCurrency,
           usersPendingKyc: usersPending.total ?? 0,
           certsPending: 0,
@@ -91,7 +101,9 @@ export const adminService = {
 
   async getRecentActivity(limit = 10): Promise<DashboardActivityItem[]> {
     try {
-      const res = await api.get('/admin/dashboard/activity', { params: { limit } });
+      const res = await api.get("/admin/dashboard/activity", {
+        params: { limit },
+      });
       return unwrap<DashboardActivityItem[]>(res);
     } catch (err) {
       // Older backends may not implement this endpoint yet.
