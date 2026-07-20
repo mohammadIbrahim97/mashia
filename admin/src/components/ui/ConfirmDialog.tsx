@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { Button } from './Button';
-import { Overline } from './Overline';
+import { useEffect, useState } from "react";
+import { Button } from "./Button";
+import { Overline } from "./Overline";
 
 type Props = {
   open: boolean;
@@ -20,17 +20,17 @@ export function ConfirmDialog({
   open,
   title,
   body,
-  confirmLabel = 'Confirm',
+  confirmLabel = "Confirm",
   danger,
   requireReason,
   busy,
   onClose,
   onConfirm,
 }: Props) {
-  const [reason, setReason] = useState('');
+  const [reason, setReason] = useState("");
 
   useEffect(() => {
-    if (!open) setReason('');
+    if (!open) setReason("");
   }, [open]);
 
   if (!open) return null;
@@ -41,8 +41,8 @@ export function ConfirmDialog({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
       style={{
-        background: 'rgba(20,24,26,0.55)',
-        backdropFilter: 'blur(2px)',
+        background: "rgba(20,24,26,0.55)",
+        backdropFilter: "blur(2px)",
       }}
       onClick={onClose}
     >
@@ -73,11 +73,11 @@ export function ConfirmDialog({
             Cancel
           </Button>
           <Button
-            kind={danger ? 'danger' : 'primary'}
+            kind={danger ? "danger" : "primary"}
             onClick={() => onConfirm(requireReason ? reason.trim() : undefined)}
             disabled={!canConfirm}
           >
-            {busy ? 'Working…' : confirmLabel}
+            {busy ? "Working…" : confirmLabel}
           </Button>
         </div>
       </div>

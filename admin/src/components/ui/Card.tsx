@@ -1,5 +1,5 @@
-import { ReactNode } from 'react';
-import { Overline } from './Overline';
+import { ReactNode } from "react";
+import { Overline } from "./Overline";
 
 type Props = {
   kicker?: ReactNode;
@@ -16,7 +16,7 @@ export function Card({
   action,
   padding = 20,
   children,
-  className = '',
+  className = "",
 }: Props) {
   const hasHeader = kicker || title || action;
   return (
@@ -30,7 +30,7 @@ export function Card({
             {title && (
               <div
                 className={`font-display text-[17px] font-medium text-ink ${
-                  kicker ? 'mt-0.5' : ''
+                  kicker ? "mt-0.5" : ""
                 }`}
               >
                 {title}

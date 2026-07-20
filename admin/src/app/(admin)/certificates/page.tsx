@@ -1,32 +1,32 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { Badge } from '@/components/ui/Badge';
-import { Overline } from '@/components/ui/Overline';
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/Badge";
+import { Overline } from "@/components/ui/Overline";
 import {
   AdminCertificateList,
   certificatesService,
-} from '@/services/certificates.service';
-import { errorMessage } from '@/services/api';
-import { fmtDate, reviewKind, reviewLabel } from '@/lib/format';
+} from "@/services/certificates.service";
+import { errorMessage } from "@/services/api";
+import { fmtDate, reviewKind, reviewLabel } from "@/lib/format";
 
-type Tab = 'pending' | 'verified' | 'rejected' | 'all';
+type Tab = "pending" | "verified" | "rejected" | "all";
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'pending', label: 'Pending' },
-  { id: 'verified', label: 'Verified' },
-  { id: 'rejected', label: 'Rejected' },
-  { id: 'all', label: 'All' },
+  { id: "pending", label: "Pending" },
+  { id: "verified", label: "Verified" },
+  { id: "rejected", label: "Rejected" },
+  { id: "all", label: "All" },
 ];
 
 const TYPE_LABEL: Record<string, string> = {
-  vaccination: 'Vaccination',
-  health: 'Health',
-  origin: 'Origin',
+  vaccination: "Vaccination",
+  health: "Health",
+  origin: "Origin",
 };
 
 export default function AdminCertificatesPage() {
-  const [tab, setTab] = useState<Tab>('pending');
+  const [tab, setTab] = useState<Tab>("pending");
   const [data, setData] = useState<AdminCertificateList | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +41,8 @@ export default function AdminCertificatesPage() {
         if (!cancelled) setData(res);
       })
       .catch((err) => {
-        if (!cancelled) setError(errorMessage(err, 'Could not load certificates.'));
+        if (!cancelled)
+          setError(errorMessage(err, "Could not load certificates."));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -74,8 +75,8 @@ export default function AdminCertificatesPage() {
               onClick={() => setTab(t.id)}
               className={`px-4 py-2.5 font-body text-[13px] -mb-px border-b-2 transition-colors ${
                 active
-                  ? 'text-ink font-semibold border-mashia-600'
-                  : 'text-muted border-transparent hover:text-ink'
+                  ? "text-ink font-semibold border-mashia-600"
+                  : "text-muted border-transparent hover:text-ink"
               }`}
             >
               {t.label}
@@ -92,16 +93,21 @@ export default function AdminCertificatesPage() {
       {/* Table */}
       <div className="bg-paper border border-hairline rounded-md overflow-hidden">
         <div className="grid grid-cols-[1.2fr_140px_1.8fr_1.2fr_120px_120px] px-5 py-3 border-b border-hairline bg-parchment">
-          {['Issuer', 'Type', 'Linked listing', 'Seller', 'Status', 'Submitted'].map(
-            (h) => (
-              <div
-                key={h}
-                className="font-mono text-[10px] tracking-mono-wide uppercase text-muted font-semibold"
-              >
-                {h}
-              </div>
-            ),
-          )}
+          {[
+            "Issuer",
+            "Type",
+            "Linked listing",
+            "Seller",
+            "Status",
+            "Submitted",
+          ].map((h) => (
+            <div
+              key={h}
+              className="font-mono text-[10px] tracking-mono-wide uppercase text-muted font-semibold"
+            >
+              {h}
+            </div>
+          ))}
         </div>
         {loading ? (
           <div className="px-5 py-12 text-center text-muted text-[13px]">
@@ -121,7 +127,7 @@ export default function AdminCertificatesPage() {
               key={c.id}
               href={`/certificates/${c.id}`}
               className={`grid grid-cols-[1.2fr_140px_1.8fr_1.2fr_120px_120px] px-5 py-3.5 items-center text-[13px] cursor-pointer hover:bg-parchment/70 ${
-                i ? 'border-t border-hairline' : ''
+                i ? "border-t border-hairline" : ""
               }`}
             >
               <div className="text-ink font-medium truncate pr-3">
@@ -133,9 +139,13 @@ export default function AdminCertificatesPage() {
                   <span className="text-muted italic">(unlinked)</span>
                 )}
               </div>
-              <div className="text-muted truncate pr-3">{c.sellerName ?? '—'}</div>
+              <div className="text-muted truncate pr-3">
+                {c.sellerName ?? "—"}
+              </div>
               <div>
-                <Badge kind={reviewKind(c.status)}>{reviewLabel(c.status)}</Badge>
+                <Badge kind={reviewKind(c.status)}>
+                  {reviewLabel(c.status)}
+                </Badge>
               </div>
               <div className="font-mono text-[11px] text-muted">
                 {fmtDate(c.createdAt)}

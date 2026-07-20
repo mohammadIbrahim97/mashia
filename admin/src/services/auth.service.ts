@@ -1,8 +1,8 @@
-import { api, unwrap } from './api';
+import { api, unwrap } from "./api";
 
 export type AdminUser = {
   id: string;
-  role: 'admin';
+  role: "admin";
   email: string | null;
   fullName: string;
 };
@@ -22,16 +22,16 @@ export type LoginResponse = LoginSuccess | LoginRequiresTotp;
 
 export const authService = {
   async login(email: string, password: string): Promise<LoginResponse> {
-    const res = await api.post('/auth/admin/login', { email, password });
+    const res = await api.post("/auth/admin/login", { email, password });
     return unwrap<LoginResponse>(res);
   },
 
   async verifyTotp(ticket: string, code: string): Promise<LoginSuccess> {
-    const res = await api.post('/auth/admin/totp/verify', { ticket, code });
+    const res = await api.post("/auth/admin/totp/verify", { ticket, code });
     return unwrap<LoginSuccess>(res);
   },
 };
 
 export function isLoginSuccess(r: LoginResponse): r is LoginSuccess {
-  return 'accessToken' in r;
+  return "accessToken" in r;
 }
