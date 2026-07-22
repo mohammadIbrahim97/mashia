@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useRef, useState, useId } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Overline } from '@/components/ui/Overline';
 import {
@@ -34,6 +34,9 @@ export default function LoginPage() {
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const emailId = useId();
+  const passwordId = useId();
 
   const onCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,8 +117,9 @@ export default function LoginPage() {
         <div className="mt-7">
           {step === 'credentials' ? (
             <form onSubmit={onCredentialsSubmit}>
-              <Overline>Email</Overline>
+              <Overline htmlFor={emailId}>Email</Overline>
               <input
+                id={emailId}
                 type="email"
                 autoComplete="email"
                 required
@@ -125,8 +129,9 @@ export default function LoginPage() {
                 className="mt-1.5 w-full px-3.5 py-3 font-body text-sm bg-parchment border border-hairline rounded outline-none focus:border-mashia-600 placeholder:text-muted"
               />
               <div className="mt-4">
-                <Overline>Password</Overline>
+                <Overline htmlFor={passwordId}>Password</Overline>
                 <input
+                  id={passwordId}
                   type="password"
                   autoComplete="current-password"
                   required
@@ -154,6 +159,7 @@ export default function LoginPage() {
                     ref={(el) => {
                       codeRefs.current[i] = el;
                     }}
+                    aria-label={"Digit " + (i + 1)}
                     maxLength={1}
                     inputMode="numeric"
                     autoComplete="one-time-code"
