@@ -46,10 +46,14 @@ describe('AuthController', () => {
       refresh: jest.fn().mockResolvedValue(mockTokens),
     } as unknown as jest.Mocked<AuthService>;
 
+    const { ThrottlerGuard } = require('@nestjs/throttler');
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [{ provide: AuthService, useValue: authService }],
-    }).compile();
+    })
+      .overrideGuard(ThrottlerGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<AuthController>(AuthController);
   });
