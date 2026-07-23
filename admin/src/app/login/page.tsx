@@ -151,6 +151,7 @@ export default function LoginPage() {
                 {code.map((digit, i) => (
                   <input
                     key={i}
+                    aria-label={`Digit ${i + 1}`}
                     ref={(el) => {
                       codeRefs.current[i] = el;
                     }}
