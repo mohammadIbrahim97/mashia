@@ -1,10 +1,4 @@
-
-## 2026-06-19 - Missing Security Headers & Rate Limiting
-**Vulnerability:** The application was missing global security headers (`helmet`) and global rate limiting to mitigate common attack vectors and DoS attempts. (We only addressed `helmet` in this PR to keep it small, but rate limiting remains an issue).
-**Learning:** Default express/nestjs setup leaves the app open to missing HTTP security headers. The app also heavily relies on OTP rate limiting (Redis) but doesn't have general HTTP endpoint throttling.
-**Prevention:** Ensure `helmet` and `@nestjs/throttler` (or equivalent) are part of the boilerplate backend template to prevent shipping APIs without basic protection.
-
-## 2026-06-23 - Sensitive Data Leak in Auth Responses
-**Vulnerability:** The `User` entity, which includes `passwordHash` and `totpSecret`, was being returned directly from auth controllers (`register`, `login`, `adminLogin`, `adminTotpVerify`), exposing sensitive fields to clients.
-**Learning:** Returning raw TypeORM entities directly from controllers bypasses serialization, leaking internal database fields.
-**Prevention:** Always use dedicated Data Transfer Objects (DTOs), like `ProfileResponseDto.fromUser(user)`, to map and sanitize entities before returning them in API responses.
+## 2026-07-23 - Add Specific Rate Limits to Auth Controller
+**Vulnerability:** Global rate limits (100 req/min) were too permissive for sensitive authentication endpoints (login, register, OTP), leaving the application vulnerable to brute-force and credential stuffing attacks.
+**Learning:** Default rate limiting settings applied globally often fail to provide adequate protection for endpoints dealing with authentication and authorization. It is necessary to explicitly override these globals with much stricter limits on sensitive routes.
+**Prevention:** Always identify authentication-related endpoints and apply custom, strict rate limit decorators (e.g., `@Throttle({ default: { limit: 5, ttl: 60000 } })`) to prevent automated abuse.
