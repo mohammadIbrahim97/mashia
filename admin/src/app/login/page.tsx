@@ -116,6 +116,7 @@ export default function LoginPage() {
             <form onSubmit={onCredentialsSubmit}>
               <Overline>Email</Overline>
               <input
+                aria-label="Email address"
                 type="email"
                 autoComplete="email"
                 required
@@ -127,6 +128,7 @@ export default function LoginPage() {
               <div className="mt-4">
                 <Overline>Password</Overline>
                 <input
+                  aria-label="Password"
                   type="password"
                   autoComplete="current-password"
                   required
@@ -151,6 +153,7 @@ export default function LoginPage() {
                 {code.map((digit, i) => (
                   <input
                     key={i}
+                    aria-label={`Digit ${i + 1}`}
                     ref={(el) => {
                       codeRefs.current[i] = el;
                     }}
