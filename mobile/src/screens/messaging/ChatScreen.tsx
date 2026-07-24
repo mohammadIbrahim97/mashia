@@ -216,7 +216,9 @@ export function ChatScreen({ navigation, route }: Props) {
     ]);
   }, [sendImage]);
 
-  const reversed = [...messages].reverse();
+  // ⚡ Bolt: Memoize the reversed array so the FlatList data prop reference is stable
+  // across renders (e.g. while typing), avoiding unnecessary re-renders.
+  const reversed = React.useMemo(() => [...messages].reverse(), [messages]);
 
   const renderItem = useCallback(
     ({ item }: { item: Message }) => {
