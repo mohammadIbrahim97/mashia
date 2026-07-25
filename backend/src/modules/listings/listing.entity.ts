@@ -7,11 +7,16 @@ import {
   DeleteDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Breed, Currency, ListingStatus, HealthStatus } from '@shared/enums';
 
+// ⚡ Bolt: Added composite indexes to optimize the main listings feed (status + createdAt)
+// and seller's own listings view (sellerId + createdAt) to prevent full sequential table scans.
 @Entity('listings')
+@Index(['status', 'createdAt'])
+@Index(['sellerId', 'createdAt'])
 export class Listing {
   @PrimaryGeneratedColumn('uuid')
   id: string;
