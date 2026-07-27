@@ -6,12 +6,16 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Listing } from '../listings/listing.entity';
 import { Currency, OrderStatus } from '@shared/enums';
 
 @Entity('orders')
+@Index(['buyerId'])
+@Index(['sellerId'])
+@Index(['brokerId'])
 export class Order {
   @PrimaryGeneratedColumn('uuid')
   id: string;
