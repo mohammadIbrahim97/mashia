@@ -4,3 +4,6 @@
 ## 2024-05-23 - Interactive Element Focus States
 **Learning:** Many older interactive elements (like the global search and sidebar actions) lack distinct `focus-visible` or `focus-within` states and use generic `div` or non-semantic `button` elements without `aria-label` tags.
 **Action:** Always wrap visual icons that act as actions in semantic `<button>` tags with `aria-label`, and use the existing Tailwind palette (e.g., `focus-visible:ring-mashia-600` or `focus-visible:ring-gold`) to provide explicit keyboard navigation feedback.
+## 2024-07-27 - Icon Button Tooltips
+**Learning:** Icon-only buttons (like Notifications or User Profile initials) often lack native tooltips, even when they have `aria-label`s, which can hinder discoverability for sighted users who don't recognize the icon.
+**Action:** Always add native `title` attributes to icon-only buttons to complement `aria-label`s and provide immediate visual context on hover.
