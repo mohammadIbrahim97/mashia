@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Listing } from '../listings/listing.entity';
@@ -20,6 +21,7 @@ export class Certificate {
   @JoinColumn({ name: 'seller_id' })
   seller: User;
 
+  @Index()
   @Column({ name: 'seller_id' })
   sellerId: string;
 
@@ -27,6 +29,7 @@ export class Certificate {
   @JoinColumn({ name: 'listing_id' })
   listing: Listing | null;
 
+  @Index()
   @Column({ type: 'uuid', nullable: true, name: 'listing_id' })
   listingId: string | null;
 
