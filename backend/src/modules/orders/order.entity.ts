@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Listing } from '../listings/listing.entity';
@@ -27,6 +28,8 @@ export class Order {
   @JoinColumn({ name: 'buyer_id' })
   buyer: User;
 
+  // ⚡ Bolt: Adding database indexes on frequently queried foreign keys (buyerId, sellerId, brokerId) to optimize the findMyOrders query and prevent full table scans.
+  @Index()
   @Column({ name: 'buyer_id' })
   buyerId: string;
 
@@ -34,6 +37,7 @@ export class Order {
   @JoinColumn({ name: 'seller_id' })
   seller: User;
 
+  @Index()
   @Column({ name: 'seller_id' })
   sellerId: string;
 
@@ -41,6 +45,7 @@ export class Order {
   @JoinColumn({ name: 'broker_id' })
   broker: User | null;
 
+  @Index()
   @Column({ type: 'uuid', nullable: true, name: 'broker_id' })
   brokerId: string | null;
 
