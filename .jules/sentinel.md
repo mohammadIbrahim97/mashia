@@ -8,3 +8,7 @@
 **Vulnerability:** The `User` entity, which includes `passwordHash` and `totpSecret`, was being returned directly from auth controllers (`register`, `login`, `adminLogin`, `adminTotpVerify`), exposing sensitive fields to clients.
 **Learning:** Returning raw TypeORM entities directly from controllers bypasses serialization, leaking internal database fields.
 **Prevention:** Always use dedicated Data Transfer Objects (DTOs), like `ProfileResponseDto.fromUser(user)`, to map and sanitize entities before returning them in API responses.
+## 2026-07-30 - Add Rate Limiting to Admin Login endpoint
+**Vulnerability:** The `/auth/admin/login` endpoint lacked explicit rate limiting, leaving it vulnerable to brute-force attacks against high-value admin accounts.
+**Learning:** `ThrottlerGuard` is bound globally in `src/app.module.ts`. Using the `@Throttle()` decorator on a controller route is sufficient to enforce rate limiting without explicitly adding `@UseGuards(ThrottlerGuard)`.
+**Prevention:** Ensure all sensitive authentication endpoints (especially admin logins) have strict rate limiting explicitly configured.
