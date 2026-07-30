@@ -7,6 +7,7 @@ import {
   DeleteDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Breed, Currency, ListingStatus, HealthStatus } from '@shared/enums';
@@ -20,12 +21,15 @@ export class Listing {
   @JoinColumn({ name: 'seller_id' })
   seller: User;
 
+  // ⚡ Bolt: Adding database indexes on frequently filtered fields (sellerId, breed, status) to optimize listing search and dashboard queries.
+  @Index()
   @Column({ name: 'seller_id' })
   sellerId: string;
 
   @Column({ length: 200 })
   title: string;
 
+  @Index()
   @Column({ type: 'enum', enum: Breed })
   breed: Breed;
 
@@ -70,6 +74,7 @@ export class Listing {
   @Column({ type: 'uuid', nullable: true, name: 'certificate_id' })
   certificateId: string | null;
 
+  @Index()
   @Column({
     type: 'enum',
     enum: ListingStatus,
