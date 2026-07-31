@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Listing } from '../listings/listing.entity';
@@ -20,6 +21,8 @@ export class Order {
   @JoinColumn({ name: 'listing_id' })
   listing: Listing | null;
 
+  // ⚡ Bolt: Index on listing_id prevents seq scans when looking up orders by listing
+  @Index()
   @Column({ type: 'uuid', nullable: true, name: 'listing_id' })
   listingId: string | null;
 
@@ -27,6 +30,8 @@ export class Order {
   @JoinColumn({ name: 'buyer_id' })
   buyer: User;
 
+  // ⚡ Bolt: Index on buyer_id prevents seq scans in findMyOrders queries
+  @Index()
   @Column({ name: 'buyer_id' })
   buyerId: string;
 
@@ -34,6 +39,8 @@ export class Order {
   @JoinColumn({ name: 'seller_id' })
   seller: User;
 
+  // ⚡ Bolt: Index on seller_id prevents seq scans in findMyOrders queries
+  @Index()
   @Column({ name: 'seller_id' })
   sellerId: string;
 
@@ -41,6 +48,8 @@ export class Order {
   @JoinColumn({ name: 'broker_id' })
   broker: User | null;
 
+  // ⚡ Bolt: Index on broker_id prevents seq scans in findMyOrders queries
+  @Index()
   @Column({ type: 'uuid', nullable: true, name: 'broker_id' })
   brokerId: string | null;
 
