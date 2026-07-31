@@ -1,6 +1,7 @@
-'use client';
+"use client";
 
-import { Search, Bell } from 'lucide-react';
+import { Search, Bell } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 type Props = {
   title: string;
@@ -8,6 +9,20 @@ type Props = {
 };
 
 export function Header({ title, breadcrumb }: Props) {
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   return (
     <header className="h-16 px-8 flex items-center justify-between border-b border-hairline bg-paper">
       <div>
@@ -18,7 +33,7 @@ export function Header({ title, breadcrumb }: Props) {
         )}
         <div
           className={`font-display text-[22px] font-medium tracking-tight ${
-            breadcrumb ? 'mt-0.5' : ''
+            breadcrumb ? "mt-0.5" : ""
           }`}
         >
           {title}
@@ -28,12 +43,15 @@ export function Header({ title, breadcrumb }: Props) {
         <div className="flex items-center gap-2 px-3 py-2 bg-parchment border border-hairline rounded-md w-[280px] focus-within:ring-2 focus-within:ring-mashia-600 focus-within:border-transparent transition-all">
           <Search size={16} strokeWidth={1.5} className="text-muted" />
           <input
-            aria-label="Search"
+            ref={searchInputRef}
             placeholder="Search orders, users…"
             aria-label="Global search"
             className="flex-1 bg-transparent border-none outline-none font-body text-[13px] text-ink"
           />
-          <span className="font-mono text-[10px] text-muted px-1.5 py-px bg-paper border border-hairline rounded" aria-hidden="true">
+          <span
+            className="font-mono text-[10px] text-muted px-1.5 py-px bg-paper border border-hairline rounded"
+            aria-hidden="true"
+          >
             ⌘K
           </span>
         </div>
