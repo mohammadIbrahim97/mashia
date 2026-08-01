@@ -6,12 +6,18 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Listing } from '../listings/listing.entity';
 import { Currency, OrderStatus } from '@shared/enums';
 
+// ⚡ Bolt: Adding database indexes on frequently queried fields and foreign keys to prevent sequential scans
 @Entity('orders')
+@Index(['buyerId'])
+@Index(['sellerId'])
+@Index(['listingId'])
+@Index(['status'])
 export class Order {
   @PrimaryGeneratedColumn('uuid')
   id: string;
