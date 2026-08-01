@@ -7,11 +7,15 @@ import {
   DeleteDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Breed, Currency, ListingStatus, HealthStatus } from '@shared/enums';
 
+// ⚡ Bolt: Adding database indexes on frequently queried fields and foreign keys to prevent sequential scans
 @Entity('listings')
+@Index(['sellerId'])
+@Index(['status'])
 export class Listing {
   @PrimaryGeneratedColumn('uuid')
   id: string;
