@@ -7,11 +7,17 @@ import {
   DeleteDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Breed, Currency, ListingStatus, HealthStatus } from '@shared/enums';
 
 @Entity('listings')
+// ⚡ Bolt: Added indexes to frequently queried fields (sellerId, status)
+// This prevents sequential table scans during findAll and findMine queries,
+// expected to significantly reduce query times on the listings table.
+@Index(['sellerId'])
+@Index(['status'])
 export class Listing {
   @PrimaryGeneratedColumn('uuid')
   id: string;
