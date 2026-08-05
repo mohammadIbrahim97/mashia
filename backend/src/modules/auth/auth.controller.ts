@@ -1,4 +1,5 @@
 import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -58,6 +59,8 @@ export class AuthController {
 
   // ----- Admin auth (email + password + optional TOTP) -----
 
+  // 🛡️ Sentinel: Strict rate limiting on sensitive admin auth endpoints to prevent brute-force attacks
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('admin/login')
   async adminLogin(@Body() dto: AdminLoginDto) {
     const result = await this.authService.adminLogin(dto.email, dto.password);
@@ -67,6 +70,7 @@ export class AuthController {
     return result;
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('admin/totp/verify')
   async adminTotpVerify(@Body() dto: AdminTotpVerifyDto) {
     const result = await this.authService.verifyAdminTotp(dto.ticket, dto.code);
