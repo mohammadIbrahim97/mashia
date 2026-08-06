@@ -1,4 +1,5 @@
 import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -20,6 +21,8 @@ import { UserRole } from '@shared/enums';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  // 🛡️ Sentinel: Apply strict rate limiting to prevent SMS abuse/toll fraud
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post('otp/send')
   async sendOtp(@Body() dto: SendOtpDto): Promise<{ message: string }> {
     await this.authService.sendOtp(dto.phone);
@@ -58,6 +61,8 @@ export class AuthController {
 
   // ----- Admin auth (email + password + optional TOTP) -----
 
+  // 🛡️ Sentinel: Apply strict rate limiting to prevent brute force attacks
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('admin/login')
   async adminLogin(@Body() dto: AdminLoginDto) {
     const result = await this.authService.adminLogin(dto.email, dto.password);
