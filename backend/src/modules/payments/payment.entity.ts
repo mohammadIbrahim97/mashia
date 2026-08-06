@@ -32,6 +32,7 @@ export class Payment {
   @JoinColumn({ name: 'payer_id' })
   payer: User;
 
+  @Index()
   @Column({ type: 'uuid', name: 'payer_id' })
   payerId: string;
 
@@ -73,6 +74,7 @@ export class Payment {
   @Column({ type: 'timestamptz', name: 'refunded_at', nullable: true })
   refundedAt: Date | null;
 
+  @Index()
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

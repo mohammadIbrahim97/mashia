@@ -7,6 +7,7 @@ import {
   DeleteDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Breed, Currency, ListingStatus, HealthStatus } from '@shared/enums';
@@ -20,6 +21,7 @@ export class Listing {
   @JoinColumn({ name: 'seller_id' })
   seller: User;
 
+  @Index()
   @Column({ name: 'seller_id' })
   sellerId: string;
 
