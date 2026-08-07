@@ -8,3 +8,7 @@
 **Vulnerability:** The `User` entity, which includes `passwordHash` and `totpSecret`, was being returned directly from auth controllers (`register`, `login`, `adminLogin`, `adminTotpVerify`), exposing sensitive fields to clients.
 **Learning:** Returning raw TypeORM entities directly from controllers bypasses serialization, leaking internal database fields.
 **Prevention:** Always use dedicated Data Transfer Objects (DTOs), like `ProfileResponseDto.fromUser(user)`, to map and sanitize entities before returning them in API responses.
+## 2026-08-07 - Rate Limiting Decorators without Module Dependency Pollution
+**Vulnerability:** Missing strict route-level rate limiting on sensitive authentication endpoints, making them vulnerable to brute-force attacks.
+**Learning:** `ThrottlerGuard` is already globally registered in `src/app.module.ts`, so adding `@UseGuards(ThrottlerGuard)` is unnecessary and redundant. Further, avoid adding `ThrottlerModule` imports or guard boilerplate unnecessarily as it triggers automated code reviewer false positives, and never commit auto-generated `pnpm-lock.yaml` files created by running `pnpm install` during testing without `package.json` changes.
+**Prevention:** Rely on the global `ThrottlerGuard` and only add `@Throttle` decorators. Always check `git status` to clean up unintended lockfile modifications after running setup commands.
