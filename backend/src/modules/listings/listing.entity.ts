@@ -1,4 +1,5 @@
 import {
+  Index,
   Entity,
   PrimaryGeneratedColumn,
   Column,
@@ -20,6 +21,8 @@ export class Listing {
   @JoinColumn({ name: 'seller_id' })
   seller: User;
 
+  // ⚡ Bolt: Index added to optimize foreign key lookups and JOIN performance
+  @Index()
   @Column({ name: 'seller_id' })
   sellerId: string;
 
@@ -67,6 +70,7 @@ export class Listing {
   })
   healthStatus: HealthStatus;
 
+  @Index()
   @Column({ type: 'uuid', nullable: true, name: 'certificate_id' })
   certificateId: string | null;
 
