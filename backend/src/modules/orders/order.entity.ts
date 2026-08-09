@@ -1,4 +1,5 @@
 import {
+  Index,
   Entity,
   PrimaryGeneratedColumn,
   Column,
@@ -20,6 +21,8 @@ export class Order {
   @JoinColumn({ name: 'listing_id' })
   listing: Listing | null;
 
+  // ⚡ Bolt: Index added to optimize foreign key lookups and JOIN performance
+  @Index()
   @Column({ type: 'uuid', nullable: true, name: 'listing_id' })
   listingId: string | null;
 
@@ -27,6 +30,7 @@ export class Order {
   @JoinColumn({ name: 'buyer_id' })
   buyer: User;
 
+  @Index()
   @Column({ name: 'buyer_id' })
   buyerId: string;
 
@@ -34,6 +38,7 @@ export class Order {
   @JoinColumn({ name: 'seller_id' })
   seller: User;
 
+  @Index()
   @Column({ name: 'seller_id' })
   sellerId: string;
 
@@ -41,6 +46,7 @@ export class Order {
   @JoinColumn({ name: 'broker_id' })
   broker: User | null;
 
+  @Index()
   @Column({ type: 'uuid', nullable: true, name: 'broker_id' })
   brokerId: string | null;
 
