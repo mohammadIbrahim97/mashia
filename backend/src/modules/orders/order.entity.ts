@@ -6,12 +6,20 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Listing } from '../listings/listing.entity';
 import { Currency, OrderStatus } from '@shared/enums';
 
 @Entity('orders')
+// ⚡ Bolt: Performance optimization
+// Added indexes on foreign keys and frequently filtered fields to prevent sequential scans.
+// Impact: Expected to reduce query latency by avoiding full table scans, changing lookup complexity from O(N) to O(log N).
+@Index('idx_orders_listing_id', ['listingId'])
+@Index('idx_orders_buyer_id', ['buyerId'])
+@Index('idx_orders_seller_id', ['sellerId'])
+@Index('idx_orders_status', ['status'])
 export class Order {
   @PrimaryGeneratedColumn('uuid')
   id: string;
