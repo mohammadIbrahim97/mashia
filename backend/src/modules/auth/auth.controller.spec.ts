@@ -44,6 +44,10 @@ describe('AuthController', () => {
       register: jest.fn().mockResolvedValue({ ...mockTokens, user: mockUser }),
       login: jest.fn().mockResolvedValue({ ...mockTokens, user: mockUser }),
       refresh: jest.fn().mockResolvedValue(mockTokens),
+      adminLogin: jest.fn(),
+      verifyAdminTotp: jest.fn(),
+      setupAdminTotp: jest.fn(),
+      enableAdminTotp: jest.fn(),
     } as unknown as jest.Mocked<AuthService>;
 
     const module: TestingModule = await Test.createTestingModule({
