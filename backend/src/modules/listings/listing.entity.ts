@@ -7,11 +7,18 @@ import {
   DeleteDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Breed, Currency, ListingStatus, HealthStatus } from '@shared/enums';
 
 @Entity('listings')
+// ⚡ Bolt: Performance optimization
+// Added indexes on foreign keys and frequently filtered fields to prevent sequential scans.
+// Impact: Expected to reduce query latency by avoiding full table scans, changing lookup complexity from O(N) to O(log N).
+@Index('idx_listings_seller_id', ['sellerId'])
+@Index('idx_listings_status', ['status'])
+@Index('idx_listings_breed', ['breed'])
 export class Listing {
   @PrimaryGeneratedColumn('uuid')
   id: string;
