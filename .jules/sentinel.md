@@ -8,3 +8,7 @@
 **Vulnerability:** The `User` entity, which includes `passwordHash` and `totpSecret`, was being returned directly from auth controllers (`register`, `login`, `adminLogin`, `adminTotpVerify`), exposing sensitive fields to clients.
 **Learning:** Returning raw TypeORM entities directly from controllers bypasses serialization, leaking internal database fields.
 **Prevention:** Always use dedicated Data Transfer Objects (DTOs), like `ProfileResponseDto.fromUser(user)`, to map and sanitize entities before returning them in API responses.
+## 2023-10-27 - [Add route-specific rate limiting to sensitive authentication endpoints]
+**Vulnerability:** Missing strict route-specific rate limits on sensitive authentication endpoints (e.g., login, register, OTP), leaving them susceptible to brute-force attacks and credential stuffing, as the global rate limit (100 reqs/min) was too permissive.
+**Learning:** In NestJS applications using `@nestjs/throttler`, global rate limits are often insufficient for high-risk endpoints. It is crucial to apply stricter rate limits at the route level using the `@Throttle()` decorator.
+**Prevention:** Always evaluate the sensitivity of individual endpoints, especially those related to authentication and authorization, and apply appropriate route-specific rate limiting configurations using `@Throttle()` or custom guards.
