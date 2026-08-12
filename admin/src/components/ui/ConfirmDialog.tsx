@@ -30,8 +30,20 @@ export function ConfirmDialog({
   const [reason, setReason] = useState('');
 
   useEffect(() => {
-    if (!open) setReason('');
-  }, [open]);
+    if (!open) {
+      setReason('');
+      return;
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !busy) {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, busy, onClose]);
 
   if (!open) return null;
 
@@ -47,14 +59,18 @@ export function ConfirmDialog({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-dialog-title"
+        aria-describedby={body ? "confirm-dialog-desc" : undefined}
         className="bg-paper border border-hairline rounded-md w-[460px] p-7 shadow-3"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="font-display text-[22px] font-medium tracking-tight text-ink">
+        <div id="confirm-dialog-title" className="font-display text-[22px] font-medium tracking-tight text-ink">
           {title}
         </div>
         {body && (
-          <div className="mt-2 text-sm text-muted leading-[1.55]">{body}</div>
+          <div id="confirm-dialog-desc" className="mt-2 text-sm text-muted leading-[1.55]">{body}</div>
         )}
         {requireReason && (
           <div className="mt-4">
