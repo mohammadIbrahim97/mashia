@@ -35,7 +35,7 @@ export function Button({
   return (
     <button
       {...rest}
-      className={`font-body font-semibold border rounded-md transition-colors duration-150 ease-out cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${SIZE[size]} ${KIND[kind]} ${className}`}
+      className={`font-body font-semibold border rounded-md transition-colors duration-150 ease-out cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mashia-600 focus-visible:ring-offset-2 ${SIZE[size]} ${KIND[kind]} ${className}`}
     >
       {children}
     </button>
