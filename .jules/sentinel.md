@@ -8,3 +8,8 @@
 **Vulnerability:** The `User` entity, which includes `passwordHash` and `totpSecret`, was being returned directly from auth controllers (`register`, `login`, `adminLogin`, `adminTotpVerify`), exposing sensitive fields to clients.
 **Learning:** Returning raw TypeORM entities directly from controllers bypasses serialization, leaking internal database fields.
 **Prevention:** Always use dedicated Data Transfer Objects (DTOs), like `ProfileResponseDto.fromUser(user)`, to map and sanitize entities before returning them in API responses.
+
+## 2026-08-13 - Missing Route-Specific Rate Limiting
+**Vulnerability:** Authentication and OTP endpoints were relying solely on global rate limits (`ThrottlerGuard` in `app.module.ts` set to 100 req/min), which is too permissive for sensitive routes, leaving the application vulnerable to brute-force attacks and OTP spamming.
+**Learning:** Default global rate limiting is insufficient for sensitive endpoints. High-value routes like login, registration, and OTP verification require strict, custom limits.
+**Prevention:** Always apply stricter route-specific rate limits using `@Throttle({ default: { limit: <number>, ttl: <milliseconds> } })` to authentication endpoints to mitigate brute-force attacks.
